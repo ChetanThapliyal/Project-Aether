@@ -3,3 +3,7 @@
 *.tfstate.backup
 .env
 secrets/
+*.env
+*.log
+.DS_Store
+*.tmp

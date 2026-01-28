@@ -1,0 +1,36 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+
+    # Homepage normally listens on 3000 internally
+    ports:
+      - "3000:3000"
+
+    networks:
+      - proxied-net
+
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "homepage.tail7067ab.ts.net"
+      PUID: 1000
+      PGID: 1000
+
+      # Example environment secrets
+      HOMEPAGE_VAR_GRAFANA_TOKEN: ${GRAFANA_TOKEN}
+      HOMEPAGE_FILE_OPENAI_KEY: /app/secrets/openai.key
+
+    volumes:
+      - ./config:/app/config
+      - ./secrets:/app/secrets
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    labels:
+      # TSDPROXY support
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=homepage"
+      - "tsdproxy.container_port=3000"
+
+networks:
+  proxied-net:
+    external: true

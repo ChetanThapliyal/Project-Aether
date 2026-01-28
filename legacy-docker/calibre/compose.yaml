@@ -1,0 +1,46 @@
+services:
+  #  calibre:
+  #    image: lscr.io/linuxserver/calibre:latest
+  #    container_name: calibre
+  #    environment:
+  #      - PUID=1000
+  #      - PGID=1000
+  #      - TZ=Your/Timezone
+  #    volumes:
+  #      - ./config:/config
+  #      - /your/media/path
+  #    ports:
+  #      - "8085:8080"  # Desktop GUI
+  #      - "8086:8081"  # Webserver
+  #    labels:
+  #      - "tsdproxy.enable=true"
+  #      - "tsdproxy.name=calibre-manage"
+  #      - "tsdproxy.container_port=8080"
+  #    networks:
+  #      - proxied-net
+  #    restart: unless-stopped
+
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+     # - DOCKER_MODS=linuxserver/mods:universal-calibre # Optional: Adds useful conversion tools
+    volumes:
+      - ./web-config:/config
+      - /your/media/path
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=calibre-web"
+      - "tsdproxy.container_port=8083"
+    ports:
+      - "8083:8083"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

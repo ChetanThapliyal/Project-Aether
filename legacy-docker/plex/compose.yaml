@@ -1,0 +1,28 @@
+services:
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+      - VERSION=docker
+      # Optional: Add claim token from https://plex.tv/claim for first run
+      - PLEX_CLAIM=claim-*****************
+    volumes:
+      - ./config:/config
+      - /your/media/path
+    ports:
+      - "32400:32400"
+    networks:
+      - proxied-net
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=plex"
+      - "tsdproxy.container_port=32400"
+      - "tsdproxy.ephemeral=false"
+
+networks:
+  proxied-net:
+    external: true

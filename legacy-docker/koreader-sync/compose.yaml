@@ -1,0 +1,11 @@
+services:
+  kosync:
+    image: ghcr.io/jberlyn/kosync-dotnet:latest
+    container_name: kosync
+    restart: unless-stopped
+    ports:
+      - "7200:8080"
+    environment:
+      - ASPNETCORE_HTTP_PORTS=8080
+    volumes:
+      - ./kosync-data:/app/data

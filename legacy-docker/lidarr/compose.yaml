@@ -1,0 +1,25 @@
+services:
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+    volumes:
+      - /your/media/path
+      - /your/media/path
+      - /your/media/path
+    ports:
+      - "8686:8686"
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=lidarr"
+      - "tsdproxy.container_port=8686"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

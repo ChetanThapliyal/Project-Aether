@@ -1,0 +1,33 @@
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.7.0 # 
+    container_name: mealie
+    restart: always
+    ports:
+        - "9925:9000" # 
+    mem_limit: 1000m 
+    volumes:
+      - mealie-data:/app/data/
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=mealie"
+      - "tsdproxy.container_port=9000"
+
+    environment:
+      # Set Backend ENV Variables Here
+      ALLOW_SIGNUP: "false"
+      PUID: 1000
+      PGID: 1000
+      TZ: Asia/Kolkata
+      BASE_URL: https://mealie.tail7067ab.ts.net
+    networks:
+      - proxied-net
+
+volumes:
+  mealie-data:
+
+networks:
+  proxied-net:
+    external: true
+
+

@@ -1,0 +1,27 @@
+services:
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ee:lts
+    restart: always
+    #envirnment:
+    #  - UPGRADE_TO_BE=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - 9443:9443
+      #- 8000:8000  # Remove if you do not intend to use Edge Agents
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=portainer"
+      - "tsdproxy.container_port=9443"
+    networks:
+      - proxied-net
+
+volumes:
+  portainer_data:
+    external: true
+
+networks:
+  proxied-net:
+    external: true

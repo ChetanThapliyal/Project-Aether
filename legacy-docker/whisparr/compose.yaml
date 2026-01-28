@@ -1,0 +1,25 @@
+services:
+  whisparr:
+    image: ghcr.io/hotio/whisparr:latest
+    container_name: whisparr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+    volumes:
+      - /your/media/path
+      - /your/media/path
+      - /your/media/path
+    ports:
+      - "6969:6969"
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=whisparr"
+      - "tsdproxy.container_port=6969"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

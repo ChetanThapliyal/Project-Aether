@@ -1,0 +1,25 @@
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+      - WEBUI_PORT=8080
+    volumes:
+      - ./config:/config
+      - /your/media/path
+    ports:
+      - "8080:8080"
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=downloads"
+      - "tsdproxy.container_port=8080"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

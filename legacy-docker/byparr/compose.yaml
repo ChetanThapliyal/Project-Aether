@@ -1,0 +1,15 @@
+services:
+  bypassarr:
+    image: ghcr.io/thephaseless/byparr:latest
+    container_name: bypassarr
+    ports:
+      - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

@@ -1,0 +1,19 @@
+services:
+  stirling-pdf:
+    image: stirlingtools/stirling-pdf:latest
+    container_name: stirling-pdf
+    ports:
+      - '8081:8080'
+    volumes:
+      - ./stirling-data:/configs
+    restart: unless-stopped
+    networks:
+      - proxied-net
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=stirling-pdf"
+      - "tsdproxy.container_port=8081"
+
+networks:
+  proxied-net:
+    external: true

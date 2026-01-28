@@ -1,0 +1,26 @@
+services:
+  glance:
+    image: glanceapp/glance:latest
+    container_name: glance
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    volumes:
+      - ./config:/app/config
+      - ./assets:/app/assets
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file: .env
+    networks:
+      - proxied-net
+
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.port=8080"
+      - "tsdproxy.auth=false"          # Glance has no login; keep it private
+      - "tsdproxy.tls=false"           # Optional: Tailscale handles encryption
+      - "tsdproxy.hostname=glance"     # Tailnet name e.g. http://glance.<tailnet>.ts.net:8080
+
+networks:
+  proxied-net:
+    external: true

@@ -1,0 +1,21 @@
+services:
+  tsdproxy:
+    image: almeidapaulopt/tsdproxy:latest
+    container_name: tsdproxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    environment:
+      - TSDPROXY_AUTHKEY=tskey-auth-*************
+      - TSDPROXY_HOSTNAME=homelab
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+volumes:
+  data:
+
+networks:
+  proxied-net:
+    external: true

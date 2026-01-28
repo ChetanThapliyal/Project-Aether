@@ -1,0 +1,21 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    user: 1000:1000
+    environment:
+      - TZ=Your/Timezone
+    volumes:
+      - ./config:/data
+      - /your/media/path
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=music"
+      - "tsdproxy.container_port=4533"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

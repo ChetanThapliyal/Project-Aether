@@ -1,0 +1,68 @@
+services:
+  overleaf:
+    image: sharelatex/sharelatex
+    container_name: overleaf
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./overleaf_data:/var/lib/overleaf
+    environment:
+      OVERLEAF_APP_NAME: Overleaf
+      OVERLEAF_MONGO_URL: mongodb://mongo/sharelatex
+      OVERLEAF_REDIS_HOST: redis
+      REDIS_HOST: redis
+      ENABLED_LINKED_FILE_TYPES: 'project_file,project_output_file'
+      ENABLE_CONVERSIONS: 'true'
+      EMAIL_CONFIRMATION_DISABLED: 'true'
+
+      # --- CRITICAL FIX: Server Pro options are disabled ---
+      # SANDBOXED_COMPILES: 'true'
+      # SANDBOXED_COMPILES_HOST_DIR_COMPILES: '/var/lib/overleaf/data/compiles'
+      # SANDBOXED_COMPILES_HOST_DIR_OUTPUT: '/var/lib/overleaf/data/output'
+      # DOCKER_RUNNER: 'true'
+      # SANDBOXED_COMPILES_SIBLING_CONTAINERS: 'true'
+
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=overleaf"
+      - "tsdproxy.container_port=80"
+    networks:
+      - proxied-net
+    restart: no
+    stop_grace_period: 60s
+
+  mongo:
+    restart: no
+    image: mongo:6.0
+    container_name: mongo
+    command: '--replSet overleaf'
+    volumes:
+      - ./mongo_data:/data/db
+      - ./bin/shared/mongodb-init-replica-set.js:/docker-entrypoint-initdb.d/mongodb-init-replica-set.js
+    environment:
+      MONGO_INITDB_DATABASE: sharelatex
+    extra_hosts:
+      - mongo:127.0.0.1
+    healthcheck:
+      test: echo 'db.stats().ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - proxied-net
+
+  redis:
+    restart: no
+    image: redis:6.2
+    container_name: redis
+    volumes:
+      - ./redis_data:/data
+    networks:
+      - proxied-net
+
+networks:
+  proxied-net:
+    external: true

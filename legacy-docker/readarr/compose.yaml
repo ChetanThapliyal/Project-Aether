@@ -1,0 +1,25 @@
+services:
+  readarr:
+    image: lscr.io/linuxserver/readarr:latest
+    container_name: readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+    volumes:
+      - /your/media/path
+      - /your/media/path
+      - /your/media/path
+    ports:
+      - "8787:8787"
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=readarr"
+      - "tsdproxy.container_port=8787"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

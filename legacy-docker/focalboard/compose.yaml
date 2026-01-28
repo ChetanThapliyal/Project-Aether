@@ -1,0 +1,21 @@
+services:
+  focalboard:
+    image: mattermost/focalboard:latest
+    container_name: focalboard
+    restart: unless-stopped
+    environment:
+      - FOCALBOARD_SERVERROOT=https://focalboard.tail7067ab.ts.net
+    volumes:
+      - ./focalboard_data:/data
+
+    networks:
+      - proxied-net
+
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=focalboard"
+      - "tsdproxy.container_port=8000"
+
+networks:
+  proxied-net:
+    external: true

@@ -1,0 +1,21 @@
+services:
+  seanime:
+    image: umagistr/seanime
+    container_name: seanime
+    volumes:
+      - /your/media/path
+      - /your/media/path
+      - ./seanime-config:/root/.config/Seanime
+    ports:
+      - 3211:43211
+    restart: always
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=seanime"
+      - "tsdproxy.container_port=43211"
+    networks:
+      - proxied-net
+
+networks:
+  proxied-net:
+    external: true

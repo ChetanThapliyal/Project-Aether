@@ -1,0 +1,24 @@
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Your/Timezone
+    volumes:
+      - /your/media/path
+    ports:
+      - "9696:9696"
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=prowlarr"
+      - "tsdproxy.container_port=9696"
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true
+

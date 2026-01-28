@@ -1,0 +1,252 @@
+services:
+  # generate configs using the anyconf utility
+  generateconfig-anyconf:
+    restart: "no"
+    build:
+      context: .
+      dockerfile: Dockerfile-generateconfig-anyconf
+    volumes:
+      - ./:/code:Z
+      - "${STORAGE_DIR}:/code/storage:Z"
+
+  # processing any-sync-* configs
+  generateconfig-processing:
+    restart: "no"
+    depends_on:
+      generateconfig-anyconf:
+        condition: service_completed_successfully
+    build:
+      context: .
+      dockerfile: Dockerfile-generateconfig-processing
+    volumes:
+      - ./:/code:Z
+      - "${STORAGE_DIR}:/code/storage:Z"
+
+  mongo-1:
+    depends_on:
+      generateconfig-processing:
+        condition: service_completed_successfully
+    image: "mongo:${MONGO_VERSION}"
+    restart: unless-stopped
+    command: ["--replSet", "${MONGO_REPLICA_SET}", "--port", "${MONGO_1_PORT}"]
+    volumes:
+      - "${STORAGE_DIR}/mongo-1:/data/db:Z"
+    healthcheck:
+      test: test $$(mongosh --port ${MONGO_1_PORT} --quiet --eval "try {rs.initiate({_id:'${MONGO_REPLICA_SET}',members:[{_id:0,host:\"mongo-1:${MONGO_1_PORT}\"}]})} catch(e) {rs.status().ok}") -eq 1
+      interval: 10s
+      start_period: 30s
+    ports:
+      - "127.0.0.1:${MONGO_1_PORT}:${MONGO_1_PORT}"
+
+  redis:
+    depends_on:
+      generateconfig-processing:
+        condition: service_completed_successfully
+    image: "redis/redis-stack-server:${REDIS_VERSION}"
+    restart: unless-stopped
+    command: ["redis-server", "--port", "${REDIS_PORT}", "--dir", "/data/", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY}", "--maxmemory-policy", "noeviction", "--protected-mode", "no", "--loadmodule", "/opt/redis-stack/lib/redisbloom.so"]
+    volumes:
+      - "${STORAGE_DIR}/redis:/data:Z"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "-p", "${REDIS_PORT}", "incr", "ping" ]
+      interval: 10s
+      timeout: 30s
+      retries: 3
+    ports:
+      - "127.0.0.1:${REDIS_PORT}:${REDIS_PORT}"
+
+  minio:
+    image: "minio/minio:${MINIO_VERSION}"
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":${MINIO_WEB_PORT}", "--address", ":${MINIO_PORT}"]
+    environment:
+      MINIO_ROOT_USER: "${AWS_ACCESS_KEY_ID}"
+      MINIO_ROOT_PASSWORD: "${AWS_SECRET_ACCESS_KEY}"
+    volumes:
+      - "${STORAGE_DIR}/minio:/data:Z"
+    healthcheck:
+      test: bash -c ':> /dev/tcp/127.0.0.1/${MINIO_PORT}' || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+    networks:
+      default:
+        aliases:
+          - "${MINIO_BUCKET}.minio" # <bucket-name>.<endpoint-name>
+    ports:
+      - "127.0.0.1:${EXTERNAL_MINIO_WEB_PORT}:${MINIO_WEB_PORT}"
+
+  create-bucket:
+    restart: "no"
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set minio http://minio:${MINIO_PORT} '${AWS_ACCESS_KEY_ID}' '${AWS_SECRET_ACCESS_KEY}') do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb minio/${MINIO_BUCKET};
+      exit 0;
+      "
+
+  any-sync-coordinator_bootstrap:
+    image: "ghcr.io/anyproto/any-sync-coordinator:${ANY_SYNC_COORDINATOR_VERSION}"
+    depends_on:
+      generateconfig-processing:
+        condition: service_completed_successfully
+      mongo-1:
+        condition: service_healthy
+    volumes:
+      - ./etc/any-sync-coordinator:/etc/any-sync-coordinator:Z
+    restart: "no"
+    command: ["/bin/any-sync-confapply", "-c", "/etc/any-sync-coordinator/config.yml", "-n", "/etc/any-sync-coordinator/network.yml", "-e"]
+
+  any-sync-coordinator:
+    image: "ghcr.io/anyproto/any-sync-coordinator:${ANY_SYNC_COORDINATOR_VERSION}"
+    depends_on:
+      generateconfig-processing:
+        condition: service_completed_successfully
+      mongo-1:
+        condition: service_healthy
+      any-sync-coordinator_bootstrap:
+        condition: service_completed_successfully
+    ports:
+      - "${ANY_SYNC_COORDINATOR_PORT}:${ANY_SYNC_COORDINATOR_PORT}"
+      - "${ANY_SYNC_COORDINATOR_QUIC_PORT}:${ANY_SYNC_COORDINATOR_QUIC_PORT}/udp"
+      - "${ANY_SYNC_COORDINATOR_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-coordinator:/etc/any-sync-coordinator:Z
+      - "${STORAGE_DIR}/networkStore/any-sync-coordinator:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  any-sync-filenode:
+    image: "ghcr.io/anyproto/any-sync-filenode:${ANY_SYNC_FILENODE_VERSION}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      any-sync-coordinator:
+        condition: service_started
+    ports:
+      - "${ANY_SYNC_FILENODE_PORT}:${ANY_SYNC_FILENODE_PORT}"
+      - "${ANY_SYNC_FILENODE_QUIC_PORT}:${ANY_SYNC_FILENODE_QUIC_PORT}/udp"
+      - "${ANY_SYNC_FILENODE_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-filenode:/etc/any-sync-filenode:Z
+      - ./etc/.aws:/root/.aws:ro
+      - "${STORAGE_DIR}/networkStore/any-sync-filenode:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  any-sync-node-1:
+    image: "ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}"
+    depends_on:
+      any-sync-coordinator:
+        condition: service_started
+    ports:
+      - "${ANY_SYNC_NODE_1_PORT}:${ANY_SYNC_NODE_1_PORT}"
+      - "${ANY_SYNC_NODE_1_QUIC_PORT}:${ANY_SYNC_NODE_1_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_1_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_1_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-node-1:/etc/any-sync-node:Z
+      - ./etc/.aws:/root/.aws:ro
+      - "${STORAGE_DIR}/any-sync-node-1:/storage:Z"
+      - "${STORAGE_DIR}/anyStorage/any-sync-node-1:/anyStorage:Z"
+      - "${STORAGE_DIR}/networkStore/any-sync-node-1:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  any-sync-node-2:
+    image: "ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}"
+    depends_on:
+      any-sync-coordinator:
+        condition: service_started
+    ports:
+      - "${ANY_SYNC_NODE_2_PORT}:${ANY_SYNC_NODE_2_PORT}"
+      - "${ANY_SYNC_NODE_2_QUIC_PORT}:${ANY_SYNC_NODE_2_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_2_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_2_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-node-2:/etc/any-sync-node:Z
+      - ./etc/.aws:/root/.aws:ro
+      - "${STORAGE_DIR}/any-sync-node-2:/storage:Z"
+      - "${STORAGE_DIR}/anyStorage/any-sync-node-2:/anyStorage:Z"
+      - "${STORAGE_DIR}/networkStore/any-sync-node-2:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  any-sync-node-3:
+    image: "ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}"
+    depends_on:
+      any-sync-coordinator:
+        condition: service_started
+    ports:
+      - "${ANY_SYNC_NODE_3_PORT}:${ANY_SYNC_NODE_3_PORT}"
+      - "${ANY_SYNC_NODE_3_QUIC_PORT}:${ANY_SYNC_NODE_3_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_3_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_3_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-node-3:/etc/any-sync-node:Z
+      - ./etc/.aws:/root/.aws:ro
+      - "${STORAGE_DIR}/any-sync-node-3:/storage:Z"
+      - "${STORAGE_DIR}/anyStorage/any-sync-node-3:/anyStorage:Z"
+      - "${STORAGE_DIR}/networkStore/any-sync-node-3:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  any-sync-consensusnode:
+    image: "ghcr.io/anyproto/any-sync-consensusnode:${ANY_SYNC_CONSENSUSNODE_VERSION}"
+    depends_on:
+      any-sync-coordinator:
+        condition: service_started
+    ports:
+      - "${ANY_SYNC_CONSENSUSNODE_PORT}:${ANY_SYNC_CONSENSUSNODE_PORT}"
+      - "${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}:${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}/udp"
+      - "${ANY_SYNC_CONSENSUSNODE_METRIC_ADDR}:8000"
+    volumes:
+      - ./etc/any-sync-consensusnode:/etc/any-sync-consensusnode:Z
+      - "${STORAGE_DIR}/networkStore/any-sync-consensusnode:/networkStore:Z"
+    deploy:
+      resources:
+        limits:
+          memory: ${ANY_SYNC_DAEMONS_MEMORY_LIMIT:-}
+    restart: unless-stopped
+
+  # any-sync-netcheck
+  netcheck:
+    image: "ghcr.io/anyproto/any-sync-tools:${ANY_SYNC_TOOLS_VERSION}"
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - any-sync-consensusnode
+      - any-sync-filenode
+      - any-sync-coordinator
+      - any-sync-node-1
+      - any-sync-node-2
+      - any-sync-node-3
+    volumes:
+      - "${STORAGE_DIR}/docker-generateconfig:/app:Z"
+    command: ["tail", "-f", "/dev/null"]
+    stop_signal: SIGKILL
+    tty: true
+    healthcheck:
+      test: any-sync-netcheck -c nodes.yml 2>&1| grep -E 'netcheck\s+success'
+      interval: 10s
+      start_period: 5s
