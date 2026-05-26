@@ -1,0 +1,57 @@
+version: "3"
+
+# Automatically load the .env file containing your Proxmox secrets
+dotenv: [".env"]
+
+tasks:
+  default:
+    desc: "List available tasks"
+    cmds:
+      - task -l
+    silent: true
+
+  # ==========================================
+  # GitOps & Pre-commit
+  # ==========================================
+  setup:
+    desc: "Install pre-commit hooks to your local repository"
+    cmds:
+      - pre-commit install
+
+  # ==========================================
+  # SOPS Operations
+  # ==========================================
+  encrypt:
+    desc: "Encrypt a secret file (Usage: task encrypt FILE=path/to/file.yaml)"
+    cmds:
+      - sops --encrypt --in-place {{.FILE}}
+    requires:
+      vars: [FILE]
+
+  decrypt:
+    desc: "Decrypt a secret file (Usage: task decrypt FILE=path/to/file.yaml)"
+    cmds:
+      - sops --decrypt --in-place {{.FILE}}
+    requires:
+      vars: [FILE]
+
+  # ==========================================
+  # Terraform Operations
+  # ==========================================
+  tf:init:
+    desc: "Initialize Terraform"
+    dir: infrastructure/terraform
+    cmds:
+      - terraform init
+
+  tf:plan:
+    desc: "Preview infrastructure changes"
+    dir: infrastructure/terraform
+    cmds:
+      - terraform plan
+
+  tf:apply:
+    desc: "Deploy infrastructure"
+    dir: infrastructure/terraform
+    cmds:
+      - terraform apply
