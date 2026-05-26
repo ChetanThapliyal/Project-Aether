@@ -5,6 +5,26 @@
 keys.txt
 *.agekey
 age.key
+# Decrypted SOPS output (if someone decrypts in-place and forgets)
+*.decrypted.*
+
+# =========================
+# TLS, SSH & Cryptographic Keys
+# =========================
+# Private keys and certificates — block all common formats
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+# SSH key material
+id_rsa
+id_ed25519
+id_ecdsa
+*.pub
+authorized_keys
+known_hosts
 
 # =========================
 # Kubernetes & Cluster Auth
@@ -12,6 +32,9 @@ age.key
 kubeconfig
 *.kubeconfig
 .kube/
+# Helm build artifacts
+charts/*.tgz
+*.helm-chart-lock
 
 # =========================
 # Terraform
@@ -28,6 +51,8 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 .terraform.lock.hcl
+# Terraform plan output (may contain secrets in plaintext)
+*.tfplan
 
 # =========================
 # Ansible
@@ -35,6 +60,18 @@ override.tf.json
 *.retry
 .ansible/
 ansible.log
+# Ansible vault password files
+.vault_pass
+.vault_pass.txt
+vault_password_file
+
+# =========================
+# Secrets Directories
+# =========================
+# Catch-all for any unencrypted secrets dropped locally
+secrets/
+!**/*.sops.yaml
+!**/*.sops.yml
 
 # =========================
 # Taskfile & Automation
@@ -44,13 +81,42 @@ ansible.log
 .env.*
 
 # =========================
+# Credentials & Token Files
+# =========================
+credentials
+credentials.json
+token.json
+.netrc
+.npmrc
+.pypirc
+
+# =========================
+# Backup & Archives
+# =========================
+*.bak
+*.backup
+*.sql
+*.dump
+*.tar.gz
+*.zip
+
+# =========================
 # OS & IDE
 # =========================
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 *.log
+*.tmp
+
+# =========================
+# Vagrant (if used for local testing)
+# =========================
+.vagrant/
 
 # =========================
 # Files and Folders
