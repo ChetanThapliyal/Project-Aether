@@ -1,9 +1,58 @@
+# =========================
+# SOPS & Age Keys (CRITICAL)
+# =========================
+# Never commit your private decryption keys
+keys.txt
+*.agekey
+age.key
+
+# =========================
+# Kubernetes & Cluster Auth
+# =========================
+kubeconfig
+*.kubeconfig
+.kube/
+
+# =========================
+# Terraform
+# =========================
 .terraform/
 *.tfstate
 *.tfstate.backup
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# =========================
+# Ansible
+# =========================
+*.retry
+.ansible/
+ansible.log
+
+# =========================
+# Taskfile & Automation
+# =========================
+.task/
 .env
-secrets/
-*.env
-*.log
+.env.*
+
+# =========================
+# OS & IDE
+# =========================
 .DS_Store
-*.tmp
+.vscode/
+.idea/
+*.swp
+*.log
+
+# =========================
+# Files and Folders
+# =========================
+docs/planning/*

@@ -1,0 +1,11 @@
+creation_rules:
+  # Encrypt any file in kubernetes/secrets/ or anything ending in .sops.yaml
+  - path_regex: kubernetes/secrets/.*\.ya?ml$
+    age: "age1rtvk428q633syhx2w9u722huqdwqxdru63hh7qs8rcm3ynjqvs3qyx2v8y"
+
+  - path_regex: infrastructure/secrets/.*\.ya?ml$
+    age: "age1rtvk428q633syhx2w9u722huqdwqxdru63hh7qs8rcm3ynjqvs3qyx2v8y"
+
+  # Fallback for any explicitly named SOPS file
+  - path_regex: .*\.sops\.ya?ml$
+    age: "age1rtvk428q633syhx2w9u722huqdwqxdru63hh7qs8rcm3ynjqvs3qyx2v8y"
