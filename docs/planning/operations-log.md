@@ -21,3 +21,4 @@
 - **2026-08-18**: chore: optimize Taskfile operational targets
 - **2026-06-11**: chore: optimize Taskfile operational targets
 - **2026-07-22**: docs(hw): investigate HP ProBook fan noise and ACPI errors
+- **2026-06-19**: chore: review security hardening for Proxmox host
