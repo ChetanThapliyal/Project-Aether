@@ -3,3 +3,4 @@
 - **2026-06-29**: docs(hw): investigate HP ProBook fan noise and ACPI errors
 - **2026-07-05**: docs(planning): map out legacy LXC docker-compose migration
 - **2026-08-28**: chore: update K3s configurations based on CKA learnings
+- **2026-06-28**: chore(hw): capture raw EC registers for fan probe
