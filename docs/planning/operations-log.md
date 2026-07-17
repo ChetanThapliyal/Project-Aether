@@ -23,3 +23,4 @@
 - **2026-07-22**: docs(hw): investigate HP ProBook fan noise and ACPI errors
 - **2026-06-19**: chore: review security hardening for Proxmox host
 - **2026-07-02**: docs: compile hardware compatibility list for homelab
+- **2026-07-17**: chore: optimize Taskfile operational targets
