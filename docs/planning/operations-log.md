@@ -5,3 +5,4 @@
 - **2026-08-28**: chore: update K3s configurations based on CKA learnings
 - **2026-06-28**: chore(hw): capture raw EC registers for fan probe
 - **2026-06-08**: chore: optimize Taskfile operational targets
+- **2026-07-17**: docs(planning): draft Phase 1 milestone requirements
