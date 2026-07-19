@@ -17,3 +17,4 @@
 - **2026-08-26**: test(k8s): mock CKA troubleshooting scenarios on local cluster
 - **2026-06-30**: test(k8s): mock CKA troubleshooting scenarios on local cluster
 - **2026-08-26**: test(ansible): test qemu-agent installation on Ubuntu Noble
+- **2026-07-19**: test(k8s): mock CKA troubleshooting scenarios on local cluster
