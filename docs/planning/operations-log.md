@@ -9,3 +9,4 @@
 - **2026-08-11**: test(ansible): test qemu-agent installation on Ubuntu Noble
 - **2026-08-24**: test(ansible): test qemu-agent installation on Ubuntu Noble
 - **2026-08-14**: docs: log CKA exam preparation notes and practice labs
+- **2026-07-21**: docs(planning): draft Phase 1 milestone requirements
