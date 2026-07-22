@@ -20,3 +20,4 @@
 - **2026-07-19**: test(k8s): mock CKA troubleshooting scenarios on local cluster
 - **2026-08-18**: chore: optimize Taskfile operational targets
 - **2026-06-11**: chore: optimize Taskfile operational targets
+- **2026-07-22**: docs(hw): investigate HP ProBook fan noise and ACPI errors
