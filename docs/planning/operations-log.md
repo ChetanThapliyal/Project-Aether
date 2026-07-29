@@ -11,3 +11,4 @@
 - **2026-08-14**: docs: log CKA exam preparation notes and practice labs
 - **2026-07-21**: docs(planning): draft Phase 1 milestone requirements
 - **2026-06-03**: test(ansible): test qemu-agent installation on Ubuntu Noble
+- **2026-07-29**: test(terraform): dry run bpg/proxmox provider configs
