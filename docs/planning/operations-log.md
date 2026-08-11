@@ -6,3 +6,4 @@
 - **2026-06-28**: chore(hw): capture raw EC registers for fan probe
 - **2026-06-08**: chore: optimize Taskfile operational targets
 - **2026-07-17**: docs(planning): draft Phase 1 milestone requirements
+- **2026-08-11**: test(ansible): test qemu-agent installation on Ubuntu Noble
