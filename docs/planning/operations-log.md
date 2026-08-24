@@ -12,3 +12,4 @@
 - **2026-07-21**: docs(planning): draft Phase 1 milestone requirements
 - **2026-06-03**: test(ansible): test qemu-agent installation on Ubuntu Noble
 - **2026-07-29**: test(terraform): dry run bpg/proxmox provider configs
+- **2026-08-24**: chore(network): evaluate Tailscale DERP relay performance
