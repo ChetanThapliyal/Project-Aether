@@ -14,3 +14,4 @@
 - **2026-07-29**: test(terraform): dry run bpg/proxmox provider configs
 - **2026-08-24**: chore(network): evaluate Tailscale DERP relay performance
 - **2026-06-25**: docs(planning): map out legacy LXC docker-compose migration
+- **2026-08-26**: test(k8s): mock CKA troubleshooting scenarios on local cluster
