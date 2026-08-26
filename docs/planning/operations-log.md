@@ -16,3 +16,4 @@
 - **2026-06-25**: docs(planning): map out legacy LXC docker-compose migration
 - **2026-08-26**: test(k8s): mock CKA troubleshooting scenarios on local cluster
 - **2026-06-30**: test(k8s): mock CKA troubleshooting scenarios on local cluster
+- **2026-08-26**: test(ansible): test qemu-agent installation on Ubuntu Noble
