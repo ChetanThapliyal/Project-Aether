@@ -57,4 +57,3 @@ services:
 networks:
   proxied-net:
     external: true
-

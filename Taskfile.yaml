@@ -55,3 +55,38 @@ tasks:
     dir: infrastructure/terraform
     cmds:
       - terraform apply
+
+  # ==========================================
+  # Ansible Operations
+  # ==========================================
+  ansible:common:
+    desc: "Run common setup on all nodes"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/common.yml
+
+  ansible:control:
+    desc: "Initialize K3s control plane"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/control.yml
+
+  ansible:workers:
+    desc: "Join worker nodes to the cluster"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/workers.yml
+
+  ansible:kubeconfig:
+    desc: "Fetch kubeconfig from control node"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/kubeconfig.yml
+
+  ansible:bootstrap:
+    desc: "Full cluster bootstrap (common → control → workers → kubeconfig)"
+    cmds:
+      - task: ansible:common
+      - task: ansible:control
+      - task: ansible:workers
+      - task: ansible:kubeconfig

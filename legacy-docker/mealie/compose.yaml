@@ -1,11 +1,11 @@
 services:
   mealie:
-    image: ghcr.io/mealie-recipes/mealie:v3.7.0 # 
+    image: ghcr.io/mealie-recipes/mealie:v3.7.0 #
     container_name: mealie
     restart: always
     ports:
-        - "9925:9000" # 
-    mem_limit: 1000m 
+        - "9925:9000" #
+    mem_limit: 1000m
     volumes:
       - mealie-data:/app/data/
     labels:
@@ -29,5 +29,3 @@ volumes:
 networks:
   proxied-net:
     external: true
-
-

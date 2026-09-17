@@ -1,0 +1,23 @@
+# =============================================================================
+# Project Aether — Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to Git — it contains secrets.
+# The .gitignore already excludes *.tfvars files.
+# =============================================================================
+
+# Proxmox API endpoint (your Proxmox host IP + port)
+proxmox_api_url = "https://192.168.1.200:8006/api2/json"
+
+# Proxmox API token — create via Datacenter → Permissions → API Tokens
+# Format: <user>@<realm>!<token-name>
+proxmox_api_token_id = "terraform@pam!terraform-token"
+
+# The secret UUID generated when you created the API token
+proxmox_api_token_secret = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Your SSH public key (cat ~/.ssh/id_ed25519.pub)
+ssh_public_key = "ssh-ed25519 AAAA... your-email@example.com"
+
+# Default gateway — your home router IP (default: 192.168.1.1)
+# network_gateway = "192.168.1.1"

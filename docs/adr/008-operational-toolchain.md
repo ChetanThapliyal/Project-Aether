@@ -1,4 +1,4 @@
-# ADR-007: Operational Toolchain and Pre-commit Hooks
+# ADR-008: Operational Toolchain and Pre-commit Hooks
 
 ## Status: Accepted
 

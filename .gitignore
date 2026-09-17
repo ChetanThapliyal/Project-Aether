@@ -1,7 +1,7 @@
 # =========================
 # SOPS & Age Keys (CRITICAL)
 # =========================
-# Never commit your private decryption keys
+# Never commit private decryption keys
 keys.txt
 *.agekey
 age.key
@@ -121,4 +121,5 @@ Thumbs.db
 # =========================
 # Files and Folders
 # =========================
-docs/planning/*
+docs/planning
+docs/proxmox-audit

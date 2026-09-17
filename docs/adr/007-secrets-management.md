@@ -1,4 +1,4 @@
-# ADR-006: Secrets Management with SOPS and Age
+# ADR-007: Secrets Management with SOPS and Age
 
 ## Status: Accepted
 

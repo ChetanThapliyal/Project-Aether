@@ -1,0 +1,66 @@
+# =============================================================================
+# K3s Control Plane — Initialize Server
+# =============================================================================
+# Installs K3s in server mode on the control node and waits for it to be ready.
+# Stores the node token so workers can join.
+# =============================================================================
+
+- name: Initialize K3s control plane
+  hosts: control
+  become: true
+
+  vars:
+    k3s_version: "v1.36.4+k3s1"
+
+  tasks:
+    # ----- Install K3s Server -----
+    - name: Check if K3s is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: Install K3s server
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_VERSION="{{ k3s_version }}" \
+          sh -s - server \
+            --write-kubeconfig-mode "644" \
+            --tls-san "{{ ansible_host }}" \
+            --disable traefik \
+            --disable servicelb
+      args:
+        creates: /usr/local/bin/k3s
+      when: not k3s_binary.stat.exists
+
+    # ----- Wait for K3s -----
+    - name: Wait for K3s to be ready
+      ansible.builtin.command: k3s kubectl get nodes
+      register: k3s_status
+      until: k3s_status.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait for control node to be Ready
+      ansible.builtin.shell: |
+        k3s kubectl get nodes -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}'
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    # ----- Retrieve Node Token -----
+    - name: Read node token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Store node token as fact
+      ansible.builtin.set_fact:
+        k3s_node_token: "{{ k3s_token.content | b64decode | trim }}"
+        cacheable: true
+
+    - name: Display K3s status
+      ansible.builtin.debug:
+        msg: "K3s control plane is running. Node token retrieved."
