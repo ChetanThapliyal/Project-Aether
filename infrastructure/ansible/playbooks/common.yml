@@ -1,8 +1,8 @@
 # =============================================================================
 # Common Setup — All K3s Nodes
 # =============================================================================
-# Prepares every node with required packages, kernel modules, and sysctl
-# settings before K3s installation.
+# Prepares every node with required packages, kernel modules, sysctl
+# settings, QEMU guest agent, and Tailscale before K3s installation.
 # =============================================================================
 
 - name: Common setup for all K3s nodes
@@ -10,6 +10,11 @@
   become: true
 
   tasks:
+    # ----- Load SOPS Secrets -----
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../../infrastructure/secrets/ansible-secrets.sops.yaml
+
     # ----- System Updates -----
     - name: Update apt cache
       ansible.builtin.apt:
@@ -28,7 +33,15 @@
           - open-iscsi
           - nfs-common
           - jq
+          - qemu-guest-agent
         state: present
+
+    # ----- QEMU Guest Agent -----
+    - name: Enable and start QEMU guest agent
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
+        enabled: true
+        state: started
 
     # ----- Swap -----
     - name: Disable swap (required by Kubernetes)
@@ -74,3 +87,39 @@
     - name: Set timezone to Asia/Kolkata
       community.general.timezone:
         name: Asia/Kolkata
+
+    # ----- Tailscale -----
+    - name: Add Tailscale GPG key
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Add Tailscale APT repository
+      ansible.builtin.deb822_repository:
+        name: tailscale
+        uris: "https://pkgs.tailscale.com/stable/ubuntu"
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components:
+          - main
+        signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        state: present
+
+    - name: Install Tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+    - name: Enable and start Tailscale service
+      ansible.builtin.systemd:
+        name: tailscaled
+        enabled: true
+        state: started
+
+    - name: Authenticate Tailscale
+      ansible.builtin.command: >
+        tailscale up --authkey={{ tailscale_auth_key }} --accept-routes
+      register: tailscale_result
+      changed_when: "'Success' in tailscale_result.stdout or tailscale_result.rc == 0"
+      failed_when: tailscale_result.rc != 0
