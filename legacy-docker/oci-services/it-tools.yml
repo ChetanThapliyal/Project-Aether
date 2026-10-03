@@ -1,0 +1,15 @@
+services:
+  it-tools:
+    image: corentinth/it-tools:latest
+    container_name: it-tools
+    restart: unless-stopped
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "ittools"
+      tsdproxy.container_port: "80"
+
+networks:
+  proxied-net:
+    external: true

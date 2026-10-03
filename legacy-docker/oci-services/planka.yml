@@ -1,0 +1,44 @@
+services:
+  planka:
+    image: ghcr.io/plankanban/planka:latest
+    container_name: planka
+    restart: unless-stopped
+    volumes:
+      - ./user_avatars:/app/public/user-avatars
+      - ./project_background_images:/app/public/project-background-images
+      - ./attachments:/app/private/attachments
+    env_file:
+      - .env
+    depends_on:
+      planka-db:
+        condition: service_healthy
+    networks:
+      - proxied-net
+      - planka-internal
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "planka"
+      tsdproxy.container_port: "1337"
+
+  planka-db:
+    image: postgres:15-alpine
+    container_name: planka-db
+    restart: unless-stopped
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - planka-internal
+
+networks:
+  proxied-net:
+    external: true
+  planka-internal:
+    internal: true

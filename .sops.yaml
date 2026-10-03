@@ -1,11 +1,20 @@
 creation_rules:
   # Encrypt any file in kubernetes/secrets/ or anything ending in .sops.yaml
   - path_regex: kubernetes/secrets/.*\.ya?ml$
+    gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
 
   - path_regex: infrastructure/secrets/.*\.ya?ml$
+    gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
+    age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
+
+  # SOPS-encrypted Terraform variable files
+  # Matches both input (.tfvars) and output (.sops.tfvars) paths
+  - path_regex: infrastructure/terraform/.*\.tfvars$
+    gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
 
   # Fallback for any explicitly named SOPS file
   - path_regex: .*\.sops\.ya?ml$
+    gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"

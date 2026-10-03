@@ -1,0 +1,18 @@
+services:
+  tsdproxy:
+    image: almeidapaulopt/tsdproxy:1
+    container_name: tsdproxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    env_file:
+      - .env
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - proxied-net
+    restart: unless-stopped
+
+networks:
+  proxied-net:
+    external: true

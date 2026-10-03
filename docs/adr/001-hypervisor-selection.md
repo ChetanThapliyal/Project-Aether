@@ -16,7 +16,7 @@ ADR-001: Hypervisor Selection (Proxmox vs Bare-Metal Docker)
 - **Architecture Impact:** Proxmox becomes the base OS (Type-1 Hypervisor). All workloads, including the K3s cluster, will run as virtualized guests (KVM) or lightweight Linux Containers (LXC) on top of Proxmox.
 - **Alternatives Considered:**
   - *Bare-metal Ubuntu + Docker:* Rejected. Puts every workload in one shared kernel and root filesystem. A misbehaving container, bad `apt upgrade`, or kernel panic takes down the entire system (including the remote access layer). It lacks native hypervisor-level snapshotting.
-  - *VMware ESXi:* Rejected. Broadcom's licensing changes have severely restricted the free hypervisor tier. It is closed-source, less idiomatic for homelabs, and has a heavier resource footprint than Proxmox's KVM/LXC hybrid—a real concern on an i3 processor.
+  - *VMware ESXi:* Rejected. Broadcom's licensing changes have severely restricted the free hypervisor tier. It is closed-source, less idiomatic for homelabs, and has a heavier resource footprint than Proxmox's KVM/LXC hybrid – a real concern on an i3 processor.
 - **Decision Rationale:** Proxmox provides strict VM-level isolation. K3s can run in its own VM boundary with its own kernel, while lightweight services can use LXC. Crucially, Proxmox allows for instant hypervisor-level snapshots and rollbacks, demonstrating high operational maturity. Furthermore, Proxmox integrates natively with Terraform via open-source providers, directly transferring skills to KVM-based cloud infra.
 - **Consequences:**
   - *Positive:* Hard failure domain isolation; instant snapshot rollbacks; clean mixing of KVM and LXC workloads.

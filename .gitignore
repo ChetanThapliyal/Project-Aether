@@ -43,6 +43,8 @@ charts/*.tgz
 *.tfstate
 *.tfstate.backup
 *.tfvars
+!*.sops.tfvars
+.decrypted.auto.tfvars
 *.tfvars.json
 crash.log
 crash.*.log
@@ -112,6 +114,9 @@ Thumbs.db
 *~
 *.log
 *.tmp
+.agents/
+scripts/
+misc/
 
 # =========================
 # Vagrant (if used for local testing)
@@ -123,3 +128,9 @@ Thumbs.db
 # =========================
 docs/planning
 docs/proxmox-audit
+
+# Ignore environment files
+*.env
+docs/misc/
+docs/notes/
+docs/planning/

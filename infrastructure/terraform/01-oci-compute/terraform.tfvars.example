@@ -1,0 +1,23 @@
+# =============================================================================
+# OCI Compute — Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars, fill in your values, then encrypt:
+#   cp terraform.tfvars.example terraform.tfvars
+#   <fill in values>
+#   sops -e terraform.tfvars > terraform.sops.tfvars
+#   rm terraform.tfvars
+#
+# The encrypted file (terraform.sops.tfvars) is safe to commit.
+# The Taskfile handles decryption automatically at plan/apply time.
+# =============================================================================
+
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxx"
+user_ocid        = "ocid1.user.oc1..xxxxxxx"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-mumbai-1"
+compartment_ocid = "ocid1.compartment.oc1..xxxxxxx"
+
+ssh_public_key   = "ssh-ed25519 AAAA... your-email@example.com"
+subnet_ocid      = "ocid1.subnet.oc1.ap-mumbai-1..xxxxxxx"
+image_ocid       = "ocid1.image.oc1.ap-mumbai-1..xxxxxxx"

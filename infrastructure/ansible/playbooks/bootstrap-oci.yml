@@ -1,0 +1,648 @@
+---
+- name: Setup bookorbit server
+  hosts: bookorbit
+  become: true
+
+  vars:
+    app_base_dir: /home/ubuntu
+    docker_network: proxied-net
+    # Set to false to disable systemhog (after upgrading to PAYG)
+    enable_systemhog: true
+
+  tasks:
+    # ─── Load SOPS Secrets ──────────────────────────────
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+
+    # ─── System Setup ───────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - git
+        state: present
+
+    - name: Ensure docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    # ─── Docker Network ─────────────────────────────────
+    - name: Create shared docker network
+      community.docker.docker_network:
+        name: "{{ docker_network }}"
+        state: present
+
+    # ─── tsdproxy (Tailscale Reverse Proxy) ─────────────
+    - name: Create tsdproxy directory
+      file:
+        path: "{{ app_base_dir }}/tsdproxy"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy tsdproxy compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/tsdproxy.yml
+        dest: "{{ app_base_dir }}/tsdproxy/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy tsdproxy env file
+      copy:
+        content: |
+          TSDPROXY_AUTHKEY={{ oci_tsdproxy_tsdproxy_authkey }}
+        dest: "{{ app_base_dir }}/tsdproxy/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      no_log: true
+
+    - name: Start tsdproxy
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/tsdproxy"
+        state: present
+        pull: always
+
+    # ─── bookorbit (Book Management) ────────────────────
+    - name: Create bookorbit directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/bookorbit"
+        - "{{ app_base_dir }}/bookorbit/data/app"
+        - "{{ app_base_dir }}/bookorbit/data/postgres"
+        - "{{ app_base_dir }}/bookorbit/books"
+
+    - name: Copy bookorbit compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/bookorbit.yml
+        dest: "{{ app_base_dir }}/bookorbit/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy bookorbit env file
+      copy:
+        content: |
+          APP_IMAGE={{ oci_bookorbit_app_image }}
+          APP_PORT={{ oci_bookorbit_app_port }}
+          BOOKS_HOST_PATH={{ oci_bookorbit_books_host_path }}
+          PUID={{ oci_bookorbit_puid }}
+          PGID={{ oci_bookorbit_pgid }}
+          POSTGRES_USER={{ oci_bookorbit_postgres_user }}
+          POSTGRES_PASSWORD={{ oci_bookorbit_postgres_password }}
+          POSTGRES_DB={{ oci_bookorbit_postgres_db }}
+          JWT_SECRET={{ oci_bookorbit_jwt_secret }}
+          SETUP_BOOTSTRAP_TOKEN={{ oci_bookorbit_setup_bootstrap_token }}
+          APP_URL={{ oci_bookorbit_app_url }}
+          NODE_MAX_OLD_SPACE_SIZE={{ oci_bookorbit_node_max_old_space_size }}
+        dest: "{{ app_base_dir }}/bookorbit/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      no_log: true
+
+    - name: Start bookorbit
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/bookorbit"
+        state: present
+        pull: always
+
+    # ─── vikunja (Task Management) ──────────────────────
+    # - name: Create vikunja directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/vikunja"
+    #     - "{{ app_base_dir }}/vikunja/files"
+    #     - "{{ app_base_dir }}/vikunja/db"
+
+    # - name: Copy vikunja compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/vikunja.yml
+    #     dest: "{{ app_base_dir }}/vikunja/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
+
+    # - name: Copy vikunja env file
+    #   copy:
+    #     content: |
+    #       VIKUNJA_SERVICE_PUBLICURL={{ oci_vikunja_vikunja_service_publicurl }}
+    #       VIKUNJA_SERVICE_SECRET={{ oci_vikunja_vikunja_service_secret }}
+    #       VIKUNJA_DATABASE_PATH={{ oci_vikunja_vikunja_database_path }}
+    #     dest: "{{ app_base_dir }}/vikunja/.env"
+    #     owner: ubuntu
+    #     group: ubuntu
+    #     mode: "0600"
+    #   no_log: true
+
+    # - name: Start vikunja
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/vikunja"
+    #     state: present
+    #     pull: always
+
+
+    # ─── Uptime Kuma (Monitoring) ───────────────────────
+    - name: Create uptimekuma directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/uptimekuma"
+        - "{{ app_base_dir }}/uptimekuma/data"
+
+    - name: Copy uptimekuma compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/uptimekuma.yml
+        dest: "{{ app_base_dir }}/uptimekuma/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start uptimekuma
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/uptimekuma"
+        state: present
+        pull: always
+
+    # ─── Dockhand (Docker Management) ───────────────────
+    - name: Create dockhand directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/dockhand"
+        - "{{ app_base_dir }}/dockhand/data"
+
+    - name: Copy dockhand compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/dockhand.yml
+        dest: "{{ app_base_dir }}/dockhand/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start dockhand
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/dockhand"
+        state: present
+        pull: always
+
+    # ─── Navidrome (Music Server) ───────────────────────
+    - name: Create navidrome directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/navidrome"
+        - "{{ app_base_dir }}/navidrome/data"
+        - "{{ app_base_dir }}/navidrome/music"
+
+    - name: Copy navidrome compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/navidrome.yml
+        dest: "{{ app_base_dir }}/navidrome/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start navidrome
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/navidrome"
+        state: present
+        pull: always
+
+    # ─── Homepage (Dashboard) ───────────────────────────────
+    - name: Create homepage directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/homepage"
+        - "{{ app_base_dir }}/homepage/config"
+
+    - name: Copy homepage compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/homepage.yml
+        dest: "{{ app_base_dir }}/homepage/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start homepage
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/homepage"
+        state: present
+        pull: always
+
+    # ─── Planka (Kanban) ────────────────────────────────────
+    # - name: Create planka directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/planka"
+    #     - "{{ app_base_dir }}/planka/user_avatars"
+    #     - "{{ app_base_dir }}/planka/project_background_images"
+    #     - "{{ app_base_dir }}/planka/attachments"
+    #     - "{{ app_base_dir }}/planka/pgdata"
+
+    # - name: Copy planka compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/planka.yml
+    #     dest: "{{ app_base_dir }}/planka/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
+
+    # - name: Copy planka env file
+    #   copy:
+    #     content: |
+    #       DATABASE_URL={{ oci_planka_database_url }}
+    #       SECRET_KEY={{ oci_planka_secret_key }}
+    #       DEFAULT_ADMIN_EMAIL={{ oci_planka_default_admin_email }}
+    #       DEFAULT_ADMIN_PASSWORD={{ oci_planka_default_admin_password }}
+    #     dest: "{{ app_base_dir }}/planka/.env"
+    #     owner: ubuntu
+    #     group: ubuntu
+    #     mode: "0600"
+
+    # - name: Start planka
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/planka"
+    #     state: present
+    #     pull: always
+
+    # ─── IT-Tools ───────────────────────────────────────────
+    - name: Create it-tools directories
+      file:
+        path: "{{ app_base_dir }}/it-tools"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy it-tools compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/it-tools.yml
+        dest: "{{ app_base_dir }}/it-tools/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start it-tools
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/it-tools"
+        state: present
+        pull: always
+
+    # ─── Dozzle (Log Viewer) ────────────────────────────────
+    - name: Create dozzle directories
+      file:
+        path: "{{ app_base_dir }}/dozzle"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy dozzle compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/dozzle.yml
+        dest: "{{ app_base_dir }}/dozzle/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start dozzle
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/dozzle"
+        state: present
+        pull: always
+
+    # ─── NextExplorer ───────────────────────────────────────
+    - name: Create nextexplorer directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/nextexplorer"
+        - "{{ app_base_dir }}/nextexplorer/config"
+        - "{{ app_base_dir }}/nextexplorer/cache"
+
+    - name: Copy nextexplorer compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/nextexplorer.yml
+        dest: "{{ app_base_dir }}/nextexplorer/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start nextexplorer
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/nextexplorer"
+        state: present
+        pull: always
+
+    # ─── Memos ──────────────────────────────────────────────
+    - name: Create memos directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/memos"
+        - "{{ app_base_dir }}/memos/data"
+
+    - name: Copy memos compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/memos.yml
+        dest: "{{ app_base_dir }}/memos/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start memos
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/memos"
+        state: present
+        pull: always
+
+    # ─── n8n (Automation) ───────────────────────────────────
+    - name: Create n8n directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0777" # Forces write permissions to bypass UID 1000/1001 mismatch
+      loop:
+        - "{{ app_base_dir }}/n8n"
+        - "{{ app_base_dir }}/n8n/data"
+
+    - name: Copy n8n compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/n8n.yml
+        dest: "{{ app_base_dir }}/n8n/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start n8n
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/n8n"
+        state: present
+        pull: always
+
+    # ─── Blinko ─────────────────────────────────────────────
+    - name: Create blinko directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/blinko"
+        - "{{ app_base_dir }}/blinko/data"
+
+    - name: Set blinko postgres permissions
+      file:
+        path: "{{ app_base_dir }}/blinko/db"
+        state: directory
+        owner: "999"
+        group: "999"
+
+    - name: Copy blinko env file
+      copy:
+        content: |
+          NEXTAUTH_SECRET={{ oci_blinko_nextauth_secret }}
+        dest: "{{ app_base_dir }}/blinko/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      no_log: true
+
+    - name: Copy blinko compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/blinko.yml
+        dest: "{{ app_base_dir }}/blinko/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start blinko
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/blinko"
+        state: present
+        pull: always
+
+    # ─── SiYuan Notes (DISABLED — replaced by AFFiNE) ───────
+    # - name: Create siyuan directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/siyuan"
+    #     - "{{ app_base_dir }}/siyuan/workspace"
+    #
+    # - name: Copy siyuan compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/siyuan.yml
+    #     dest: "{{ app_base_dir }}/siyuan/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
+    #
+    # - name: Copy siyuan env file
+    #   copy:
+    #     content: |
+    #       AuthCode={{ oci_siyuan_authcode }}
+    #       TZ={{ oci_siyuan_tz }}
+    #       PUID={{ oci_siyuan_puid }}
+    #       PGID={{ oci_siyuan_pgid }}
+    #     dest: "{{ app_base_dir }}/siyuan/.env"
+    #     owner: ubuntu
+    #     group: ubuntu
+    #     mode: "0600"
+    #   no_log: true
+    #
+    # - name: Start siyuan
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/siyuan"
+    #     state: present
+    #     pull: always
+
+    # ─── AFFiNE (Knowledge Management) ─────────────────────
+    - name: Create affine directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/affine"
+        - "{{ app_base_dir }}/affine/data/storage"
+        - "{{ app_base_dir }}/affine/config"
+
+    - name: Set affine postgres permissions
+      file:
+        path: "{{ app_base_dir }}/affine/data/postgres"
+        state: directory
+        owner: "999"
+        group: "999"
+
+    - name: Copy affine compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/affine.yml
+        dest: "{{ app_base_dir }}/affine/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start affine
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/affine"
+        state: present
+        pull: always
+
+    # ─── Monitoring (Prometheus & Grafana) ──────────────────
+    - name: Create monitoring directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/monitoring"
+        - "{{ app_base_dir }}/monitoring/prometheus-config"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards"
+
+    - name: Create monitoring data directories with 777
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0777"
+      loop:
+        - "{{ app_base_dir }}/monitoring/prometheus-data"
+        - "{{ app_base_dir }}/monitoring/grafana-data"
+
+    - name: Copy prometheus config
+      copy:
+        src: ../../../legacy-docker/oci-services/prometheus.yml
+        dest: "{{ app_base_dir }}/monitoring/prometheus-config/prometheus.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy grafana datasource provisioning
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/datasources/datasource.yml
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources/datasource.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy grafana dashboard provider config
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/dashboards/dashboards.yml
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/dashboards.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy node exporter dashboard
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/dashboards/node-exporter-full.json
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/node-exporter-full.json"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy monitoring compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/monitoring.yml
+        dest: "{{ app_base_dir }}/monitoring/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Start monitoring stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/monitoring"
+        state: present
+        pull: always
+
+    # ─── Systemhog (OCI Anti-Reclamation) ───────────────────
+    # Temporary workaround to keep CPU/RAM above Oracle's 20%
+    # idle threshold. Remove this entire block after upgrading
+    # to Pay As You Go. Toggle: set enable_systemhog to false.
+    - name: Install systemhog
+      when: enable_systemhog
+      shell: |
+        if [ ! -f /usr/local/bin/systemhog ]; then
+          curl -fsSL https://github.com/p1n2o/systemhog/releases/latest/download/install.sh | bash
+        fi
+      args:
+        creates: /usr/local/bin/systemhog
+
+    - name: Write systemhog config
+      when: enable_systemhog
+      copy:
+        dest: /etc/systemhog/config.conf
+        content: |
+          # systemhog configuration (managed by Ansible)
+          [CPU_SETTINGS]
+          TARGET_CPU_MIN = 20
+          TARGET_CPU_MAX = 30
+
+          [RAM_SETTINGS]
+          TARGET_RAM_USAGE = 30
+
+          [SETTINGS]
+          CHECK_INTERVAL = 30
+          SERVICE_NAME = systemhog
+          LOG_FILE = /var/log/systemhog.log
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart systemhog
+
+    - name: Ensure systemhog service is running
+      when: enable_systemhog
+      systemd:
+        name: systemhog
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Stop and disable systemhog when toggled off
+      when: not enable_systemhog
+      systemd:
+        name: systemhog
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+  handlers:
+    - name: restart systemhog
+      systemd:
+        name: systemhog
+        state: restarted
