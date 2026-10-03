@@ -11,7 +11,7 @@
 
 ## What is Project Aether?
 
-Project Aether is a self-hosted platform engineering project that migrates 34 Docker Compose services from a single-node setup to a production-grade Kubernetes cluster — with full GitOps, secret management, CI/CD, and observability. Every decision is documented as an ADR and every component is reproducible from code.
+Project Aether is a self-hosted platform engineering project that migrates 34 Docker Compose services from a single-node setup to a production-grade Kubernetes cluster – with full GitOps, secret management, CI/CD, and observability. Every decision is documented as an ADR and every component is reproducible from code.
 
 ---
 
@@ -21,7 +21,7 @@ Project Aether is a self-hosted platform engineering project that migrates 34 Do
 graph TD
     DEV["🧑‍💻 Developer\n(Pulsar)"]
 
-    subgraph HOMELAB["Homelab — Proxmox VE 9.2"]
+    subgraph HOMELAB["Homelab – Proxmox VE 9.2"]
         PVE["Proxmox Host\n192.168.1.200"]
 
         subgraph K3S["K3s Cluster"]
@@ -67,6 +67,7 @@ graph TD
 |---|---|---|
 | **Hypervisor** | Proxmox VE 9.2 | Bare-metal virtualisation |
 | **IaC** | Terraform + `bpg/proxmox` v0.113 | VM provisioning from Cloud-Init template |
+| **State Backend** | GCS (`tf-backend-oci-hlab-gcs`) | Remote Terraform state with native locking |
 | **Configuration** | Ansible | K3s installation & cluster bootstrap |
 | **Orchestration** | K3s v1.36 | Lightweight Kubernetes |
 | **GitOps** | ArgoCD | Declarative app delivery from Git |
@@ -106,7 +107,7 @@ Project Aether/
 ├── infrastructure/
 │   ├── terraform/          # VM provisioning (Proxmox + Cloud-Init)
 │   │   ├── main.tf         # 3 K3s node definitions
-│   │   ├── provider.tf     # bpg/proxmox provider
+│   │   ├── provider.tf     # GCS backend + bpg/proxmox provider
 │   │   ├── variables.tf    # Input variables
 │   │   ├── outputs.tf      # Node IPs, VMIDs, SSH strings
 │   │   └── terraform.tfvars.example
@@ -134,7 +135,7 @@ Project Aether/
 │   ├── runbooks/           # Operational procedures
 │   └── planning/           # Progress tracker, gap analysis
 ├── legacy-docker/          # Archived Docker Compose configs (34 services)
-├── Taskfile.yaml           # Task runner — all operations
+├── Taskfile.yaml           # Task runner – all operations
 └── .pre-commit-config.yaml # gitleaks, terraform_fmt, YAML checks
 ```
 
@@ -172,6 +173,7 @@ task decrypt FILE=path/to/secret.yaml
 | [ADR 006](docs/adr/006%20proxmox%20vm%20provisioning%20strategy.md) | VM provisioning strategy |
 | [ADR 007](docs/adr/007-secrets-management.md) | Secrets management (SOPS + age) |
 | [ADR 008](docs/adr/008-operational-toolchain.md) | Operational toolchain |
+| [ADR 011](docs/adr/011-terraform-remote-backend.md) | Terraform remote state (GCS) |
 | [Runbook: Cloud-Init Template](docs/runbooks/proxmox-ubuntu-cloudinit-template.md) | Create the base VM template on Proxmox |
 
 ---

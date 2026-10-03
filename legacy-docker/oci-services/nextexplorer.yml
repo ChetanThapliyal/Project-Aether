@@ -1,0 +1,24 @@
+services:
+  nextexplorer:
+    image: nxzai/explorer:latest
+    container_name: nextexplorer
+    restart: unless-stopped
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - /home/ubuntu:/mnt/Files
+    environment:
+      - NODE_ENV=production
+      - PUID=1001
+      - PGID=1001
+      - PUBLIC_URL=https://nextexplorer.tail7067ab.ts.net
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "nextexplorer"
+      tsdproxy.container_port: "3000"
+
+networks:
+  proxied-net:
+    external: true

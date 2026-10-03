@@ -1,0 +1,82 @@
+services:
+  affine:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: affine
+    restart: unless-stopped
+    depends_on:
+      affine-redis:
+        condition: service_healthy
+      affine-postgres:
+        condition: service_healthy
+      affine-migration:
+        condition: service_completed_successfully
+    volumes:
+      - ./data/storage:/root/.affine/storage
+      - ./config:/root/.affine/config
+    environment:
+      - REDIS_SERVER_HOST=affine-redis
+      - DATABASE_URL=postgresql://affine@affine-postgres:5432/affine
+      - AFFINE_INDEXER_ENABLED=false
+      - AFFINE_SERVER_EXTERNAL_URL=https://affine.tail7067ab.ts.net
+      - AFFINE_SERVER_HTTPS=true
+    networks:
+      - default
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "affine"
+      tsdproxy.container_port: "3010"
+
+  affine-migration:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: affine-migration
+    volumes:
+      - ./data/storage:/root/.affine/storage
+      - ./config:/root/.affine/config
+    command: ['sh', '-c', 'node ./scripts/self-host-predeploy.js']
+    environment:
+      - REDIS_SERVER_HOST=affine-redis
+      - DATABASE_URL=postgresql://affine@affine-postgres:5432/affine
+      - AFFINE_INDEXER_ENABLED=false
+    depends_on:
+      affine-postgres:
+        condition: service_healthy
+      affine-redis:
+        condition: service_healthy
+    networks:
+      - default
+
+  affine-redis:
+    image: redis:latest
+    container_name: affine-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+
+  affine-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: affine-postgres
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: affine
+      POSTGRES_DB: affine
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'affine', '-d', 'affine']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+
+networks:
+  proxied-net:
+    external: true

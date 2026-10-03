@@ -1,0 +1,24 @@
+services:
+  siyuan:
+    image: b3log/siyuan
+    container_name: siyuan
+    restart: unless-stopped
+    command: ['serve', '--workspace=/siyuan/workspace/', '--accessAuthCode=${AuthCode}']
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-Asia/Kolkata}
+      - PUID=${PUID:-1001}
+      - PGID=${PGID:-1001}
+    volumes:
+      - ./workspace:/siyuan/workspace
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "siyuan"
+      tsdproxy.container_port: "6806"
+
+networks:
+  proxied-net:
+    external: true

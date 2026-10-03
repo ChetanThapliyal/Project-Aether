@@ -1,0 +1,17 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "uptimekuma"
+      tsdproxy.container_port: "3001"
+
+networks:
+  proxied-net:
+    external: true

@@ -38,23 +38,63 @@ tasks:
   # ==========================================
   # Terraform Operations
   # ==========================================
+  # Usage:
+  #   task tf:init   DIR=01-oci-compute
+  #   task tf:plan   DIR=03-homelab
+  #   task tf:apply  DIR=01-oci-compute
+  #
+  # Each directory can have a terraform.sops.tfvars file.
+  # If present, it is decrypted on-the-fly and passed to
+  # Terraform automatically. The decrypted file is cleaned
+  # up afterwards (even on failure).
+  # ==========================================
+
   tf:init:
-    desc: "Initialize Terraform"
-    dir: infrastructure/terraform
+    desc: "Initialize Terraform (Usage: task tf:init DIR=03-homelab)"
+    dir: "infrastructure/terraform/{{.DIR}}"
     cmds:
       - terraform init
+    requires:
+      vars: [DIR]
 
   tf:plan:
-    desc: "Preview infrastructure changes"
-    dir: infrastructure/terraform
+    desc: "Preview infrastructure changes (Usage: task tf:plan DIR=03-homelab)"
+    dir: "infrastructure/terraform/{{.DIR}}"
     cmds:
-      - terraform plan
+      - |
+        if [ -f terraform.sops.tfvars ]; then
+          sops -d --config "{{.ROOT_DIR}}/.sops.yaml" terraform.sops.tfvars > .decrypted.auto.tfvars
+          trap "rm -f .decrypted.auto.tfvars" EXIT
+        fi
+        terraform plan
+    requires:
+      vars: [DIR]
 
   tf:apply:
-    desc: "Deploy infrastructure"
-    dir: infrastructure/terraform
+    desc: "Deploy infrastructure (Usage: task tf:apply DIR=03-homelab)"
+    dir: "infrastructure/terraform/{{.DIR}}"
     cmds:
-      - terraform apply
+      - |
+        if [ -f terraform.sops.tfvars ]; then
+          sops -d --config "{{.ROOT_DIR}}/.sops.yaml" terraform.sops.tfvars > .decrypted.auto.tfvars
+          trap "rm -f .decrypted.auto.tfvars" EXIT
+        fi
+        terraform apply
+    requires:
+      vars: [DIR]
+
+  tf:destroy:
+    desc: "Destroy infrastructure (Usage: task tf:destroy DIR=03-homelab)"
+    dir: "infrastructure/terraform/{{.DIR}}"
+    cmds:
+      - |
+        if [ -f terraform.sops.tfvars ]; then
+          sops -d --config "{{.ROOT_DIR}}/.sops.yaml" terraform.sops.tfvars > .decrypted.auto.tfvars
+          trap "rm -f .decrypted.auto.tfvars" EXIT
+        fi
+        terraform destroy
+    requires:
+      vars: [DIR]
 
   # ==========================================
   # Ansible Operations
@@ -90,3 +130,9 @@ tasks:
       - task: ansible:control
       - task: ansible:workers
       - task: ansible:kubeconfig
+
+  ansible:oci:
+    desc: "Deploy all OCI server applications"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/bootstrap-oci.yml

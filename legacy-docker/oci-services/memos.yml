@@ -1,0 +1,21 @@
+services:
+  memos:
+    image: neosmemo/memos:stable
+    container_name: memos
+    restart: unless-stopped
+    volumes:
+      - ./data:/var/opt/memos
+    environment:
+      MEMOS_PORT: 5230
+      MEMOS_DRIVER: sqlite
+      MEMOS_INSTANCE_URL: http://memos.tail7067ab.ts.net
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "memos"
+      tsdproxy.container_port: "5230"
+
+networks:
+  proxied-net:
+    external: true
