@@ -1,0 +1,30 @@
+- Observability & DMZ:
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: http://localhost:3001/
+        description: Synthetic uptime monitoring & public status page
+        widget:
+          type: uptimekuma
+          url: http://uptime-kuma:3001
+          slug: default
+
+    - Cloudflare Tunnel:
+        icon: cloudflare.png
+        href: https://dash.cloudflare.com/
+        description: Zero-Trust edge ingress relay
+
+- Fleet Infrastructure:
+    - Homelab K3s Cluster:
+        icon: kubernetes.png
+        href: https://192.168.1.51:6443
+        description: 3-Node Proxmox K3s cluster (control + 2 workers)
+
+    - OCI Compute:
+        icon: oracle.png
+        href: https://cloud.oracle.com/
+        description: Oracle Cloud Infrastructure A1.Flex ARM64 instance
+
+    - GCP Foundation:
+        icon: google-cloud.png
+        href: https://console.cloud.google.com/
+        description: GCP e2-micro DMZ & GCS remote state backend

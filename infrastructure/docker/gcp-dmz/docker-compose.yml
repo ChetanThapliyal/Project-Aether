@@ -1,0 +1,69 @@
+# =============================================================================
+# Project Aether — GCP DMZ Observability Stack
+# =============================================================================
+# Services:
+#   1. Uptime Kuma  : Independent external synthetic monitoring & status pages
+#   2. Homepage     : Unified status and public platform dashboard
+#   3. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Uptime Kuma — Synthetic Monitoring
+  # ---------------------------------------------------------------------------
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      # Direct access over Tailscale mesh (aether-gcp-dmz:3001)
+      - "3001:3001"
+    volumes:
+      - ./uptime-kuma:/app/data
+    networks:
+      - dmz-net
+    environment:
+      - UPTIME_KUMA_PORT=3001
+
+  # ---------------------------------------------------------------------------
+  # Homepage — Platform Dashboard
+  # ---------------------------------------------------------------------------
+  homepage:
+    image: gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      # Direct access over Tailscale mesh (aether-gcp-dmz:3000)
+      - "3000:3000"
+    volumes:
+      - ./homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dmz-net
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS:-*}
+
+  # ---------------------------------------------------------------------------
+  # Cloudflared — Zero-Trust Ingress Tunnel
+  # ---------------------------------------------------------------------------
+  # Activated automatically when COMPOSE_PROFILES=tunnel is set in .env
+  # (i.e. when CLOUDFLARE_TUNNEL_TOKEN is provisioned).
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    networks:
+      - dmz-net
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+
+networks:
+  dmz-net:
+    name: dmz-net
+    driver: bridge
