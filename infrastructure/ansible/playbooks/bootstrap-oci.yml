@@ -14,6 +14,7 @@
     - name: Load SOPS-encrypted secrets
       community.sops.load_vars:
         file: ../../secrets/ansible-secrets.sops.yaml
+      tags: [always]
 
     # ─── System Setup ───────────────────────────────────
     - name: Update apt cache
@@ -53,6 +54,7 @@
         state: directory
         owner: ubuntu
         group: ubuntu
+      tags: [tsdproxy]
 
     - name: Copy tsdproxy compose file
       copy:
@@ -60,6 +62,7 @@
         dest: "{{ app_base_dir }}/tsdproxy/docker-compose.yml"
         owner: ubuntu
         group: ubuntu
+      tags: [tsdproxy]
 
     - name: Copy tsdproxy env file
       copy:
@@ -70,12 +73,14 @@
         group: ubuntu
         mode: "0600"
       no_log: true
+      tags: [tsdproxy]
 
     - name: Start tsdproxy
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/tsdproxy"
         state: present
         pull: always
+      tags: [tsdproxy]
 
     # ─── bookorbit (Book Management) ────────────────────
     - name: Create bookorbit directories
@@ -424,6 +429,7 @@
       loop:
         - "{{ app_base_dir }}/blinko"
         - "{{ app_base_dir }}/blinko/data"
+      tags: [blinko]
 
     - name: Set blinko postgres permissions
       file:
@@ -431,16 +437,25 @@
         state: directory
         owner: "999"
         group: "999"
+      tags: [blinko]
 
     - name: Copy blinko env file
       copy:
         content: |
+          NODE_ENV={{ oci_blinko_node_env }}
+          NEXTAUTH_URL={{ oci_blinko_nextauth_url }}
+          NEXT_PUBLIC_BASE_URL={{ oci_blinko_next_public_base_url }}
           NEXTAUTH_SECRET={{ oci_blinko_nextauth_secret }}
+          POSTGRES_USER={{ oci_blinko_postgres_user }}
+          POSTGRES_PASSWORD={{ oci_blinko_postgres_password }}
+          POSTGRES_DB={{ oci_blinko_postgres_db }}
+          DATABASE_URL={{ oci_blinko_database_url }}
         dest: "{{ app_base_dir }}/blinko/.env"
         owner: ubuntu
         group: ubuntu
         mode: "0600"
       no_log: true
+      tags: [blinko]
 
     - name: Copy blinko compose file
       copy:
@@ -448,12 +463,15 @@
         dest: "{{ app_base_dir }}/blinko/docker-compose.yml"
         owner: ubuntu
         group: ubuntu
+      tags: [blinko]
 
     - name: Start blinko
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/blinko"
         state: present
+        recreate: auto
         pull: always
+      tags: [blinko]
 
     # ─── SiYuan Notes (DISABLED — replaced by AFFiNE) ───────
     # - name: Create siyuan directories
