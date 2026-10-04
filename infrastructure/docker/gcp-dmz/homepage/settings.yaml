@@ -1,0 +1,10 @@
+title: Project Aether — Observability DMZ
+theme: dark
+color: slate
+layout:
+  Observability & DMZ:
+    style: row
+    columns: 2
+  Fleet Infrastructure:
+    style: row
+    columns: 3
