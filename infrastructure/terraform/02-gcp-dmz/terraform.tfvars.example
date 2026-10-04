@@ -1,0 +1,35 @@
+# =============================================================================
+# GCP DMZ Observability Node — Terraform Variables Example
+# =============================================================================
+# Copy this file to terraform.tfvars, fill in your values, then encrypt via SOPS:
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   <fill in values below>
+#   sops -e terraform.tfvars > terraform.sops.tfvars
+#   rm terraform.tfvars
+#
+# The encrypted file (terraform.sops.tfvars) is safe to commit.
+# The Taskfile handles decryption automatically at plan/apply time.
+# =============================================================================
+
+project_id      = "gcs-oci-homelab-controlplane"
+region          = "us-central1"
+zone            = "us-central1-a"
+instance_name   = "aether-gcp-dmz"
+
+# Free tier settings (Strictly $0.00 / month)
+# - e2-micro instance (Always Free eligible)
+# - pd-standard 30GB disk (Always Free eligible)
+# - Dual-stack IPv6 enabled ($0.00 free tier, avoids $0.005/hr IPv4 charge)
+machine_type    = "e2-micro"
+boot_disk_size  = 30
+boot_disk_type  = "pd-standard"
+boot_disk_image = "debian-cloud/debian-12"
+
+# Administration
+ssh_user        = "owl"
+ssh_public_key  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@example.com"
+
+# Tailscale enrollment key (reusable or ephemeral pre-auth key)
+# Obtain from: https://login.tailscale.com/admin/settings/keys
+tailscale_auth_key = "tskey-auth-kxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx"
