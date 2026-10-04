@@ -1,0 +1,168 @@
+---
+# =============================================================================
+# Project Aether — GCP DMZ Observability Deployment Playbook
+# =============================================================================
+# Deploys Uptime Kuma, Homepage, and Cloudflared on the GCP e2-micro DMZ instance.
+# Stack location: /opt/dmz
+# Access: Tailscale mesh (ports 3000, 3001) + Cloudflare Zero-Trust Tunnel
+# =============================================================================
+
+- name: Deploy GCP DMZ Observability Stack
+  hosts: gcp_dmz
+  become: true
+
+  vars:
+    dmz_dir: /opt/dmz
+    dmz_user: owl
+    dmz_group: owl
+    enable_swap: true
+    swap_size_gb: 2
+
+  tasks:
+    # ─── Load SOPS Secrets (if available) ────────────────
+    - name: Check if ansible-secrets.sops.yaml exists
+      delegate_to: localhost
+      become: false
+      stat:
+        path: "{{ playbook_dir }}/../../secrets/ansible-secrets.sops.yaml"
+      register: sops_file
+      tags: [always]
+
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/ansible-secrets.sops.yaml"
+      when: sops_file.stat.exists
+      ignore_errors: true
+      tags: [always]
+
+    # ─── Ensure Swap (e2-micro 1GB RAM stability) ─────────
+    - name: Check if swapfile exists
+      stat:
+        path: /swapfile
+      register: swapfile_stat
+      when: enable_swap
+
+    - name: Allocate 2GB swapfile for e2-micro stability
+      command: fallocate -l {{ swap_size_gb }}G /swapfile
+      when: enable_swap and not swapfile_stat.stat.exists
+
+    - name: Secure swapfile permissions
+      file:
+        path: /swapfile
+        owner: root
+        group: root
+        mode: "0600"
+      when: enable_swap and not swapfile_stat.stat.exists
+
+    - name: Format swapfile filesystem
+      command: mkswap /swapfile
+      when: enable_swap and not swapfile_stat.stat.exists
+
+    - name: Activate swapfile
+      command: swapon /swapfile
+      when: enable_swap and not swapfile_stat.stat.exists
+
+    - name: Ensure swapfile persistence in /etc/fstab
+      mount:
+        name: none
+        src: /swapfile
+        fstype: swap
+        opts: sw
+        state: present
+      when: enable_swap
+
+    # ─── DMZ Directories ─────────────────────────────────
+    - name: Ensure /opt/dmz directory hierarchy exists
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0750"
+      loop:
+        - "{{ dmz_dir }}"
+        - "{{ dmz_dir }}/uptime-kuma"
+        - "{{ dmz_dir }}/homepage"
+        - "{{ dmz_dir }}/homepage/config"
+
+    # ─── Environment & Secrets ────────────────────────────
+    - name: Deploy DMZ .env configuration file
+      copy:
+        content: |
+          # Managed by Ansible — Project Aether GCP DMZ
+          {% if gcp_dmz_cloudflare_tunnel_token is defined and gcp_dmz_cloudflare_tunnel_token | length > 0 %}
+          COMPOSE_PROFILES=tunnel
+          CLOUDFLARE_TUNNEL_TOKEN={{ gcp_dmz_cloudflare_tunnel_token }}
+          {% else %}
+          # COMPOSE_PROFILES=tunnel
+          CLOUDFLARE_TUNNEL_TOKEN=
+          {% endif %}
+          HOMEPAGE_ALLOWED_HOSTS={{ gcp_dmz_homepage_allowed_hosts | default('*') }}
+          PUID=1000
+          PGID=1000
+        dest: "{{ dmz_dir }}/.env"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0600"
+      no_log: true
+
+    # ─── Homepage Configuration Files ─────────────────────
+    - name: Deploy default Homepage configs (skip if already present)
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ dmz_dir }}/homepage/config/{{ item.dest }}"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0644"
+        force: false
+      loop:
+        - { src: "../../docker/gcp-dmz/homepage/settings.yaml", dest: "settings.yaml" }
+        - { src: "../../docker/gcp-dmz/homepage/services.yaml", dest: "services.yaml" }
+        - { src: "../../docker/gcp-dmz/homepage/bookmarks.yaml", dest: "bookmarks.yaml" }
+        - { src: "../../docker/gcp-dmz/homepage/widgets.yaml", dest: "widgets.yaml" }
+
+    # ─── Docker Compose File ──────────────────────────────
+    - name: Copy docker-compose.yml to DMZ host
+      copy:
+        src: ../../docker/gcp-dmz/docker-compose.yml
+        dest: "{{ dmz_dir }}/docker-compose.yml"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0640"
+
+    # ─── Start Docker Compose Stack ───────────────────────
+    - name: Launch DMZ observability stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ dmz_dir }}"
+        state: present
+        pull: missing
+
+    # ─── Verification ─────────────────────────────────────
+    - name: Wait for Uptime Kuma to respond locally
+      uri:
+        url: http://127.0.0.1:3001
+        status_code: [200, 302]
+      register: uptime_kuma_check
+      until: uptime_kuma_check.status in [200, 302]
+      retries: 15
+      delay: 3
+
+    - name: Wait for Homepage to respond locally
+      uri:
+        url: http://127.0.0.1:3000
+        status_code: [200, 302]
+      register: homepage_check
+      until: homepage_check.status in [200, 302]
+      retries: 15
+      delay: 3
+
+    - name: Print deployment summary
+      debug:
+        msg:
+          - "=========================================================="
+          - " Project Aether — GCP DMZ Observability Stack Live!        "
+          - "=========================================================="
+          - " Homepage      : http://aether-gcp-dmz:3000 (Tailscale)    "
+          - " Uptime Kuma   : http://aether-gcp-dmz:3001 (Tailscale)    "
+          - " Cloudflared   : {{ 'Active (tunnel profile)' if (gcp_dmz_cloudflare_tunnel_token is defined and gcp_dmz_cloudflare_tunnel_token | length > 0) else 'Inactive (configure gcp_dmz_cloudflare_tunnel_token to activate)' }}"
+          - "=========================================================="
