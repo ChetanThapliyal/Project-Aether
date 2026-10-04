@@ -135,4 +135,10 @@ tasks:
     desc: "Deploy all OCI server applications"
     dir: infrastructure/ansible
     cmds:
-      - ansible-playbook playbooks/bootstrap-oci.yml
+      - ansible-playbook playbooks/bootstrap-oci.yml {{.CLI_ARGS}}
+
+  ansible:dmz:
+    desc: "Deploy GCP DMZ observability stack (Uptime Kuma, Homepage, Cloudflared)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/deploy-dmz.yml {{.CLI_ARGS}}
