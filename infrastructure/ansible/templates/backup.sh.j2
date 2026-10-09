@@ -13,3 +13,7 @@ echo "==> Running Restic Backup..."
 restic backup /home/ubuntu --exclude=/home/ubuntu/calibre-library --exclude=/home/ubuntu/navidrome
 echo "==> Pruning old backups (Keeping 7 daily, 4 weekly)..."
 restic forget --keep-daily 7 --keep-weekly 4 --prune
+
+echo "==> Pinging Uptime Kuma Heartbeat..."
+curl -s -m 10 --retry 3 "$UPTIME_KUMA_PUSH_URL" > /dev/null || true
+echo "==> Backup Complete!"
