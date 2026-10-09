@@ -27,6 +27,7 @@
         name:
           - curl
           - git
+          - restic
         state: present
 
     - name: Ensure docker service is running
@@ -515,42 +516,42 @@
     #     state: present
     #     pull: always
 
-    # ─── Silverbullet (Notes) ───────────────────────────────
-    - name: Create silverbullet directories
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: ubuntu
-        group: ubuntu
-      loop:
-        - "{{ app_base_dir }}/silverbullet"
-        - "{{ app_base_dir }}/silverbullet/data/silverbullet"
+    # # ─── Silverbullet (Notes) ───────────────────────────────
+    # - name: Create silverbullet directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/silverbullet"
+    #     - "{{ app_base_dir }}/silverbullet/data/silverbullet"
 
-    - name: Copy silverbullet compose file
-      copy:
-        src: ../../../legacy-docker/oci-services/silverbullet.yml
-        dest: "{{ app_base_dir }}/silverbullet/docker-compose.yml"
-        owner: ubuntu
-        group: ubuntu
+    # - name: Copy silverbullet compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/silverbullet.yml
+    #     dest: "{{ app_base_dir }}/silverbullet/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
 
-    - name: Copy silverbullet env file
-      copy:
-        content: |
-          SB_USER={{ oci_silverbullet_sb_user }}
-          PUID={{ oci_silverbullet_puid }}
-          PGID={{ oci_silverbullet_pgid }}
-          TZ={{ oci_silverbullet_tz }}
-        dest: "{{ app_base_dir }}/silverbullet/.env"
-        owner: ubuntu
-        group: ubuntu
-        mode: "0600"
-      no_log: true
+    # - name: Copy silverbullet env file
+    #   copy:
+    #     content: |
+    #       SB_USER={{ oci_silverbullet_sb_user }}
+    #       PUID={{ oci_silverbullet_puid }}
+    #       PGID={{ oci_silverbullet_pgid }}
+    #       TZ={{ oci_silverbullet_tz }}
+    #     dest: "{{ app_base_dir }}/silverbullet/.env"
+    #     owner: ubuntu
+    #     group: ubuntu
+    #     mode: "0600"
+    #   no_log: true
 
-    - name: Start silverbullet
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_base_dir }}/silverbullet"
-        state: present
-        pull: always
+    # - name: Start silverbullet
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/silverbullet"
+    #     state: present
+    #     pull: always
 
     # ─── CouchDB (Obsidian LiveSync) ────────────────────────
     - name: Create couchdb directories
@@ -758,6 +759,41 @@
         state: stopped
         enabled: false
       ignore_errors: true
+
+    # ─── Backups (Restic) ───────────────────────────────────
+    - name: Create backup directory
+      file:
+        path: /opt/backup
+        state: directory
+        owner: root
+        mode: "0700"
+
+    - name: Deploy restic env file
+      copy:
+        content: |
+          export AWS_ACCESS_KEY_ID={{ oci_backup_s3_access_key }}
+          export AWS_SECRET_ACCESS_KEY={{ oci_backup_s3_secret_key }}
+          export RESTIC_PASSWORD={{ oci_backup_restic_password }}
+          export RESTIC_REPOSITORY=s3:{{ oci_backup_s3_endpoint }}/dr-backups
+        dest: /opt/backup/restic.env
+        owner: root
+        mode: "0600"
+      no_log: true
+
+    - name: Deploy backup script
+      template:
+        src: ../templates/backup.sh.j2
+        dest: /opt/backup/run-backup.sh
+        owner: root
+        mode: "0700"
+
+    - name: Schedule nightly backup
+      cron:
+        name: "Restic Nightly Backup"
+        minute: "0"
+        hour: "3"
+        job: "/opt/backup/run-backup.sh >> /var/log/restic-backup.log 2>&1"
+        user: root
 
   handlers:
     - name: restart systemhog
