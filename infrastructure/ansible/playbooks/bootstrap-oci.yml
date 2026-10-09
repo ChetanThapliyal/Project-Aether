@@ -168,28 +168,28 @@
 
 
     # ─── Uptime Kuma (Monitoring) ───────────────────────
-    - name: Create uptimekuma directories
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: ubuntu
-        group: ubuntu
-      loop:
-        - "{{ app_base_dir }}/uptimekuma"
-        - "{{ app_base_dir }}/uptimekuma/data"
+    # - name: Create uptimekuma directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/uptimekuma"
+    #     - "{{ app_base_dir }}/uptimekuma/data"
 
-    - name: Copy uptimekuma compose file
-      copy:
-        src: ../../../legacy-docker/oci-services/uptimekuma.yml
-        dest: "{{ app_base_dir }}/uptimekuma/docker-compose.yml"
-        owner: ubuntu
-        group: ubuntu
+    # - name: Copy uptimekuma compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/uptimekuma.yml
+    #     dest: "{{ app_base_dir }}/uptimekuma/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
 
-    - name: Start uptimekuma
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_base_dir }}/uptimekuma"
-        state: present
-        pull: always
+    # - name: Start uptimekuma
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/uptimekuma"
+    #     state: present
+    #     pull: always
 
     # ─── Dockhand (Docker Management) ───────────────────
     - name: Create dockhand directories
@@ -240,29 +240,29 @@
         state: present
         pull: always
 
-    # ─── Homepage (Dashboard) ───────────────────────────────
-    - name: Create homepage directories
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: ubuntu
-        group: ubuntu
-      loop:
-        - "{{ app_base_dir }}/homepage"
-        - "{{ app_base_dir }}/homepage/config"
+    # # ─── Homepage (Dashboard) ───────────────────────────────
+    # - name: Create homepage directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/homepage"
+    #     - "{{ app_base_dir }}/homepage/config"
 
-    - name: Copy homepage compose file
-      copy:
-        src: ../../../legacy-docker/oci-services/homepage.yml
-        dest: "{{ app_base_dir }}/homepage/docker-compose.yml"
-        owner: ubuntu
-        group: ubuntu
+    # - name: Copy homepage compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/homepage.yml
+    #     dest: "{{ app_base_dir }}/homepage/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
 
-    - name: Start homepage
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_base_dir }}/homepage"
-        state: present
-        pull: always
+    # - name: Start homepage
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/homepage"
+    #     state: present
+    #     pull: always
 
     # ─── Planka (Kanban) ────────────────────────────────────
     # - name: Create planka directories
@@ -371,40 +371,45 @@
         pull: always
 
     # ─── Memos ──────────────────────────────────────────────
-    - name: Create memos directories
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: ubuntu
-        group: ubuntu
-      loop:
-        - "{{ app_base_dir }}/memos"
-        - "{{ app_base_dir }}/memos/data"
+    # - name: Create memos directories
+    #   file:
+    #     path: "{{ item }}"
+    #     state: directory
+    #     owner: ubuntu
+    #     group: ubuntu
+    #   loop:
+    #     - "{{ app_base_dir }}/memos"
+    #     - "{{ app_base_dir }}/memos/data"
 
-    - name: Copy memos compose file
-      copy:
-        src: ../../../legacy-docker/oci-services/memos.yml
-        dest: "{{ app_base_dir }}/memos/docker-compose.yml"
-        owner: ubuntu
-        group: ubuntu
+    # - name: Copy memos compose file
+    #   copy:
+    #     src: ../../../legacy-docker/oci-services/memos.yml
+    #     dest: "{{ app_base_dir }}/memos/docker-compose.yml"
+    #     owner: ubuntu
+    #     group: ubuntu
 
-    - name: Start memos
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_base_dir }}/memos"
-        state: present
-        pull: always
+    # - name: Start memos
+    #   community.docker.docker_compose_v2:
+    #     project_src: "{{ app_base_dir }}/memos"
+    #     state: present
+    #     pull: always
 
     # ─── n8n (Automation) ───────────────────────────────────
-    - name: Create n8n directories
+    - name: Create n8n config directory
       file:
-        path: "{{ item }}"
+        path: "{{ app_base_dir }}/n8n"
         state: directory
         owner: ubuntu
         group: ubuntu
-        mode: "0777" # Forces write permissions to bypass UID 1000/1001 mismatch
-      loop:
-        - "{{ app_base_dir }}/n8n"
-        - "{{ app_base_dir }}/n8n/data"
+        mode: "0755"
+
+    - name: Create n8n data directory with correct UID mapping
+      file:
+        path: "{{ app_base_dir }}/n8n/data"
+        state: directory
+        owner: 1000
+        group: 1000
+        mode: "0755"
 
     - name: Copy n8n compose file
       copy:
@@ -509,6 +514,101 @@
     #     project_src: "{{ app_base_dir }}/siyuan"
     #     state: present
     #     pull: always
+
+    # ─── Silverbullet (Notes) ───────────────────────────────
+    - name: Create silverbullet directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - "{{ app_base_dir }}/silverbullet"
+        - "{{ app_base_dir }}/silverbullet/data/silverbullet"
+
+    - name: Copy silverbullet compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/silverbullet.yml
+        dest: "{{ app_base_dir }}/silverbullet/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy silverbullet env file
+      copy:
+        content: |
+          SB_USER={{ oci_silverbullet_sb_user }}
+          PUID={{ oci_silverbullet_puid }}
+          PGID={{ oci_silverbullet_pgid }}
+          TZ={{ oci_silverbullet_tz }}
+        dest: "{{ app_base_dir }}/silverbullet/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      no_log: true
+
+    - name: Start silverbullet
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/silverbullet"
+        state: present
+        pull: always
+
+    # ─── CouchDB (Obsidian LiveSync) ────────────────────────
+    - name: Create couchdb directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "5984"
+        group: "5984"
+      loop:
+        - "{{ app_base_dir }}/couchdb"
+        - "{{ app_base_dir }}/couchdb/data"
+        - "{{ app_base_dir }}/couchdb/etc"
+        - "{{ app_base_dir }}/couchdb/etc/local.d"
+
+    - name: Copy couchdb compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/couchdb.yml
+        dest: "{{ app_base_dir }}/couchdb/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy couchdb env file
+      copy:
+        content: |
+          COUCHDB_USER={{ oci_couchdb_user }}
+          COUCHDB_PASSWORD={{ oci_couchdb_password }}
+        dest: "{{ app_base_dir }}/couchdb/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      no_log: true
+
+    - name: Copy couchdb CORS config
+      copy:
+        content: |
+          [couchdb]
+          single_node = true
+
+          [chttpd]
+          max_http_request_size = 4294967296
+          bind_address = 0.0.0.0
+
+          [cors]
+          credentials = true
+          origins = app://obsidian.md,capacitor://localhost,http://localhost
+          headers = accept, authorization, content-type, origin, referer
+          methods = GET, PUT, POST, HEAD, DELETE
+          max_age = 3600
+        dest: "{{ app_base_dir }}/couchdb/etc/local.d/docker.ini"
+        owner: "5984"
+        group: "5984"
+        mode: "0644"
+
+    - name: Start couchdb
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/couchdb"
+        state: present
+        pull: always
 
     # ─── AFFiNE (Knowledge Management) ─────────────────────
     - name: Create affine directories
