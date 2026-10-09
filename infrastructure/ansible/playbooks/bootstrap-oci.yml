@@ -775,6 +775,7 @@
           export AWS_SECRET_ACCESS_KEY={{ oci_backup_s3_secret_key }}
           export RESTIC_PASSWORD={{ oci_backup_restic_password }}
           export RESTIC_REPOSITORY=s3:{{ oci_backup_s3_endpoint }}/dr-backups
+          export UPTIME_KUMA_PUSH_URL={{ oci_backup_kuma_push_url }}
         dest: /opt/backup/restic.env
         owner: root
         mode: "0600"
