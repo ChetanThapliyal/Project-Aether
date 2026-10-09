@@ -42,7 +42,7 @@ resource "google_compute_firewall" "allow_ssh_ipv6" {
     ports    = ["22"]
   }
 
-  source_ranges = ["::/0"]
+  source_ranges = ["fd7a:115c:a1e0::/48"] # Tailscale CGNAT IPv6 block
   target_tags   = ["ssh-allowed"]
 }
 
