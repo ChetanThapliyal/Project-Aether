@@ -1,0 +1,24 @@
+services:
+  couchdb:
+    image: couchdb:3
+    container_name: couchdb
+    restart: unless-stopped
+    user: "5984:5984"
+    env_file:
+      - .env
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    volumes:
+      - ./data:/opt/couchdb/data
+      - ./etc/local.d:/opt/couchdb/etc/local.d
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "couchdb"
+      tsdproxy.container_port: "5984"
+
+networks:
+  proxied-net:
+    external: true
