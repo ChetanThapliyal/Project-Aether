@@ -43,3 +43,18 @@ variable "image_ocid" {
   description = "The OS image OCID for instances"
   type        = string
 }
+
+variable "vcn_ocid" {
+  type        = string
+  description = "OCID of the existing VCN to import"
+}
+
+variable "igw_ocid" {
+  type        = string
+  description = "OCID of the existing Internet Gateway to import"
+}
+
+variable "sl_ocid" {
+  type        = string
+  description = "OCID of the existing Security List to import"
+}
