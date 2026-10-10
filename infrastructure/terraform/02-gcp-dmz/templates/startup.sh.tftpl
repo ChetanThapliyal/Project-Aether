@@ -61,7 +61,17 @@ tailscale up \
 echo "--- Notice: tailscale_auth_key was not supplied. Manual 'tailscale up' required ---"
 %{ endif }
 
-# 4. Prepare directory layout for Docker Compose DMZ services (Uptime Kuma, Homepage, Cloudflared)
+# 4. Configure Docker systemd drop-in to start after Tailscale
+echo "--- Configuring Docker to start after Tailscale on boot ---"
+mkdir -p /etc/systemd/system/docker.service.d
+cat <<'EOF' > /etc/systemd/system/docker.service.d/override.conf
+[Unit]
+After=tailscaled.service
+Wants=tailscaled.service
+EOF
+systemctl daemon-reload
+
+# 5. Prepare directory layout for Docker Compose DMZ services (Uptime Kuma, Homepage, Cloudflared)
 echo "--- Preparing /opt/dmz directory structure ---"
 mkdir -p /opt/dmz
 if id "${ssh_user}" &>/dev/null; then
