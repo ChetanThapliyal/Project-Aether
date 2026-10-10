@@ -46,6 +46,28 @@ services:
       - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS:-*}
 
   # ---------------------------------------------------------------------------
+  # Hawser — Dockhand Agent (OPS-01)
+  # ---------------------------------------------------------------------------
+  hawser:
+    image: ghcr.io/finsys/hawser:0.2.50
+    container_name: hawser
+    restart: unless-stopped
+    ports:
+      # Binding to all interfaces. GCP Firewall blocks inbound 2376 by default,
+      # and the VM has no public IPv4 anyway. This allows Tailscale IPv6 to work.
+      - "2376:2376"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Optional: uncomment if you want Dockhand to manage volumes too
+      # - /var/lib/docker/volumes:/data/volumes
+    environment:
+      # Since it binds to 0.0.0.0 internally, Hawser requires a token to start
+      - TOKEN=${HAWSER_TOKEN}
+    command: standard --port 2376
+    networks:
+      - dmz-net
+
+  # ---------------------------------------------------------------------------
   # Cloudflared — Zero-Trust Ingress Tunnel
   # ---------------------------------------------------------------------------
   # Activated automatically when COMPOSE_PROFILES=tunnel is set in .env
