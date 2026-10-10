@@ -70,6 +70,10 @@ resource "google_compute_instance" "dmz" {
 
   tags = ["dmz-observer", "ssh-allowed"]
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   boot_disk {
     auto_delete = true
 
