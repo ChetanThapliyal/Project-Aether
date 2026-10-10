@@ -71,6 +71,27 @@
         state: present
       when: enable_swap
 
+    # ─── Systemd Override: Docker after Tailscale ─────────
+    - name: Ensure docker systemd drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure Docker to wait for Tailscale service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/override.conf
+        content: |
+          [Unit]
+          After=tailscaled.service
+          Wants=tailscaled.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd daemon
+
     # ─── DMZ Directories ─────────────────────────────────
     - name: Ensure /opt/dmz directory hierarchy exists
       file:
@@ -100,6 +121,7 @@
           HOMEPAGE_ALLOWED_HOSTS={{ gcp_dmz_homepage_allowed_hosts | default('*') }}
           PUID=1000
           PGID=1000
+          HAWSER_TOKEN={{ gcp_dmz_hawser_token | default('') }}
         dest: "{{ dmz_dir }}/.env"
         owner: "{{ dmz_user }}"
         group: "{{ dmz_group }}"
@@ -129,6 +151,37 @@
         owner: "{{ dmz_user }}"
         group: "{{ dmz_group }}"
         mode: "0640"
+
+    # ─── Workaround for GHCR IPv4-only limitation on GCP VM ───
+    - name: Pull Hawser image locally (IPv4 available)
+      delegate_to: localhost
+      become: false
+      command: docker pull ghcr.io/finsys/hawser:latest
+
+    - name: Save Hawser image to tar archive locally
+      delegate_to: localhost
+      become: false
+      command: docker save -o /tmp/hawser-latest.tar ghcr.io/finsys/hawser:latest
+
+    - name: Copy Hawser image to GCP DMZ host
+      copy:
+        src: /tmp/hawser-latest.tar
+        dest: /tmp/hawser-latest.tar
+
+    - name: Load Hawser image into Docker on GCP DMZ host
+      command: docker load -i /tmp/hawser-latest.tar
+
+    - name: Clean up remote tar archive
+      file:
+        path: /tmp/hawser-latest.tar
+        state: absent
+
+    - name: Clean up local tar archive
+      delegate_to: localhost
+      become: false
+      file:
+        path: /tmp/hawser-latest.tar
+        state: absent
 
     # ─── Start Docker Compose Stack ───────────────────────
     - name: Launch DMZ observability stack
@@ -166,3 +219,73 @@
           - " Uptime Kuma   : http://aether-gcp-dmz:3001 (Tailscale)    "
           - " Cloudflared   : {{ 'Active (tunnel profile)' if (gcp_dmz_cloudflare_tunnel_token is defined and gcp_dmz_cloudflare_tunnel_token | length > 0) else 'Inactive (configure gcp_dmz_cloudflare_tunnel_token to activate)' }}"
           - "=========================================================="
+
+    # ─── OPS-02: Uptime Kuma — Telegram Alert Channel ─────
+    # Requires the following in ansible-secrets.sops.yaml:
+    #   uptime_kuma_admin_password: <your UK admin password>
+    #   telegram_bot_token:  <token from @BotFather>
+    #   telegram_chat_id:    <your personal chat ID or group ID>
+    #
+    # How to get telegram_chat_id:
+    #   1. Send any message to your bot
+    #   2. curl "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq '.result[0].message.chat.id'
+    #
+    # This block is skipped entirely if telegram_bot_token is not in secrets.
+    - name: OPS-02 | Check if Telegram secrets are available
+      set_fact:
+        telegram_configured: >-
+          {{ (telegram_bot_token is defined and telegram_bot_token | string | length > 0) and
+             (telegram_chat_id is defined and telegram_chat_id | string | length > 0) and
+             (uptime_kuma_admin_password is defined and uptime_kuma_admin_password | string | length > 0) }}
+      tags: [ops-02, notifications]
+
+    - name: OPS-02 | Skip notice — Telegram secrets not found in SOPS
+      debug:
+        msg:
+          - "⚠  OPS-02: Telegram notification channel NOT provisioned."
+          - "   Add the following to ansible-secrets.sops.yaml and re-run:"
+          - "     uptime_kuma_admin_password: <your UK admin password>"
+          - "     telegram_bot_token: <token from @BotFather>"
+          - "     telegram_chat_id:   <chat ID — run: curl https://api.telegram.org/bot<TOKEN>/getUpdates>"
+          - "   Then re-run: task ansible:dmz --tags ops-02"
+      when: not telegram_configured
+      tags: [ops-02, notifications]
+
+    - name: OPS-02 | Install uptime-kuma-api on localhost (Socket.IO client)
+      pip:
+        name: uptime-kuma-api
+        state: present
+        extra_args: --break-system-packages
+      delegate_to: localhost
+      become: false
+      when: telegram_configured
+      tags: [ops-02, notifications]
+
+    - name: OPS-02 | Provision Telegram channel in GCP DMZ UK (aether-gcp-dmz:3001) via Tailscale
+      # Runs locally — reaches GCP DMZ UK over Tailscale mesh. No pip3 needed on remote host.
+      command: >
+        python3 "{{ playbook_dir }}/../templates/provision_uk_telegram.py"
+        --url http://aether-gcp-dmz:3001
+        --username che01tan
+        --password {{ uptime_kuma_admin_password | quote }}
+        --bot-token {{ telegram_bot_token | string | quote }}
+        --chat-id {{ telegram_chat_id | string | quote }}
+        --name "Telegram — Aether Alerts"
+      register: uk_dmz_provision
+      changed_when: "'OK:' in uk_dmz_provision.stdout"
+      delegate_to: localhost
+      become: false
+      when: telegram_configured
+      no_log: true
+      tags: [ops-02, notifications]
+
+    - name: OPS-02 | Show provisioning result (GCP DMZ)
+      debug:
+        msg: "{{ uk_dmz_provision.stdout }}"
+      when: telegram_configured and uk_dmz_provision is defined
+      tags: [ops-02, notifications]
+
+  handlers:
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
