@@ -119,7 +119,7 @@
 
     - name: Authenticate Tailscale
       ansible.builtin.command: >
-        tailscale up --authkey={{ tailscale_auth_key }} --accept-routes
+        tailscale up --authkey={{ tailscale_auth_key }} --advertise-tags=tag:k3s --accept-routes
       register: tailscale_result
       changed_when: "'Success' in tailscale_result.stdout or tailscale_result.rc == 0"
       failed_when: tailscale_result.rc != 0
