@@ -72,6 +72,7 @@ resource "google_compute_instance" "dmz" {
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [metadata_startup_script]
   }
 
   boot_disk {
