@@ -2,15 +2,15 @@
 source /opt/backup/restic.env
 
 echo "==> Dumping PostgreSQL Databases..."
-docker exec blinko-postgres pg_dump -U postgres postgres > /home/ubuntu/blinko/db.sql || true
-docker exec bookorbit-db pg_dump -U bookorbit bookorbit > /home/ubuntu/bookorbit/db.sql || true
-docker exec affine-postgres pg_dump -U affine affine > /home/ubuntu/affine/db.sql || true
+docker exec blinko-postgres pg_dump -U postgres postgres > {{ app_base_dir }}/blinko/db.sql || true
+docker exec bookorbit-db pg_dump -U bookorbit bookorbit > {{ app_base_dir }}/bookorbit/db.sql || true
+docker exec affine-postgres pg_dump -U affine affine > {{ app_base_dir }}/affine/db.sql || true
 
 echo "==> Initializing Restic (if needed)..."
 restic init || true
 
 echo "==> Running Restic Backup..."
-restic backup /home/ubuntu --exclude=/home/ubuntu/calibre-library --exclude=/home/ubuntu/navidrome
+restic backup {{ app_base_dir }} --exclude={{ app_base_dir }}/calibre-library --exclude={{ app_base_dir }}/navidrome
 echo "==> Pruning old backups (Keeping 7 daily, 4 weekly)..."
 restic forget --keep-daily 7 --keep-weekly 4 --prune
 
