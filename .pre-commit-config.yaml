@@ -22,9 +22,11 @@ repos:
         pass_filenames: true
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.86.0
+    rev: v1.96.1
     hooks:
       - id: terraform_validate
+        args:
+          - --args=-no-color
 
   # Secret scanning (Catches plaintext passwords before they hit GitHub)
   - repo: https://github.com/gitleaks/gitleaks
