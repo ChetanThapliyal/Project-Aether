@@ -29,7 +29,7 @@ services:
   # Homepage — Platform Dashboard
   # ---------------------------------------------------------------------------
   homepage:
-    image: gethomepage/homepage:latest
+    image: gethomepage/homepage:v2.5.0  # Pinned 2026-10 (IaC-05)
     container_name: homepage
     restart: unless-stopped
     ports:
@@ -74,7 +74,7 @@ services:
   # (i.e. when CLOUDFLARE_TUNNEL_TOKEN is provisioned).
   # ---------------------------------------------------------------------------
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.0  # Pinned 2026-10 (IaC-05)
     container_name: cloudflared
     restart: unless-stopped
     profiles:
