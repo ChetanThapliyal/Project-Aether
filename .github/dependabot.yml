@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # =============================================================================
+  # Project Aether — Dependabot Configuration
+  # =============================================================================
+  # Monthly checks for Docker image updates in GCP DMZ stack
+  # =============================================================================
+  - package-ecosystem: "docker"
+    directory: "/infrastructure/docker/gcp-dmz"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "gcp-dmz"
