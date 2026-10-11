@@ -17,7 +17,7 @@ terraform {
 provider "proxmox" {
   endpoint  = var.proxmox_api_url
   api_token = "${var.proxmox_api_token_id}=${var.proxmox_api_token_secret}"
-  insecure  = true # Self-signed cert on homelab Proxmox
+  insecure  = false # Verified Let's Encrypt TLS cert (OPS-04)
 
   ssh {
     agent = true
