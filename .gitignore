@@ -131,6 +131,4 @@ docs/proxmox-audit
 
 # Ignore environment files
 *.env
-docs/misc/
-docs/notes/
-docs/planning/
+docs/git-ignored/
