@@ -62,6 +62,7 @@ echo "--- Registering node with Tailscale network ---"
 tailscale up \
     --authkey="${tailscale_auth_key}" \
     --hostname="${hostname}" \
+    --advertise-tags="tag:gcp-dmz" \
     --ssh \
     --accept-routes=true
 %{ else }
