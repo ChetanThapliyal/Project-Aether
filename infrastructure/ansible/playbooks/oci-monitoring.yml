@@ -1,0 +1,101 @@
+---
+# =============================================================================
+# OCI Monitoring Playbook
+# =============================================================================
+# Deploys Prometheus and Grafana monitoring stack on OCI, including
+# datasource and dashboard provisioning.
+#
+# Examples:
+#   ansible-playbook playbooks/oci-monitoring.yml
+#   ansible-playbook playbooks/bootstrap-oci.yml --tags monitoring
+# =============================================================================
+
+- name: Deploy OCI monitoring stack
+  hosts: bookorbit
+  become: true
+
+  vars:
+    app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
+    app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
+    docker_network: proxied-net
+
+  tasks:
+    # ─── Load SOPS Secrets ──────────────────────────────
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+      tags: [always]
+
+    # ─── Monitoring (Prometheus & Grafana) ──────────────
+    - name: Create monitoring directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      loop:
+        - "{{ app_base_dir }}/monitoring"
+        - "{{ app_base_dir }}/monitoring/prometheus-config"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources"
+        - "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards"
+      tags: [monitoring]
+
+    - name: Create monitoring data directories with 777
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0777"
+      loop:
+        - "{{ app_base_dir }}/monitoring/prometheus-data"
+        - "{{ app_base_dir }}/monitoring/grafana-data"
+      tags: [monitoring]
+
+    - name: Copy prometheus config
+      copy:
+        src: ../../../legacy-docker/oci-services/prometheus.yml
+        dest: "{{ app_base_dir }}/monitoring/prometheus-config/prometheus.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [monitoring]
+
+    - name: Copy grafana datasource provisioning
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/datasources/datasource.yml
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources/datasource.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [monitoring]
+
+    - name: Copy grafana dashboard provider config
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/dashboards/dashboards.yml
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/dashboards.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [monitoring]
+
+    - name: Copy node exporter dashboard
+      copy:
+        src: ../../../legacy-docker/oci-services/grafana-provisioning/dashboards/node-exporter-full.json
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/node-exporter-full.json"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [monitoring]
+
+    - name: Copy monitoring compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/monitoring.yml
+        dest: "{{ app_base_dir }}/monitoring/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [monitoring]
+
+    - name: Start monitoring stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/monitoring"
+        state: present
+        pull: always
+      tags: [monitoring]

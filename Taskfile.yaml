@@ -132,10 +132,34 @@ tasks:
       - task: ansible:kubeconfig
 
   ansible:oci:
-    desc: "Deploy all OCI server applications"
+    desc: "Deploy all OCI server applications (master playbook)"
     dir: infrastructure/ansible
     cmds:
       - ansible-playbook playbooks/bootstrap-oci.yml {{.CLI_ARGS}}
+
+  ansible:oci:base:
+    desc: "Configure OCI base system, Docker runtime, and networking"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/oci-base.yml {{.CLI_ARGS}}
+
+  ansible:oci:apps:
+    desc: "Deploy OCI application containers (Usage: task ansible:oci:apps -- --tags n8n)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/oci-apps.yml {{.CLI_ARGS}}
+
+  ansible:oci:monitoring:
+    desc: "Deploy OCI Prometheus and Grafana monitoring stack"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/oci-monitoring.yml {{.CLI_ARGS}}
+
+  ansible:oci:ops:
+    desc: "Configure OCI operational automation (Telegram alerts, Restic backups)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/oci-ops.yml {{.CLI_ARGS}}
 
   ansible:dmz:
     desc: "Deploy GCP DMZ observability stack (Uptime Kuma, Homepage, Cloudflared)"
