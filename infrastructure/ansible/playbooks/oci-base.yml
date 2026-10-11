@@ -1,0 +1,159 @@
+---
+# =============================================================================
+# OCI Base Infrastructure Playbook
+# =============================================================================
+# Prepares the OCI VM with base system packages, Docker runtime,
+# shared Docker network, Tailscale reverse proxy (tsdproxy), and
+# anti-reclamation resource daemon (systemhog).
+# =============================================================================
+
+- name: Configure OCI base infrastructure
+  hosts: bookorbit
+  become: true
+
+  vars:
+    app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
+    app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
+    docker_network: proxied-net
+    # Set to false to disable systemhog (after upgrading to PAYG)
+    enable_systemhog: true
+
+  tasks:
+    # ─── Load SOPS Secrets ──────────────────────────────
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+      tags: [always]
+
+    # ─── System Setup ───────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      tags: [base, system]
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - git
+          - restic
+        state: present
+      tags: [base, system]
+
+    - name: Ensure docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+      tags: [base, docker]
+
+    - name: "Add {{ app_user }} user to docker group"
+      user:
+        name: "{{ app_user }}"
+        groups: docker
+        append: true
+      tags: [base, docker]
+
+    # ─── Docker Network ─────────────────────────────────
+    - name: Create shared docker network
+      community.docker.docker_network:
+        name: "{{ docker_network }}"
+        state: present
+      tags: [base, docker]
+
+    # ─── tsdproxy (Tailscale Reverse Proxy) ─────────────
+    - name: Create tsdproxy directory
+      file:
+        path: "{{ app_base_dir }}/tsdproxy"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [tsdproxy]
+
+    - name: Copy tsdproxy compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/tsdproxy.yml
+        dest: "{{ app_base_dir }}/tsdproxy/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [tsdproxy]
+
+    - name: Copy tsdproxy env file
+      copy:
+        content: |
+          TSDPROXY_AUTHKEY={{ oci_tsdproxy_tsdproxy_authkey }}
+        dest: "{{ app_base_dir }}/tsdproxy/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+      no_log: true
+      tags: [tsdproxy]
+
+    - name: Start tsdproxy
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/tsdproxy"
+        state: present
+        pull: always
+      tags: [tsdproxy]
+
+    # ─── Systemhog (OCI Anti-Reclamation) ───────────────────
+    # Temporary workaround to keep CPU/RAM above Oracle's 20%
+    # idle threshold. Remove this entire block after upgrading
+    # to Pay As You Go. Toggle: set enable_systemhog to false.
+    - name: Install systemhog
+      when: enable_systemhog
+      shell: |
+        if [ ! -f /usr/local/bin/systemhog ]; then
+          curl -fsSL https://github.com/p1n2o/systemhog/releases/latest/download/install.sh | bash
+        fi
+      args:
+        creates: /usr/local/bin/systemhog
+      tags: [systemhog, base]
+
+    - name: Write systemhog config
+      when: enable_systemhog
+      copy:
+        dest: /etc/systemhog/config.conf
+        content: |
+          # systemhog configuration (managed by Ansible)
+          [CPU_SETTINGS]
+          TARGET_CPU_MIN = 20
+          TARGET_CPU_MAX = 30
+
+          [RAM_SETTINGS]
+          TARGET_RAM_USAGE = 30
+
+          [SETTINGS]
+          CHECK_INTERVAL = 30
+          SERVICE_NAME = systemhog
+          LOG_FILE = /var/log/systemhog.log
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart systemhog
+      tags: [systemhog, base]
+
+    - name: Ensure systemhog service is running
+      when: enable_systemhog
+      systemd:
+        name: systemhog
+        state: started
+        enabled: true
+        daemon_reload: true
+      tags: [systemhog, base]
+
+    - name: Stop and disable systemhog when toggled off
+      when: not enable_systemhog
+      systemd:
+        name: systemhog
+        state: stopped
+        enabled: false
+      ignore_errors: true
+      tags: [systemhog, base]
+
+  handlers:
+    - name: restart systemhog
+      systemd:
+        name: systemhog
+        state: restarted

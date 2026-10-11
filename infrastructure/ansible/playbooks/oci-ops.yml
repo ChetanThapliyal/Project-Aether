@@ -1,0 +1,126 @@
+---
+# =============================================================================
+# OCI Operations & Maintenance Playbook
+# =============================================================================
+# Handles operational automation for OCI:
+#   - OPS-02: Uptime Kuma Telegram notification channel provisioning
+#   - Automated Restic backups to S3/Cloudflare R2
+#
+# Examples:
+#   ansible-playbook playbooks/oci-ops.yml --tags ops-02
+#   ansible-playbook playbooks/oci-ops.yml --tags backup
+#   ansible-playbook playbooks/bootstrap-oci.yml --tags ops
+# =============================================================================
+
+- name: Configure OCI operations and backups
+  hosts: bookorbit
+  become: true
+
+  vars:
+    app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
+    app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
+
+  tasks:
+    # ─── Load SOPS Secrets ──────────────────────────────
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+      tags: [always]
+
+    # ─── OPS-02: OCI Uptime Kuma — Telegram Alert Channel ─
+    # Targets the primary OCI Uptime Kuma instance (uptimekuma on Tailscale).
+    # Runs from LOCALHOST (which is on Tailscale) — no pip3 required on remote host.
+    # Requires in ansible-secrets.sops.yaml:
+    #   uptime_kuma_admin_password: <your UK admin password>
+    #   telegram_bot_token:  <token from @BotFather>
+    #   telegram_chat_id:    <chat ID — see deploy-dmz.yml for instructions>
+    - name: OPS-02 | Check if Telegram secrets are available (OCI)
+      set_fact:
+        telegram_configured_oci: >-
+          {{ (telegram_bot_token is defined and telegram_bot_token | string | length > 0) and
+             (telegram_chat_id is defined and telegram_chat_id | string | length > 0) and
+             (uptime_kuma_admin_password is defined and uptime_kuma_admin_password | string | length > 0) }}
+      tags: [ops-02, notifications, ops]
+
+    - name: OPS-02 | Skip notice — Telegram secrets not found (OCI)
+      debug:
+        msg:
+          - "⚠  OPS-02: OCI Telegram notification channel NOT provisioned."
+          - "   Add telegram_bot_token, telegram_chat_id, uptime_kuma_admin_password to SOPS secrets."
+          - "   Then re-run: task ansible:oci -- --tags ops-02"
+      when: not telegram_configured_oci
+      tags: [ops-02, notifications, ops]
+
+    - name: OPS-02 | Install uptime-kuma-api on localhost (Socket.IO client)
+      pip:
+        name: uptime-kuma-api
+        state: present
+        extra_args: --break-system-packages
+      delegate_to: localhost
+      become: false
+      when: telegram_configured_oci
+      tags: [ops-02, notifications, ops]
+
+    - name: OPS-02 | Provision Telegram channel in OCI UK (https://uptimekuma) via Tailscale
+      # Runs locally — reaches OCI UK over Tailscale mesh. No pip3 needed on remote host.
+      command: >
+        python3 "{{ playbook_dir }}/../templates/provision_uk_telegram.py"
+        --url https://uptimekuma
+        --username kill3rbee
+        --password {{ uptime_kuma_admin_password | quote }}
+        --bot-token {{ telegram_bot_token | string | quote }}
+        --chat-id {{ telegram_chat_id | string | quote }}
+        --name "Telegram — Aether Alerts (OCI)"
+      register: uk_oci_provision
+      changed_when: "'OK:' in uk_oci_provision.stdout"
+      delegate_to: localhost
+      become: false
+      when: telegram_configured_oci
+      no_log: true
+      tags: [ops-02, notifications, ops]
+
+    - name: OPS-02 | Show provisioning result (OCI)
+      debug:
+        msg: "{{ uk_oci_provision.stdout }}"
+      when: telegram_configured_oci and uk_oci_provision is defined
+      tags: [ops-02, notifications, ops]
+
+    # ─── Backups (Restic) ───────────────────────────────────
+    - name: Create backup directory
+      file:
+        path: /opt/backup
+        state: directory
+        owner: root
+        mode: "0700"
+      tags: [backup, restic, ops]
+
+    - name: Deploy restic env file
+      copy:
+        content: |
+          export AWS_ACCESS_KEY_ID={{ oci_backup_s3_access_key }}
+          export AWS_SECRET_ACCESS_KEY={{ oci_backup_s3_secret_key }}
+          export RESTIC_PASSWORD={{ oci_backup_restic_password }}
+          export RESTIC_REPOSITORY=s3:{{ oci_backup_s3_endpoint }}/dr-backups
+          export UPTIME_KUMA_PUSH_URL={{ oci_backup_kuma_push_url }}
+        dest: /opt/backup/restic.env
+        owner: root
+        mode: "0600"
+      no_log: true
+      tags: [backup, restic, ops]
+
+    - name: Deploy backup script
+      template:
+        src: ../templates/backup.sh.j2
+        dest: /opt/backup/run-backup.sh
+        owner: root
+        mode: "0700"
+      tags: [backup, restic, ops]
+
+    - name: Schedule nightly backup
+      cron:
+        name: "Restic Nightly Backup"
+        minute: "0"
+        hour: "3"
+        job: "/opt/backup/run-backup.sh >> /var/log/restic-backup.log 2>&1"
+        user: root
+      tags: [backup, restic, ops]
