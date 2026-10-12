@@ -15,7 +15,3 @@ resource "oci_objectstorage_bucket" "dr_backups" {
   # Standard tier is part of the 20GB Always Free limit
   storage_tier = "Standard"
 }
-
-output "backup_bucket_name" {
-  value = oci_objectstorage_bucket.dr_backups.name
-}

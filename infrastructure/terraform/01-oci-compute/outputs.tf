@@ -23,5 +23,11 @@ output "bookorbit_backup_id" {
 }
 
 output "dr_backup_bucket" {
-  value = module.storage.backup_bucket_name
+  description = "Name of the disaster recovery Object Storage bucket"
+  value       = module.storage.backup_bucket_name
+}
+
+output "dr_backup_bucket_id" {
+  description = "OCID of the disaster recovery Object Storage bucket"
+  value       = module.storage.backup_bucket_id
 }
