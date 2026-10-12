@@ -1,0 +1,76 @@
+name: "Terraform Drift Detection"
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC (07:30 IST)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift-detection:
+    name: "Drift Check - ${{ matrix.dir }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - "02-gcp-dmz"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Install SOPS
+        run: |
+          SOPS_VERSION="v3.9.4"
+          curl -fsSL -o /usr/local/bin/sops \
+            "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
+          chmod +x /usr/local/bin/sops
+          sops --version
+
+      - name: Run Drift Check (Terraform Plan)
+        working-directory: infrastructure/terraform/${{ matrix.dir }}
+        run: |
+          echo "Initializing Terraform..."
+          terraform init
+
+          if [ -f terraform.sops.tfvars ]; then
+            echo "Decrypting SOPS variables for plan..."
+            sops -d terraform.sops.tfvars > terraform.auto.tfvars
+          fi
+
+          echo "Running terraform plan with -detailed-exitcode..."
+          set +e
+          terraform plan -detailed-exitcode -no-color | tee plan_output.txt
+          PLAN_EXIT_CODE=$?
+          set -e
+
+          # Securely wipe decrypted variables
+          rm -f terraform.auto.tfvars
+
+          if [ $PLAN_EXIT_CODE -eq 0 ]; then
+            echo "✅ No drift detected. Infrastructure matches configuration." >> $GITHUB_STEP_SUMMARY
+          elif [ $PLAN_EXIT_CODE -eq 2 ]; then
+            echo "⚠️ DRIFT DETECTED: Infrastructure has changed outside of Terraform!" >> $GITHUB_STEP_SUMMARY
+            echo '```hcl' >> $GITHUB_STEP_SUMMARY
+            cat plan_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 2
+          else
+            echo "❌ Terraform plan failed with an error." >> $GITHUB_STEP_SUMMARY
+            exit $PLAN_EXIT_CODE
+          fi
