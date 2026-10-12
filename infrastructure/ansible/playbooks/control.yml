@@ -24,6 +24,7 @@
         curl -sfL https://get.k3s.io | \
           INSTALL_K3S_VERSION="{{ k3s_version }}" \
           sh -s - server \
+            --cluster-init \
             --write-kubeconfig-mode "644" \
             --tls-san "{{ ansible_host }}" \
             --disable traefik \
