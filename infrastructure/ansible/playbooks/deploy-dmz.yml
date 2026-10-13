@@ -129,19 +129,20 @@
       no_log: true
 
     # ─── Homepage Configuration Files ─────────────────────
-    - name: Deploy default Homepage configs (skip if already present)
+    - name: Deploy default Homepage configs
       copy:
         src: "{{ item.src }}"
         dest: "{{ dmz_dir }}/homepage/config/{{ item.dest }}"
         owner: "{{ dmz_user }}"
         group: "{{ dmz_group }}"
         mode: "0644"
-        force: false
+        force: "{{ item.force | default(false) }}"
       loop:
         - { src: "../../docker/gcp-dmz/homepage/settings.yaml", dest: "settings.yaml" }
-        - { src: "../../docker/gcp-dmz/homepage/services.yaml", dest: "services.yaml" }
+        - { src: "../../docker/gcp-dmz/homepage/services.yaml", dest: "services.yaml", force: true }
         - { src: "../../docker/gcp-dmz/homepage/bookmarks.yaml", dest: "bookmarks.yaml" }
         - { src: "../../docker/gcp-dmz/homepage/widgets.yaml", dest: "widgets.yaml" }
+        - { src: "../../docker/gcp-dmz/homepage/docker.yaml", dest: "docker.yaml", force: true }
 
     # ─── Docker Compose File ──────────────────────────────
     - name: Copy docker-compose.yml to DMZ host
