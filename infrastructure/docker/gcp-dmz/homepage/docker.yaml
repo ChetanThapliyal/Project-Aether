@@ -1,0 +1,10 @@
+# =============================================================================
+# Homepage Docker Engine Integration
+# =============================================================================
+# Connects to the local Docker daemon via a hardened read-only socket proxy
+# (tecnativa/docker-socket-proxy). The raw Docker socket is not exposed to Homepage.
+# =============================================================================
+
+dmz-docker:
+  host: socket-proxy
+  port: 2375
