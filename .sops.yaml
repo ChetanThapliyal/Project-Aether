@@ -18,3 +18,4 @@ creation_rules:
   - path_regex: .*\.sops\.ya?ml$
     gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
+    encrypted_regex: '^(data|stringData)$'  # Only encrypt secret values; leave apiVersion/kind/metadata plaintext
