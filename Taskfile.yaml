@@ -1,7 +1,8 @@
 version: "3"
 
-# Automatically load the .env file containing your Proxmox secrets
-dotenv: [".env"]
+# Infrastructure credentials are supplied by SOPS-encrypted tfvars
+# (decrypted per task) and gcloud Application Default Credentials.
+# No repository-level .env file is used by this Taskfile.
 
 tasks:
   default:
