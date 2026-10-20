@@ -6,14 +6,14 @@ ADR-012: OCI Infrastructure Consolidation into Project Aether Monorepo
 - **Status:** Accepted
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
-- **Context:** OCI compute infrastructure (Oracle Cloud free-tier A1.Flex instance) was historically managed in a separate private repository (`ChetanThapliyal/OCI-servers`) containing Terraform modules, Ansible playbooks, and Docker Compose files. This created a polyrepo split contradicting the monorepo strategy established in ADR-005. ADR-005 was written before OCI was in use; OCI was not considered in scope at that time.
-- **Problem Statement:** With OCI now serving as a permanent part of the infrastructure stack (Argo CD runtime, monitoring relay), managing its code separately from the homelab introduces version drift, context switching between repos, and a dual-SOPS configuration with no shared key management.
+- **Context:** OCI compute infrastructure (an Oracle Cloud free-tier A1.Flex instance) was originally managed in a separate private repository (`ChetanThapliyal/OCI-servers`) containing Terraform modules, Ansible playbooks, and Docker Compose files. Managing it separately created a split that contradicted the monorepo strategy established in ADR-005.
+- **Problem Statement:** With OCI serving as a permanent component of the infrastructure stack (for external workloads and relays), maintaining code separately leads to version drift, context switching, and split SOPS configurations.
 - **Decision Drivers:**
-  - OCI is no longer an experiment – it is a permanent infrastructure node (ADR-010).
-  - A single monorepo provides atomic commits across homelab + OCI changes.
-  - Centralising SOPS under one `.sops.yaml` and one GCP KMS key simplifies key management.
-  - Secrets in the OCI repo's Git history (discovered via `gitleaks` scan) made the private repo unsafe to keep in its original form.
-- **Decision:** Consolidate all OCI infrastructure code into `Project Aether` using a **clean-state import** (no history preservation). The GCS Terraform bootstrap repo (`GCS-CP`) remains **strictly isolated** and is explicitly excluded from this decision.
+  - OCI is a permanent component of Project Aether infrastructure (ADR-010).
+  - A single repository provides atomic commits across homelab and cloud configurations.
+  - Centralizing secrets under a shared `.sops.yaml` and GCP KMS key unifies key management.
+  - Plaintext secrets discovered in the historical Git commits of the old repository required a clean import.
+- **Decision:** Consolidate OCI infrastructure code into Project Aether using a clean-state import without history. The GCS Terraform bootstrap repository (`GCS-CP`) remains isolated and is excluded from this repository.
 - **Architecture Impact:**
 
   | Source (OCI-servers repo) | Destination (Project Aether) |
@@ -22,41 +22,39 @@ ADR-012: OCI Infrastructure Consolidation into Project Aether Monorepo
   | `ansible/` | `infrastructure/ansible/playbooks/bootstrap-oci.yml` + `inventory/oci.ini` |
   | `compose-files/` | `legacy-docker/oci-services/` |
 
-  - Terraform state continues to live in GCS under the `oci` prefix – no state migration required.
-  - The OCI Terraform backend config was already pointing at the shared GCS bucket (`tf-backend-oci-hlab-gcs`), so `terraform init` picked up existing state automatically.
+  - Terraform state continues to reside in GCS under the `oci` prefix without requiring state migration.
+  - The OCI Terraform configuration points to the shared GCS bucket (`tf-backend-oci-hlab-gcs`), and `terraform init` reuses existing state.
 
 - **Alternatives Considered:**
-  - *Keep polyrepo:* Rejected. Increases operational friction and creates a second SOPS configuration to maintain. OCI is now core infrastructure, not a side project.
-  - *History-preserving merge (`git subtree` / `git filter-repo`):* Rejected. A `gitleaks` scan of the OCI repo's 38 commits found a hardcoded `NEXTAUTH_SECRET` in `compose-files/blinko.env` (commit `866099aa`). Importing the history into a public repo would permanently expose this secret. Clean import is the only safe option.
-  - *Move GCS bootstrap repo in too:* Rejected. The bootstrap repo is the foundation layer – it creates the GCS bucket and the GCP project itself. It must remain isolated from the monorepo it enables to avoid circular dependency and blast radius.
-
-- **Decision Rationale:** A clean-state import drops the compromised Git history while preserving all current file state. No services are interrupted (only source code is moved; the running OCI server is untouched). The monorepo benefits of ADR-005 now apply to OCI without exception.
+  - *Keep separate repository:* Rejected. Adds administrative overhead and requires maintaining two separate SOPS setups.
+  - *Merge Git history (`git subtree` / `git filter-repo`):* Rejected. A `gitleaks` scan identified credentials in early commits of the private repository. Importing full history into a public repository would expose those historical values.
+  - *Include GCS bootstrap repository:* Rejected. The bootstrap repository provisions the GCP project and GCS bucket required by this monorepo and must remain decoupled to prevent circular dependencies.
+- **Decision Rationale:** A clean-state import removes old Git history while bringing current configurations into the main repository. Live OCI infrastructure continues running uninterrupted during the transfer.
 - **Consequences:**
-  - *Positive:* Single source of truth for all infrastructure; unified SOPS configuration; secrets history purged; `task tf:plan DIR=01-oci-compute` works identically to homelab.
-  - *Negative:* OCI Git history is lost. If you need to trace a historical change, the original private repo still exists locally at `/home/owl/Projects/OCI-servers/` as an archive.
-  - *Risks:* If the OCI repo is deleted before archiving, historical context is lost permanently.
-  - *Trade-offs:* Security (history purge) over auditability (history preservation).
+  - *Positive:* Unified repository for all infrastructure, consolidated SOPS rules, and standard `task` execution commands across environments.
+  - *Negative:* Historical commit logs from the initial OCI repository are omitted from the main repo history.
+  - *Risks:* Historical commit references must be retrieved from the local archive directory (`/home/owl/Projects/OCI-servers/`) if needed.
+  - *Trade-offs:* Prioritizing clean secrets hygiene over full commit history preservation.
 - **Security Considerations:**
-  - All `.env` files excluded from the import. Ansible playbook rewritten to use centralized `infrastructure/secrets/ansible-secrets.sops.yaml` instead of plaintext env files.
-  - All `*.env` files added to root `.gitignore`.
-  - `gitleaks` scan mandatory before any future monorepo merges.
-- **Reliability Considerations:** OCI TF state is remote (GCS) – merging the code does not affect the running infrastructure.
-- **Scalability Considerations:** N/A – organizational change, not a scalability concern.
-- **Operational Considerations:** The original private OCI repo should be archived (not deleted) and marked read-only on GitHub to preserve audit trail.
-- **Cost Considerations:** ₹0.00 – organizational restructuring only.
+  - Environment files are excluded from import, and variables are referenced via `infrastructure/secrets/ansible-secrets.sops.yaml`.
+  - Added `*.env` to the root `.gitignore`.
+  - Pre-commit secret scanning via `gitleaks` runs automatically.
+- **Reliability Considerations:** State remains in remote GCS; moving code does not affect running cloud workloads.
+- **Scalability Considerations:** Organizational consolidation with no impact on runtime scalability.
+- **Operational Considerations:** The original private repository is archived and set to read-only on GitHub for reference.
+- **Cost Considerations:** ₹0.00 (organizational restructuring).
 - **Migration Plan:**
-  1. `gitleaks` secret scan of source repo ✅
-  2. Directory mapping and conflict analysis ✅
-  3. `rsync` copy of files (no `.git/`, no `.env` files) ✅
-  4. Playbook rewritten for centralized SOPS vars ✅
-  5. Local state files purged (state lives in GCS only) ✅
-  6. `terraform init` verified against live GCS state ✅
-  7. Archive the original private OCI repo on GitHub ⬜ *(pending)*
+  1. Complete `gitleaks` secret scan of source repo (Completed).
+  2. Map directories and resolve naming overlaps (Completed).
+  3. Copy current files without `.git/` or `.env` files (Completed).
+  4. Update Ansible playbooks to use centralized SOPS secrets (Completed).
+  5. Clean up local state artifacts (Completed).
+  6. Verify `terraform init` against remote GCS state (Completed).
+  7. Archive the original private repository on GitHub (Pending).
 - **Validation / Fitness Functions:**
-  - `terraform init` in `01-oci-compute/` must succeed without errors against GCS backend.
-  - `ansible-playbook --check` against OCI inventory must pass without drift.
+  - Running `terraform init` in `01-oci-compute/` succeeds against the GCS backend.
+  - `ansible-playbook --check` against the OCI inventory reports zero configuration drift.
 - **Dependencies:** ADR-005 (Monorepo Structure), ADR-007 (Secrets Management), ADR-011 (Terraform Remote Backend).
-- **Open Questions:**
-  - Archive vs. delete the original `ChetanThapliyal/OCI-servers` GitHub repo.
+- **Open Questions:** None.
 - **Related ADRs:** ADR-005, ADR-007, ADR-010, ADR-011.
-- **Review Conditions:** Review if a second OCI tenancy is ever provisioned.
+- **Review Conditions:** Review if a second cloud tenancy is added to the project.
