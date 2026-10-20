@@ -6,28 +6,28 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
 - **Status:** Accepted
 - **Date:** October 2026
 - **Owner:** Principal Architect
-- **Context:** Project Aether utilizes Tailscale as its secure remote access layer (per ADR-004). Initially, the Tailnet operated on a default "allow-all" policy (`*:*`). As the infrastructure expanded across diverse environments—including public Oracle Cloud (OCI) instances, a GCP DMZ, and a private Proxmox/K3s homelab—this flat network topology presented a significant risk of lateral movement. A compromised public-facing instance could theoretically establish a direct WireGuard connection to the internal K3s control plane.
-- **Problem Statement:** How do we restrict internal network routing and prevent unauthorized lateral movement across distinct infrastructure environments while maintaining unified administrative access?
+- **Context:** Project Aether uses Tailscale for secure remote networking (per ADR-004). The network originally operated on an allow-all policy (`*:*`). As the deployment grew to include Oracle Cloud instances, a GCP DMZ, and a private Proxmox cluster, this flat layout created an unnecessary risk of lateral movement if a public cloud node were compromised.
+- **Problem Statement:** How do we enforce least-privilege traffic boundaries between separate infrastructure environments without breaking administrative access?
 - **Decision Drivers:**
-  - Need to cryptographically isolate public cloud environments (OCI/GCP) from internal homelab infrastructure.
-  - Granular, port-level access controls required (e.g., DMZ only needs ports 80/443 for monitoring).
-  - Centralized, version-controlled policy definition.
-- **Decision:** We will enforce micro-segmentation within the Tailnet using Tailscale's modern **Grants** framework, replacing the legacy `acls` syntax.
+  - Cryptographically isolate public cloud nodes (OCI/GCP) from internal homelab networks.
+  - Require granular port-level rules (such as restricting DMZ access to specific monitoring ports).
+  - Define policy centrally in version control.
+- **Decision:** Enforce micro-segmentation within the Tailnet using Tailscale Grants instead of legacy ACL syntax.
 - **Architecture Impact:**
-  - Strict Role-Based Access Control (RBAC) via device tags (`tag:k3s`, `tag:oci`, `tag:gcp-dmz`, `tag:operator`).
-  - Network-layer capabilities (`ip`) are explicitly granted per source/destination pair.
-  - The Tailnet is no longer a flat mesh; it is segmented based on the principle of least privilege.
+  - Role-based tagging organizes devices (`tag:k3s`, `tag:oci`, `tag:gcp-dmz`, `tag:operator`).
+  - Network-layer capabilities (`ip`) are explicitly defined per source and destination tag.
+  - The Tailnet transitions from a flat mesh to segmented network tiers.
 - **Alternatives Considered:**
-  - *Legacy Tailscale ACLs:* Rejected. While functional, the traditional `acls` syntax intertwines targets and ports, making complex matrices harder to maintain. Tailscale explicitly recommends migrating to Grants for superior application-layer capability support and readability.
-  - *Host-level Firewalls (UFW/iptables):* Rejected. Relying on OS-level firewalls across diverse OS distributions (Ubuntu, Debian, Proxmox, Talos) creates immense configuration drift. Enforcing rules centrally at the identity/SDN layer via Tailscale is significantly more resilient.
-- **Decision Rationale:** Tailscale Grants provide a modern, declarative, and highly readable syntax for defining network and application-level capabilities. By centralizing segmentation logic in the Tailscale policy, we achieve true Zero Trust boundaries without managing complex per-node firewall configurations.
+  - *Legacy Tailscale ACLs:* Rejected. The older ACL syntax couples targets and ports together, making complex rule tables harder to maintain. Tailscale recommends Grants for clear application capabilities and readability.
+  - *Host-level Firewalls (UFW/iptables):* Rejected. Maintaining disparate host firewalls across multiple operating systems (Ubuntu, Debian, Proxmox) causes configuration drift. Enforcing rules centrally at the identity layer avoids local firewall management.
+- **Decision Rationale:** Tailscale Grants define network capabilities explicitly per source and destination tag, avoiding the maintenance overhead of intertwined port matrices in legacy ACLs. Defining access rules centrally in Tailscale eliminates configuration drift across differing host firewalls (such as UFW and iptables) on disparate operating systems.
 - **Consequences:**
-  - *Positive:* Reduced security blast radius. OCI compromises cannot pivot into the K3s environment. Clear, version-controlled definition of environment boundaries.
-  - *Negative:* Adding new cross-environment services now requires updating the Tailscale policy.
-  - *Risks:* Misconfiguring a grant could accidentally sever internal service communication or monitoring.
+  - *Positive:* Constrains lateral movement between environments, isolates homelab nodes from cloud instances, and documents network boundaries in Git.
+  - *Negative:* New cross-environment connections require explicit policy updates.
+  - *Risks:* Overly restrictive rules can disrupt metrics collection or service communications if not verified before deployment.
 - **Security Considerations:**
-  - The policy file itself is a sensitive architectural blueprint. It must be version-controlled in the Git repository but encrypted (e.g., via SOPS) to obscure internal routing topology and device tags.
-  - To achieve true Defense-in-Depth, cloud provider firewalls (e.g., GCP VPC firewalls) must be locked down to only permit inbound SSH traffic originating from Tailscale's CGNAT IPv6 block (`fd7a:115c:a1e0::/48`). This ensures public IPs cannot even reach the SSH daemon over the public internet, preventing brute-force fatigue.
-- **Operational Considerations:** Operators must remember to tag new instances appropriately upon provisioning, otherwise the implicit deny-by-default stance will block all inbound traffic.
-- **Dependencies:** Tailscale Grants framework, SOPS (for secret management).
+  - The Tailscale policy file defines sensitive network topology and should be stored securely or encrypted via SOPS if committed to public repositories.
+  - Cloud provider firewalls (such as GCP VPC firewall rules) should be restricted to allow inbound management connections only from Tailscale IPv6 CGNAT addresses (`fd7a:115c:a1e0::/48`).
+- **Operational Considerations:** Newly provisioned nodes must be tagged properly to prevent the default-deny policy from blocking expected traffic.
+- **Dependencies:** Tailscale Grants framework, SOPS.
 - **Related ADRs:** ADR-004 (Secure Network Access Layer).
