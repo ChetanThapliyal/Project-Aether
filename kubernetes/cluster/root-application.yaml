@@ -11,7 +11,8 @@ spec:
     repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
     targetRevision: HEAD
     path: kubernetes/cluster
-    recurse: true
+    directory:
+      recurse: true
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
