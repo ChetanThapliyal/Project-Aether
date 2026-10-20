@@ -64,6 +64,7 @@
           SETUP_BOOTSTRAP_TOKEN={{ oci_bookorbit_setup_bootstrap_token }}
           APP_URL={{ oci_bookorbit_app_url }}
           NODE_MAX_OLD_SPACE_SIZE={{ oci_bookorbit_node_max_old_space_size }}
+          SWAGGER_ENABLED={{ oci_bookorbit_swagger_enabled | default('true') }}
         dest: "{{ app_base_dir }}/bookorbit/.env"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
