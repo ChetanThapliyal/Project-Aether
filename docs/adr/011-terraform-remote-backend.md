@@ -6,43 +6,41 @@ ADR-011: Terraform Remote State Backend (GCS)
 - **Status:** Accepted (Supersedes original MinIO/S3 proposal)
 - **Date:** September 2026
 - **Owner:** Principal Architect / Homelab Owner
-- **Context:** Terraform utilizes a state file (`terraform.tfstate`) to map real-world infrastructure to configuration. This file often contains sensitive infrastructure secrets (passwords, tokens) in plaintext. Committing this file to version control is a critical security vulnerability, but keeping it locally on a single laptop prevents CI/CD automation and risks data loss.
-- **Problem Statement:** How do we securely store and manage Terraform state to prevent secret leakage, ensure disaster recovery, and enable future CI/CD automation?
+- **Context:** Terraform uses a state file (`terraform.tfstate`) to map real-world infrastructure to configuration. This file often contains sensitive infrastructure secrets (such as passwords and tokens) in plaintext. Committing it to version control exposes credentials, while keeping it only on a local workstation prevents CI/CD automation and risks data loss.
+- **Problem Statement:** How do we store and lock Terraform state securely to prevent secret exposure, ensure disaster recovery, and enable automated CI/CD pipelines?
 - **Decision Drivers:**
-  - Absolute requirement to keep plaintext secrets out of Git.
-  - Need for a centralized state to allow future GitHub Actions to run `terraform plan`.
-  - Desire to align with heavy-enterprise industry standards.
-  - Need for native state locking without additional infrastructure.
-  - MinIO project archived on GitHub – support has ended, making it an unmaintainable dependency.
-- **Decision:** I will utilize a **Google Cloud Storage (GCS) bucket** as the Terraform remote backend. The bucket `tf-backend-oci-hlab-gcs` stores state under the `homelab` prefix.
-- **Architecture Impact:** The local `.tfstate` file has been migrated to `gs://tf-backend-oci-hlab-gcs/homelab/default.tfstate`. All future `terraform plan` and `terraform apply` executions require GCP authentication (Application Default Credentials) to read and write the state file. GCS provides native state locking – no external locking mechanism is needed.
-
+  - Prevent plaintext secrets from being committed to Git.
+  - Centralize state for future pipeline executions.
+  - Native state locking without running extra infrastructure services.
+  - MinIO project was archived on GitHub, making it unmaintained.
+- **Decision:** Use a Google Cloud Storage (GCS) bucket as the Terraform remote backend. The bucket `tf-backend-oci-hlab-gcs` stores state under the `homelab` prefix.
+- **Architecture Impact:** Local state files are migrated to `gs://tf-backend-oci-hlab-gcs/homelab/default.tfstate`. Terraform commands require GCP Application Default Credentials to access state. GCS handles locking natively without external databases.
 - **Alternatives Considered:**
-  - *Local State with strict `.gitignore`:* Rejected. While it keeps secrets out of Git, it creates a single point of failure (laptop drive crash) and completely blocks any future CI/CD automation from accessing the state.
-  - *Self-hosted MinIO (S3-compatible) on OCI:* Originally proposed but superseded. The MinIO GitHub repository has been archived and support has ended, making it an unmaintainable dependency. Beyond the EOL concern, MinIO also lacked native DynamoDB-style state locking, required managing an additional Docker service, and introduced operational overhead for a single-operator environment.
-  - *Terraform Cloud (Managed SaaS):* Rejected. While an excellent modern standard, using a cloud-provider-native bucket provides deeper hands-on experience and avoids reliance on third-party SaaS.
-  - *PostgreSQL Backend:* Rejected. While native and supports locking, S3/GCS API compatibility is the overwhelming industry standard for state storage.
-- **Decision Rationale:** The primary trigger for this change was MinIO reaching end-of-life – its GitHub repository has been archived, meaning no further security patches or bug fixes. Beyond the EOL urgency, GCS was chosen for three additional reasons: (1) native state locking eliminates the open question from the original ADR about DynamoDB-compatible locking, (2) zero operational overhead – no Docker containers or OCI instances to maintain, and (3) GCP's free tier provides sufficient storage at no cost. The `homelab` prefix allows the same bucket to be shared across multiple Terraform root modules (e.g., `homelab`, `oci`) in the future.
+  - *Local state with `.gitignore`:* Rejected. Retains a single point of failure on the workstation drive and prevents automated CI/CD runs.
+  - *Self-hosted MinIO on OCI:* Rejected. The MinIO repository was archived and no longer receives maintenance. MinIO also lacked built-in locking without DynamoDB emulation, adding extra operational burden.
+  - *Terraform Cloud SaaS:* Rejected. A cloud storage bucket keeps infrastructure decoupled from third-party platform lock-in.
+  - *PostgreSQL Backend:* Rejected. Object storage APIs remain the primary standard for Terraform state backends.
+- **Decision Rationale:** The original MinIO proposal was dropped because the project repository was archived and no longer receives security updates. GCS provides native state locking without extra services like DynamoDB, requires no container maintenance, and falls within GCP's free storage tier. Prefixing state keys allows the bucket to store state for multiple root modules (such as `homelab` and `oci`).
 - **Consequences:**
-  - *Positive:* Secrets are completely secure; state is backed up offsite; native locking prevents concurrent state corruption; infrastructure is ready for CI/CD automation pipelines; zero self-hosted infrastructure to maintain.
-  - *Negative:* Introduces a network dependency on GCP for any infrastructure changes.
-  - *Risks:* If the GCS bucket is deleted and not backed up, the Terraform state is permanently lost (requiring a difficult `terraform import` recovery). Mitigated by: `force_destroy = false` (prevents accidental deletion), object versioning (retains last 5 versions for rollback), and uniform IAM access control.
-  - *Trade-offs:* Dependency on a cloud provider (GCP) rather than fully self-hosted state management.
-- **Security Considerations:** Access to the GCS bucket is controlled via GCP IAM. Local authentication uses Application Default Credentials (ADC). For CI/CD, a service account with minimal `roles/storage.objectAdmin` on the specific bucket should be used.
-- **Reliability Considerations:** The state file is decoupled from the Proxmox host, meaning even if the entire homelab burns down, the infrastructure blueprint and state remain safe in GCP. GCS provides 99.95% availability SLA. Object versioning retains the last 5 noncurrent versions, enabling rollback if a bad state write occurs.
-- **Scalability Considerations:** The `prefix` mechanism allows multiple Terraform workspaces to share a single bucket (e.g., `homelab/`, `oci/`, `gcp/`).
-- **Performance Considerations:** Negligible impact. State retrieval takes milliseconds.
-- **Operational Considerations:** Requires GCP authentication (via `gcloud auth application-default login`) before Terraform can be initialized.
-- **Cost Considerations:** Infrastructure: ₹0.00 (GCP free tier – 5 GB Cloud Storage). The lifecycle rule caps noncurrent versions at 5, ensuring storage stays well within the free tier limit even with frequent state writes.
+  - *Positive:* Offsite encrypted state storage, native concurrency locking, and readiness for CI/CD pipelines without maintaining self-hosted services.
+  - *Negative:* Introduces an internet and GCP authentication dependency when running Terraform plans.
+  - *Risks:* Accidental deletion of the bucket could lose state history. Mitigated by setting `force_destroy = false`, enabling object versioning for rollback, and restricting IAM roles.
+  - *Trade-offs:* Accepting dependency on a public cloud provider in exchange for managed availability and locking.
+- **Security Considerations:** Access is governed by GCP IAM policies. Local workstations authenticate via Application Default Credentials, and CI/CD pipelines use scoped service accounts.
+- **Reliability Considerations:** State is preserved offsite independently of local hypervisor hardware. GCS object versioning retains recent state versions for recovery if corrupt writes occur.
+- **Scalability Considerations:** The prefix mechanism allows multiple directories to share a single bucket safely.
+- **Performance Considerations:** Minimal latency impact; state downloads complete in milliseconds.
+- **Operational Considerations:** Workstations must run `gcloud auth application-default login` before initializing Terraform.
+- **Cost Considerations:** Infrastructure: ₹0.00 (GCP free tier, 5 GB storage). Object lifecycle rules prune old versions to stay well within free limits.
 - **Migration Plan:**
-  1. Create the GCS bucket `tf-backend-oci-hlab-gcs` in GCP.
+  1. Create bucket `tf-backend-oci-hlab-gcs` in GCP.
   2. Add the `backend "gcs"` block to `provider.tf`.
-  3. Run `terraform init -migrate-state` to copy the local state to GCS.
-  4. Remove the local `terraform.tfstate` and `terraform.tfstate.backup` files.
+  3. Run `terraform init -migrate-state` to push local state into GCS.
+  4. Delete local `terraform.tfstate` files once migration completes.
 - **Validation / Fitness Functions:**
-  - Running `terraform plan` on a new machine after `gcloud auth application-default login` must succeed without copying any local files.
-  - Running `terraform state list` must return all managed resources from the remote backend.
-- **Dependencies:** GCP account, GCS bucket, `gcloud` CLI (for authentication).
-- **Open Questions:** None. Native GCS locking resolves the open locking question from the original MinIO proposal.
-- **Related ADRs:** ADR-007 (Secrets Management).
-- **Review Conditions:** Review if multi-environment state isolation requires separate buckets or Terraform workspaces.
+  - Running `terraform plan` on a fresh machine authenticated via `gcloud` must complete successfully without manual file copying.
+  - `terraform state list` must return managed resources directly from the remote backend.
+- **Dependencies:** GCP account, GCS bucket, `gcloud` CLI.
+- **Open Questions:** None.
+- **Related ADRs:** ADR-007 (Secrets Management), ADR-014 (Single-Environment Infrastructure Strategy).
+- **Review Conditions:** Resolved by ADR-014 (confirms single-environment default workspace per module without bucket or workspace partitioning).
