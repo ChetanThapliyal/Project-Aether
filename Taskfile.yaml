@@ -202,6 +202,6 @@ tasks:
     silent: true
 
   argocd:port-forward:
-    desc: "Port-forward ArgoCD server to localhost:8080"
+    desc: "Port-forward ArgoCD server to localhost:8090"
     cmds:
-      - kubectl port-forward svc/argocd-server -n argocd 8080:443
+      - kubectl port-forward svc/argocd-server -n argocd ${ARGOCD_PORT:-8090}:80
