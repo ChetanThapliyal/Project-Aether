@@ -21,6 +21,32 @@ repos:
         exclude: '\.sops\.tfvars$'
         pass_filenames: true
 
+  - repo: local
+    hooks:
+      - id: check-sops-encryption
+        name: Check SOPS Encryption State
+        entry: scripts/check-sops-encryption.sh
+        language: script
+        files: '\.sops\.ya?ml$'
+        exclude: '^\.sops\.ya?ml$'
+        pass_filenames: true
+
+  - repo: local
+    hooks:
+      - id: kubeconform
+        name: Kubeconform Manifest Validation
+        entry: kubeconform
+        language: system
+        files: '^kubernetes/.*\.ya?ml$'
+        exclude: 'values\.yaml|kustomization\.yaml|\.sops\.ya?ml$'
+        args:
+          - -summary
+          - -ignore-missing-schemas
+          - -schema-location
+          - default
+          - -schema-location
+          - "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.96.1
     hooks:

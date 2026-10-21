@@ -1,0 +1,115 @@
+global:
+  nodeSelector:
+    kubernetes.io/hostname: k3s-worker-02
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 384Mi
+
+  # --- KSOPS CMP sidecar wiring ---
+  volumes:
+    - name: cmp-ksops-config
+      configMap:
+        name: cmp-ksops-config
+    - name: sops-age-key
+      secret:
+        secretName: argocd-sops-age-key
+        defaultMode: 0444     # Bug F fix: 0444 (292) required so non-root sidecar (runAsUser: 999) can read age key; 0400 is owner(root)-only
+    - name: cmp-tmp           # Required: emptyDir for /tmp; without this sops crashes (readOnlyRootFilesystem=true)
+      emptyDir: {}
+
+  extraContainers:
+    - name: ksops-plugin
+      image: viaductoss/ksops:v4.3.2
+      command: [/var/run/argocd/argocd-cmp-server]
+      resources:
+        requests:
+          cpu: 20m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+      env:
+        - name: SOPS_AGE_KEY_FILE
+          value: /home/argocd/.config/sops/age/keys.txt
+        - name: XDG_CONFIG_HOME
+          value: /home/argocd/.config
+      volumeMounts:
+        - name: var-files
+          mountPath: /var/run/argocd
+        - name: plugins
+          mountPath: /home/argocd/cmp-server/plugins
+        - name: cmp-tmp
+          mountPath: /tmp
+        - name: cmp-ksops-config
+          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+        - name: sops-age-key
+          mountPath: /home/argocd/.config/sops/age
+          readOnly: true
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+applicationSet:
+  # Bug G fix: chart argo-cd 7.8.26 has NO `applicationSet.enabled` key, and
+  # templates/argocd-applicationset/deployment.yaml carries no `{{- if }}` guard
+  # on it (unlike dex / notifications, which both do). Setting `enabled: false`
+  # was silently ignored by Helm and the controller kept running.
+  # The template DOES honour `replicas`, so that is the real control.
+  # Verify with: helm get values argocd -n argocd -a | grep -A3 applicationSet
+  replicas: 0
+
+configs:
+  params:
+    server.insecure: true
+    reposerver.parallelism.limit: 2
+    controller.status.processors: 10
+    controller.operation.processors: 5
+  cm:
+    admin.enabled: "true"
+    url: "http://argocd.homelab.local"   # Updated when exposed via Tailscale/Gateway
