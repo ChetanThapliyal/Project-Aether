@@ -654,6 +654,7 @@
       copy:
         content: |
           KESTRA_DB_PASSWORD={{ oci_kestra_db_password }}
+          KESTRA_AUTH_USER={{ oci_kestra_auth_user }}
           KESTRA_AUTH_PASSWORD={{ oci_kestra_auth_password }}
         dest: "{{ app_base_dir }}/kestra/.env"
         owner: "{{ app_user }}"

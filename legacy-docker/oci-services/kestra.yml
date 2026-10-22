@@ -3,16 +3,21 @@ services:
     image: kestra/kestra:latest
     container_name: kestra
     restart: unless-stopped
+    pull_policy: always
     command: server standalone
+    # Kestra has a 5m default termination grace period; wait a little longer
+    # to ensure no active tasks are killed mid-run on restart/deploy.
+    stop_grace_period: 6m
     # root required for Docker socket access (Process + Docker runner)
     user: "root"
     environment:
       KESTRA_CONFIGURATION: |
-        datasource:
-          url: jdbc:postgresql://kestra-postgres:5432/kestra
-          driverClassName: org.postgresql.Driver
-          username: kestra
-          password: ${KESTRA_DB_PASSWORD}
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra-postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: ${KESTRA_DB_PASSWORD}
         kestra:
           queue:
             type: postgres
@@ -22,22 +27,23 @@ services:
             type: local
             local:
               base-path: /app/storage
+          tasks:
+            tmp-dir:
+              path: /tmp/kestra-wd/tmp
           webserver:
             basic-auth:
               enabled: true
-              username: admin
+              username: ${KESTRA_AUTH_USER}
               password: ${KESTRA_AUTH_PASSWORD}
-          tasks:
-            # Allows flows to use docker runner (e.g. terraform, ansible images)
-            docker:
-              volume-enabled: true
+          url: https://kestra.tail7067ab.ts.net/
     volumes:
       - ./storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/kestra-workdir:/tmp/kestra-workdir:rw
+      - /tmp/kestra-wd:/tmp/kestra-wd
     depends_on:
       kestra-postgres:
         condition: service_healthy
+
     networks:
       - default
       - proxied-net
