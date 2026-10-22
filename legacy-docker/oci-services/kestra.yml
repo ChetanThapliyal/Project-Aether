@@ -36,6 +36,11 @@ services:
               username: ${KESTRA_AUTH_USER}
               password: ${KESTRA_AUTH_PASSWORD}
           url: https://kestra.tail7067ab.ts.net/
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
     volumes:
       - ./storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock

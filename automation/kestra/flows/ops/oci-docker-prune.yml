@@ -1,0 +1,20 @@
+id: oci-docker-prune
+namespace: aether.ops
+description: Weekly prune of unused Docker images, containers, networks, and build cache on the OCI host.
+
+tasks:
+  - id: prune
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    containerImage: docker:27-cli
+    commands:
+      - docker system prune -f
+
+triggers:
+  - id: weekly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 4 * * 0"
+    timezone: UTC
