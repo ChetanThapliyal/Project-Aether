@@ -6,11 +6,14 @@ tasks:
     type: io.kestra.plugin.git.SyncFlows
     url: https://github.com/ChetanThapliyal/Project-Aether.git
     branch: main
+    # SyncFlows imports through Kestra's own API; the public hostname is not
+    # resolvable inside the container, so use loopback.
+    kestraUrl: http://localhost:8080
     gitDirectory: automation/kestra/flows/ops
     targetNamespace: aether.ops
     includeChildNamespaces: false
     delete: true
-    dryRun: true
+    dryRun: false
     # Public repo: anonymous clone works for the first run.
     # username: "{{ secret('GIT_USERNAME') }}"
     # password: "{{ secret('GIT_TOKEN') }}"

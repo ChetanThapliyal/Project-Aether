@@ -30,11 +30,19 @@ services:
           tasks:
             tmp-dir:
               path: /tmp/kestra-wd/tmp
+            # SDK tasks (Git SyncFlows, etc.) call Kestra's own API from inside
+            # the container. The public kestra.url hostname is not resolvable
+            # here, so use the loopback address and the OSS basic-auth creds.
+            sdk:
+              authentication:
+                url: http://localhost:8080
+                username: ${KESTRA_AUTH_USER}
+                password: "${KESTRA_AUTH_PASSWORD}"
           webserver:
             basic-auth:
               enabled: true
               username: ${KESTRA_AUTH_USER}
-              password: ${KESTRA_AUTH_PASSWORD}
+              password: "${KESTRA_AUTH_PASSWORD}"
           url: https://kestra.tail7067ab.ts.net/
           plugins:
             configurations:

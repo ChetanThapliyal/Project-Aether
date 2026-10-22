@@ -1,6 +1,8 @@
 id: oci-docker-prune
 namespace: aether.ops
 description: Weekly prune of unused Docker images, containers, networks, and build cache on the OCI host.
+labels:
+  managed-by: git-sync
 
 tasks:
   - id: prune
