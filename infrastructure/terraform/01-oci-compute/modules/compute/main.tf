@@ -24,7 +24,7 @@ resource "oci_core_instance" "bookorbit" {
   source_details {
     source_type             = "image"
     source_id               = var.image_ocid
-    boot_volume_size_in_gbs = 100
+    boot_volume_size_in_gbs = 200
   }
 
   metadata = {
@@ -34,6 +34,24 @@ resource "oci_core_instance" "bookorbit" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+
+
+# Resize the existing boot volume in-place.
+# FIRST TIME: import the existing volume before applying —
+#   terraform import module.compute.oci_core_boot_volume.bookorbit_boot_volume <boot_volume_ocid>
+# Future resizes: just change size_in_gbs and run tf:apply.
+# After apply: SSH in and run `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`
+resource "oci_core_boot_volume" "bookorbit_boot_volume" {
+  availability_domain = oci_core_instance.bookorbit.availability_domain
+  compartment_id      = var.compartment_ocid
+  source_details {
+    id   = oci_core_instance.bookorbit.boot_volume_id
+    type = "bootVolume"
+  }
+  size_in_gbs  = 200
+  display_name = "bookorbit-boot-volume"
 }
 
 resource "oci_core_boot_volume_backup" "bookorbit_pre_upgrade" {
