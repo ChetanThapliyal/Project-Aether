@@ -621,3 +621,50 @@
         state: present
         pull: always
       tags: [affine, apps]
+
+    # ─── Kestra (Ops Workflow Orchestrator) ─────────────
+    - name: Create kestra directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      loop:
+        - "{{ app_base_dir }}/kestra"
+        - "{{ app_base_dir }}/kestra/storage"
+      tags: [kestra, apps]
+
+    - name: Set kestra postgres data dir permissions
+      file:
+        path: "{{ app_base_dir }}/kestra/postgres"
+        state: directory
+        owner: "999"
+        group: "999"
+      tags: [kestra, apps]
+
+    - name: Copy kestra compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/kestra.yml
+        dest: "{{ app_base_dir }}/kestra/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [kestra, apps]
+
+    - name: Copy kestra env file
+      copy:
+        content: |
+          KESTRA_DB_PASSWORD={{ oci_kestra_db_password }}
+          KESTRA_AUTH_PASSWORD={{ oci_kestra_auth_password }}
+        dest: "{{ app_base_dir }}/kestra/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+      no_log: true
+      tags: [kestra, apps]
+
+    - name: Start kestra
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/kestra"
+        state: present
+        pull: always
+      tags: [kestra, apps]
