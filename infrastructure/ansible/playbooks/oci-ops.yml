@@ -124,3 +124,14 @@
         job: "/opt/backup/run-backup.sh >> /var/log/restic-backup.log 2>&1"
         user: root
       tags: [backup, restic, ops]
+
+    # ─── Docker Prune (Weekly) ──────────────────────────────
+    - name: Schedule weekly Docker prune
+      cron:
+        name: "Weekly Docker Prune"
+        minute: "0"
+        hour: "4"
+        weekday: "0"   # Sunday — after nightly backup window
+        job: "docker system prune -f >> /var/log/docker-prune.log 2>&1"
+        user: root
+      tags: [docker-prune, ops]
