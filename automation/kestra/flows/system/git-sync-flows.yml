@@ -1,0 +1,19 @@
+id: git-sync-flows
+namespace: aether.system
+
+tasks:
+  - id: sync
+    type: io.kestra.plugin.git.SyncFlows
+    url: https://github.com/<you>/project-aether
+    branch: main
+    namespace: aether.ops
+    flowFiles:
+      - "automation/kestra/flows/ops/*.yml"
+    delete: true                      # flows removed from Git are removed from Kestra
+    username: "{{ secret('GIT_USERNAME') }}"
+    password: "{{ secret('GIT_TOKEN') }}"
+
+triggers:
+  - id: every_15m
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/15 * * * *"
