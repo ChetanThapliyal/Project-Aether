@@ -4,16 +4,19 @@ namespace: aether.system
 tasks:
   - id: sync
     type: io.kestra.plugin.git.SyncFlows
-    url: https://github.com/<you>/project-aether
+    url: https://github.com/ChetanThapliyal/Project-Aether.git
     branch: main
-    namespace: aether.ops
-    flowFiles:
-      - "automation/kestra/flows/ops/*.yml"
-    delete: true                      # flows removed from Git are removed from Kestra
-    username: "{{ secret('GIT_USERNAME') }}"
-    password: "{{ secret('GIT_TOKEN') }}"
+    gitDirectory: automation/kestra/flows/ops
+    targetNamespace: aether.ops
+    includeChildNamespaces: false
+    delete: true
+    dryRun: true
+    # Public repo: anonymous clone works for the first run.
+    # username: "{{ secret('GIT_USERNAME') }}"
+    # password: "{{ secret('GIT_TOKEN') }}"
 
 triggers:
   - id: every_15m
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "*/15 * * * *"
+    timezone: UTC
