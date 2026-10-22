@@ -48,6 +48,21 @@
         enabled: true
       tags: [base, docker]
 
+    - name: Configure Docker daemon (enable containerd image store for zstd layer support)
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "features": {
+              "containerd-snapshotter": true
+            }
+          }
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart docker
+      tags: [base, docker]
+
     - name: "Add {{ app_user }} user to docker group"
       user:
         name: "{{ app_user }}"
@@ -153,6 +168,11 @@
       tags: [systemhog, base]
 
   handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+
     - name: restart systemhog
       systemd:
         name: systemhog
