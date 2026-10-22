@@ -19,6 +19,7 @@
     app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
     app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
     docker_network: proxied-net
+    kestra_git_username: ChetanThapliyal
 
   tasks:
     # ─── Load SOPS Secrets ──────────────────────────────
@@ -656,6 +657,8 @@
           KESTRA_DB_PASSWORD={{ oci_kestra_db_password | quote }}
           KESTRA_AUTH_USER={{ oci_kestra_auth_user | quote }}
           KESTRA_AUTH_PASSWORD={{ oci_kestra_auth_password | quote }}
+          SECRET_GIT_USERNAME={{ kestra_git_username | b64encode }}
+          SECRET_GIT_TOKEN={{ gh_pat_kestra | b64encode }}
         dest: "{{ app_base_dir }}/kestra/.env"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"

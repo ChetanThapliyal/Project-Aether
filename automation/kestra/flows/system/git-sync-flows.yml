@@ -14,12 +14,13 @@ tasks:
     includeChildNamespaces: false
     delete: true
     dryRun: false
-    # Public repo: anonymous clone works for the first run.
-    # username: "{{ secret('GIT_USERNAME') }}"
-    # password: "{{ secret('GIT_TOKEN') }}"
+    # Authenticated clone avoids anonymous GitHub rate limits and the
+    # temporary auth challenges GitHub applies to some public HTTPS clones.
+    username: "{{ secret('GIT_USERNAME') }}"
+    password: "{{ secret('GIT_TOKEN') }}"
 
 triggers:
-  - id: every_15m
+  - id: every_6h
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "*/15 * * * *"
+    cron: "0 */6 * * *"
     timezone: UTC
