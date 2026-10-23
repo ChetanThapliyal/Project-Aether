@@ -1,0 +1,50 @@
+id: restic-nightly
+namespace: aether.ops
+description: Nightly Restic backup with PostgreSQL dumps, retention, and Uptime Kuma heartbeat.
+labels:
+  managed-by: git-sync
+
+tasks:
+  - id: backup
+    type: io.kestra.plugin.scripts.shell.Commands
+    description: Run the host backup script inside a container with Docker socket and host paths.
+    timeout: PT2H
+    retry:
+      type: constant
+      maxAttempts: 3
+      interval: PT10M
+      maxDuration: PT4H
+      warningOnRetry: true
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      # Host networking lets the backup reach Tailnet hosts (Uptime Kuma)
+      # and keeps S3/Restic traffic on the host network stack.
+      networkMode: host
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /opt/backup:/opt/backup:ro
+        - /home/ubuntu:/home/ubuntu
+    containerImage: docker:27-cli
+    commands:
+      - apk add --no-cache --quiet bash restic curl
+      - bash /opt/backup/run-backup.sh
+
+triggers:
+  - id: nightly
+    type: io.kestra.plugin.core.trigger.Schedule
+    # 03:30 while the legacy 03:00 cron is still enabled, so Restic does not
+    # see two concurrent backups. Align to 03:00 after the cron is removed.
+    cron: "30 3 * * *"
+    timezone: UTC
+
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.telegram.TelegramSend
+    token: "{{ secret('TELEGRAM_TOKEN') }}"
+    channel: "{{ secret('TELEGRAM_CHAT_ID') }}"
+    parseMode: HTML
+    payload: |
+      <b>Restic backup failed</b>
+      Flow: <code>{{ flow.namespace }}/{{ flow.id }}</code>
+      Execution: <code>{{ execution.id }}</code>
+      Time: {{ now() }}

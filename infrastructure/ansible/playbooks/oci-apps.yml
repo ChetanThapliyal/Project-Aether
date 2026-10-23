@@ -659,6 +659,8 @@
           KESTRA_AUTH_PASSWORD={{ oci_kestra_auth_password | quote }}
           SECRET_GIT_USERNAME={{ kestra_git_username | b64encode }}
           SECRET_GIT_TOKEN={{ gh_pat_kestra | b64encode }}
+          SECRET_TELEGRAM_TOKEN={{ telegram_bot_token | b64encode }}
+          SECRET_TELEGRAM_CHAT_ID={{ telegram_chat_id | b64encode }}
         dest: "{{ app_base_dir }}/kestra/.env"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
