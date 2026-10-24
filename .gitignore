@@ -70,10 +70,15 @@ vault_password_file
 # =========================
 # Secrets Directories
 # =========================
-# Catch-all for any unencrypted secrets dropped locally
+# Catch-all for any unencrypted secrets dropped locally.
+# Encrypted SOPS files are the exception and are meant to be committed (ADR-007).
+# Git cannot re-include a file inside an ignored directory, so un-ignore the
+# directory first, then allow only the encrypted files.
 secrets/
-!**/*.sops.yaml
-!**/*.sops.yml
+!infrastructure/secrets/
+infrastructure/secrets/*
+!infrastructure/secrets/*.sops.yaml
+!infrastructure/secrets/*.sops.yml
 
 # =========================
 # Taskfile & Automation
