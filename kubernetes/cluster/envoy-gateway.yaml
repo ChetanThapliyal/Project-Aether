@@ -10,15 +10,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://docker.io/envoyproxy
-    chart: gateway-helm
+    path: .
+    repoURL: oci://registry-1.docker.io/envoyproxy/gateway-helm
     targetRevision: v1.9.2
     helm:
       valuesObject:
         deployment:
-          envoyGateway:
+          pod:
             nodeSelector:
               kubernetes.io/hostname: k3s-worker-02
+          envoyGateway:
             resources:
               requests:
                 cpu: 50m
