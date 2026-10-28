@@ -54,6 +54,24 @@ services:
       tsdproxy.name: "grafana"
       tsdproxy.container_port: "3000"
 
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config:/etc/loki
+      - ./loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - default
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "loki"
+      tsdproxy.container_port: "3100"
+
 networks:
   proxied-net:
     external: true
