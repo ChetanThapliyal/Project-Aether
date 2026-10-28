@@ -12,3 +12,29 @@ scrape_configs:
       - targets: ['node-exporter:9100']
         labels:
           instance: 'bookorbit'
+
+  # ─── K3s Homelab Node Exporters (via Tailscale) ───────────────
+  - job_name: 'k3s-node-exporter'
+    static_configs:
+      - targets:
+          - 'k3s-control-01:9100'
+          - 'k3s-worker-01:9100'
+          - 'k3s-worker-02:9100'
+        labels:
+          environment: 'homelab-k3s'
+
+  # ─── Proxmox Physical Host Exporter ───────────────────────────
+  - job_name: 'proxmox-host'
+    static_configs:
+      - targets:
+          - 'homelab-dc:9100'
+        labels:
+          environment: 'homelab-proxmox'
+
+  # ─── K3s Kube-State-Metrics (via Tailscale) ───────────────────
+  - job_name: 'k3s-kube-state-metrics'
+    static_configs:
+      - targets:
+          - 'k3s-worker-01:8080'
+        labels:
+          cluster: 'project-aether'
