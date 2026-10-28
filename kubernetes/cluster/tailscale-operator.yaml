@@ -18,18 +18,18 @@ spec:
         operatorConfig:
           defaultTags:
             - "tag:k8s-operator"
+          nodeSelector:
+            kubernetes.io/hostname: k3s-worker-02
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
         proxyConfig:
           defaultProxyClass: "platform-proxies"
           defaultTags: "tag:k8s"
-        nodeSelector:
-          kubernetes.io/hostname: k3s-worker-02
-        resources:
-          requests:
-            cpu: 20m
-            memory: 32Mi
-          limits:
-            cpu: 100m
-            memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale
