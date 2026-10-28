@@ -14,7 +14,7 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
   - Define policy centrally in version control.
 - **Decision:** Enforce micro-segmentation within the Tailnet using Tailscale Grants instead of legacy ACL syntax.
 - **Architecture Impact:**
-  - Role-based tagging organizes devices (`tag:k3s`, `tag:oci`, `tag:gcp-dmz`, `tag:operator`).
+  - Role-based tagging organizes devices (`tag:k3s`, `tag:oci`, `tag:gcp-dmz`, `tag:operator`, `tag:k8s-operator`, `tag:k8s`).
   - Network-layer capabilities (`ip`) are explicitly defined per source and destination tag.
   - The Tailnet transitions from a flat mesh to segmented network tiers.
 - **Alternatives Considered:**
@@ -31,3 +31,16 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
 - **Operational Considerations:** Newly provisioned nodes must be tagged properly to prevent the default-deny policy from blocking expected traffic.
 - **Dependencies:** Tailscale Grants framework, SOPS.
 - **Related ADRs:** ADR-004 (Secure Network Access Layer).
+
+---
+
+### Addendum: Kubernetes Tailscale Operator Integration (PLAT-06)
+- **Date:** October 2026
+- **Context:** To expose internal Kubernetes services (such as ArgoCD) as MagicDNS endpoints without opening firewall ports, Project Aether deploys the official Tailscale Kubernetes Operator.
+- **Tagging & Ownership:**
+  - `tag:k8s-operator`: Owned by `autogroup:admin`. Assigned to the operator's OAuth client in the Tailscale admin console.
+  - `tag:k8s`: Owned by `tag:k8s-operator` and `autogroup:admin`. Automatically applied by the operator to ingress proxy pods.
+- **Grants:**
+  - Administrative operator devices (`tag:operator`) retain full access to `tag:k8s`.
+  - Cluster nodes (`tag:k3s`) can communicate directly with `tag:k8s` proxies.
+  - GCP DMZ monitoring (`tag:gcp-dmz`) is permitted on HTTP/HTTPS (`80, 443`) to probe `tag:k8s` MagicDNS endpoints.
