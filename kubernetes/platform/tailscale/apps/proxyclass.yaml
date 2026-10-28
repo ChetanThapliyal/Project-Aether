@@ -1,0 +1,17 @@
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: platform-proxies
+spec:
+  statefulSet:
+    pod:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker-02
+      tailscaleContainer:
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
