@@ -112,4 +112,4 @@ configs:
     controller.operation.processors: 5
   cm:
     admin.enabled: "true"
-    url: "http://argocd.homelab.local"   # Updated when exposed via Tailscale/Gateway
+    url: "https://argocd.tail7067ab.ts.net"
