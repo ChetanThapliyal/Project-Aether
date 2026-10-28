@@ -36,6 +36,7 @@
       loop:
         - "{{ app_base_dir }}/monitoring"
         - "{{ app_base_dir }}/monitoring/prometheus-config"
+        - "{{ app_base_dir }}/monitoring/loki-config"
         - "{{ app_base_dir }}/monitoring/grafana-provisioning"
         - "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources"
         - "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards"
@@ -51,6 +52,7 @@
       loop:
         - "{{ app_base_dir }}/monitoring/prometheus-data"
         - "{{ app_base_dir }}/monitoring/grafana-data"
+        - "{{ app_base_dir }}/monitoring/loki-data"
       tags: [monitoring]
 
     - name: Copy prometheus config
@@ -60,6 +62,15 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
       notify: restart prometheus
+      tags: [monitoring]
+
+    - name: Copy loki config
+      copy:
+        src: ../../../legacy-docker/oci-services/loki-config.yml
+        dest: "{{ app_base_dir }}/monitoring/loki-config/loki-config.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      notify: restart loki
       tags: [monitoring]
 
     - name: Copy grafana datasource provisioning
@@ -104,4 +115,8 @@
   handlers:
     - name: restart prometheus
       ansible.builtin.command: docker restart prometheus
+      changed_when: true
+
+    - name: restart loki
+      ansible.builtin.command: docker restart loki
       changed_when: true
