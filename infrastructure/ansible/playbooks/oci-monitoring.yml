@@ -103,6 +103,5 @@
 
   handlers:
     - name: restart prometheus
-      community.docker.docker_container:
-        name: prometheus
-        state: restarted
+      ansible.builtin.command: docker restart prometheus
+      changed_when: true
