@@ -1,0 +1,11 @@
+hostNetwork: true
+nodeSelector:
+  kubernetes.io/hostname: k3s-worker-01
+resources:
+  requests:
+    cpu: 15m
+    memory: 32Mi
+  limits:
+    cpu: 50m
+    memory: 64Mi
+replicas: 1
