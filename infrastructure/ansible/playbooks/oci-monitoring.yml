@@ -59,6 +59,7 @@
         dest: "{{ app_base_dir }}/monitoring/prometheus-config/prometheus.yml"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
+      notify: restart prometheus
       tags: [monitoring]
 
     - name: Copy grafana datasource provisioning
@@ -99,3 +100,9 @@
         state: present
         pull: always
       tags: [monitoring]
+
+  handlers:
+    - name: restart prometheus
+      community.docker.docker_container:
+        name: prometheus
+        state: restarted
