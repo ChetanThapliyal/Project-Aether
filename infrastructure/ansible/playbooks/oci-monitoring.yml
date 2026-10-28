@@ -79,6 +79,7 @@
         dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources/datasource.yml"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
+      notify: restart grafana
       tags: [monitoring]
 
     - name: Copy grafana dashboard provider config
@@ -119,4 +120,8 @@
 
     - name: restart loki
       ansible.builtin.command: docker restart loki
+      changed_when: true
+
+    - name: restart grafana
+      ansible.builtin.command: docker restart grafana
       changed_when: true
