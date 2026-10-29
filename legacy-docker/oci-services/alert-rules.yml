@@ -23,6 +23,17 @@ groups:
           summary: "Proxmox physical host {{ $labels.instance }} is unreachable"
           description: "Physical hypervisor host has been unreachable via Tailscale for >2 minutes. Possible total power or network outage."
 
+      # ─── P1: Kube-State-Metrics Down ─────────────────────────
+      - alert: KubeStateMetricsDown
+        expr: up{job="k3s-kube-state-metrics"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          tier: kubernetes
+        annotations:
+          summary: "Kube State Metrics target is unreachable"
+          description: "Kube-state-metrics on K3s cluster is down for >1m."
+
       # ─── P1: Kubernetes Node NotReady ────────────────────────
       - alert: K8sNodeNotReady
         expr: kube_node_status_condition{condition="Ready",status="true"} == 0
@@ -47,14 +58,24 @@ groups:
 
       # ─── P2: High Memory Pressure ────────────────────────────
       - alert: K8sWorkerMemoryHigh
-        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        expr: (node_memory_MemTotal_bytes{job="k3s-node-exporter"} - node_memory_MemAvailable_bytes{job="k3s-node-exporter"}) / node_memory_MemTotal_bytes{job="k3s-node-exporter"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          tier: kubernetes
+        annotations:
+          summary: "High memory utilization on {{ $labels.instance }}"
+          description: "K3s node {{ $labels.instance }} memory usage is above 85% for >5m (~3.5 GB ceiling)."
+
+      - alert: ProxmoxMemoryCritical
+        expr: (node_memory_MemTotal_bytes{job="proxmox-host"} - node_memory_MemAvailable_bytes{job="proxmox-host"}) / node_memory_MemTotal_bytes{job="proxmox-host"} > 0.95
         for: 5m
         labels:
           severity: warning
           tier: homelab
         annotations:
-          summary: "High memory utilization on {{ $labels.instance }}"
-          description: "Node {{ $labels.instance }} memory usage is above 85% for >5m (~3.5 GB ceiling)."
+          summary: "Proxmox hypervisor memory critically high on {{ $labels.instance }}"
+          description: "Physical host {{ $labels.instance }} memory usage is above 95% for >5m."
 
       # ─── P1: SSD Storage Space Low ───────────────────────────
       - alert: K8sSSDDiskPressure
