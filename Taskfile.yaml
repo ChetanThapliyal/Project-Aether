@@ -156,6 +156,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/oci-monitoring.yml {{.CLI_ARGS}}
 
+  ansible:proxmox:monitoring:
+    desc: "Deploy Node Exporter on physical Proxmox VE host"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/proxmox-monitoring.yml {{.CLI_ARGS}}
+
   ansible:oci:ops:
     desc: "Configure OCI operational automation (Telegram alerts, Restic backups)"
     dir: infrastructure/ansible

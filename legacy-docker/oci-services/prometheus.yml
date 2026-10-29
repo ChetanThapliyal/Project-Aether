@@ -22,12 +22,13 @@ scrape_configs:
           - 'k3s-worker-02:9100'
         labels:
           environment: 'homelab-k3s'
+          cluster: 'project-aether'
 
   # ─── Proxmox Physical Host Exporter ───────────────────────────
   - job_name: 'proxmox-host'
     static_configs:
       - targets:
-          - 'homelab-dc:9100'
+          - 'homelab:9100'
         labels:
           environment: 'homelab-proxmox'
 
@@ -37,4 +38,29 @@ scrape_configs:
       - targets:
           - 'k3s-worker-01:8080'
         labels:
+          cluster: 'project-aether'
+
+  # ─── ArgoCD GitOps Metrics (via Tailscale) ────────────────────
+  - job_name: 'argocd-metrics'
+    static_configs:
+      - targets:
+          - 'k3s-worker-02:30082'
+        labels:
+          environment: 'homelab-k3s'
+          cluster: 'project-aether'
+
+  - job_name: 'argocd-server-metrics'
+    static_configs:
+      - targets:
+          - 'k3s-worker-02:30083'
+        labels:
+          environment: 'homelab-k3s'
+          cluster: 'project-aether'
+
+  - job_name: 'argocd-repo-server'
+    static_configs:
+      - targets:
+          - 'k3s-worker-02:30084'
+        labels:
+          environment: 'homelab-k3s'
           cluster: 'project-aether'

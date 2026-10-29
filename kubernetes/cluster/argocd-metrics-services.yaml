@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-metrics-nodeport
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-metrics-nodeport
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
+  ports:
+    - name: metrics
+      port: 8082
+      targetPort: 8082
+      nodePort: 30082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-metrics-nodeport
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-server-metrics-nodeport
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: argocd-server
+  ports:
+    - name: metrics
+      port: 8083
+      targetPort: 8083
+      nodePort: 30083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-repo-server-metrics-nodeport
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-repo-server-metrics-nodeport
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: argocd-repo-server
+  ports:
+    - name: metrics
+      port: 8084
+      targetPort: 8084
+      nodePort: 30084

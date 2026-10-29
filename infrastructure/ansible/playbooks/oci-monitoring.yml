@@ -90,12 +90,15 @@
         group: "{{ app_user }}"
       tags: [monitoring]
 
-    - name: Copy node exporter dashboard
+    - name: Copy grafana dashboards
       copy:
-        src: ../../../legacy-docker/oci-services/grafana-provisioning/dashboards/node-exporter-full.json
-        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/node-exporter-full.json"
+        src: "{{ item }}"
+        dest: "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards/{{ item | basename }}"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
+      with_fileglob:
+        - "../../../legacy-docker/oci-services/grafana-provisioning/dashboards/*.json"
+      notify: restart grafana
       tags: [monitoring]
 
     - name: Copy monitoring compose file

@@ -1,0 +1,28 @@
+---
+# =============================================================================
+# Proxmox VE Monitoring Playbook
+# =============================================================================
+# Installs and enables prometheus-node-exporter on the physical Proxmox VE host
+# so OCI Prometheus can scrape it over Tailscale (port 9100 per ADR-016).
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-monitoring.yml
+#   task ansible:proxmox:monitoring
+# =============================================================================
+
+- name: Configure Prometheus Node Exporter on Proxmox VE
+  hosts: proxmox
+  become: true
+
+  tasks:
+    - name: Install prometheus-node-exporter package
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+        update_cache: true
+
+    - name: Ensure prometheus-node-exporter is enabled and started
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
