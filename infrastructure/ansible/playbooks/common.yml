@@ -54,6 +54,17 @@
         regexp: '\sswap\s'
         state: absent
 
+    # ----- Disable Unnecessary VM Services -----
+    - name: Disable unneeded hardware services on VMs
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+      loop:
+        - multipathd
+        - fwupd
+      failed_when: false
+
     # ----- Kernel Modules -----
     - name: Load required kernel modules
       community.general.modprobe:
