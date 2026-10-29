@@ -4,7 +4,7 @@
 
 locals {
   nodes = {
-    "k3s-control-01" = { vmid = 101, cores = 2, memory = 2048, ip = "192.168.1.51/24", role = "control" }
+    "k3s-control-01" = { vmid = 101, cores = 2, memory = 3072, ip = "192.168.1.51/24", role = "control" }
     "k3s-worker-01"  = { vmid = 102, cores = 2, memory = 3584, ip = "192.168.1.52/24", role = "worker" }
     "k3s-worker-02"  = { vmid = 103, cores = 2, memory = 3584, ip = "192.168.1.53/24", role = "worker" }
   }
