@@ -27,6 +27,7 @@ services:
       - '--storage.tsdb.retention.time=30d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     depends_on:
       - node-exporter
     networks:
@@ -71,6 +72,24 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "loki"
       tsdproxy.container_port: "3100"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager-config:/etc/alertmanager
+      - ./alertmanager-data:/alertmanager
+    networks:
+      - default
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "alertmanager"
+      tsdproxy.container_port: "9093"
 
 networks:
   proxied-net:

@@ -40,6 +40,7 @@
         - "{{ app_base_dir }}/monitoring/grafana-provisioning"
         - "{{ app_base_dir }}/monitoring/grafana-provisioning/datasources"
         - "{{ app_base_dir }}/monitoring/grafana-provisioning/dashboards"
+        - "{{ app_base_dir }}/monitoring/alertmanager-config"
       tags: [monitoring]
 
     - name: Create monitoring data directories with 777
@@ -53,6 +54,7 @@
         - "{{ app_base_dir }}/monitoring/prometheus-data"
         - "{{ app_base_dir }}/monitoring/grafana-data"
         - "{{ app_base_dir }}/monitoring/loki-data"
+        - "{{ app_base_dir }}/monitoring/alertmanager-data"
       tags: [monitoring]
 
     - name: Copy prometheus config
@@ -62,6 +64,25 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
       notify: restart prometheus
+      tags: [monitoring]
+
+    - name: Copy prometheus alert rules
+      copy:
+        src: ../../../legacy-docker/oci-services/alert-rules.yml
+        dest: "{{ app_base_dir }}/monitoring/prometheus-config/alert-rules.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      notify: restart prometheus
+      tags: [monitoring]
+
+    - name: Deploy alertmanager configuration
+      template:
+        src: ../templates/alertmanager.yml.j2
+        dest: "{{ app_base_dir }}/monitoring/alertmanager-config/alertmanager.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+      notify: restart alertmanager
       tags: [monitoring]
 
     - name: Copy loki config
@@ -127,4 +148,8 @@
 
     - name: restart grafana
       ansible.builtin.command: docker restart grafana
+      changed_when: true
+
+    - name: restart alertmanager
+      ansible.builtin.command: docker restart alertmanager
       changed_when: true

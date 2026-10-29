@@ -1,0 +1,68 @@
+groups:
+  - name: homelab-cluster-alerts
+    rules:
+      # ─── P0: Dead-Man's Switch (Total Homelab / Node Loss) ───
+      - alert: HomelabNodeDown
+        expr: up{job="k3s-node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "K3s node {{ $labels.instance }} is unreachable"
+          description: "Node {{ $labels.instance }} has been unreachable via Tailscale for >2 minutes. Possible hardware or power failure."
+
+      # ─── P0: Proxmox Physical Host Down ──────────────────────
+      - alert: ProxmoxHostDown
+        expr: up{job="proxmox-host"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "Proxmox physical host {{ $labels.instance }} is unreachable"
+          description: "Physical hypervisor host has been unreachable via Tailscale for >2 minutes. Possible total power or network outage."
+
+      # ─── P1: Kubernetes Node NotReady ────────────────────────
+      - alert: K8sNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          tier: kubernetes
+        annotations:
+          summary: "Node {{ $labels.node }} is NotReady"
+          description: "Kubelet reports node {{ $labels.node }} condition is not Ready for >3m."
+
+      # ─── P1: Pod CrashLooping ────────────────────────────────
+      - alert: K8sPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[10m]) * 600 > 3
+        for: 5m
+        labels:
+          severity: warning
+          tier: kubernetes
+        annotations:
+          summary: "Pod {{ $labels.pod }} in {{ $labels.namespace }} is crash-looping"
+          description: "Container {{ $labels.container }} restarted more than 3 times in 10 minutes."
+
+      # ─── P2: High Memory Pressure ────────────────────────────
+      - alert: K8sWorkerMemoryHigh
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "High memory utilization on {{ $labels.instance }}"
+          description: "Node {{ $labels.instance }} memory usage is above 85% for >5m (~3.5 GB ceiling)."
+
+      # ─── P1: SSD Storage Space Low ───────────────────────────
+      - alert: K8sSSDDiskPressure
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "Root filesystem on {{ $labels.instance }} has <15% space"
+          description: "Disk exhaustion risk on homelab SSD Tier 1."
