@@ -33,6 +33,10 @@ compactor:
   delete_request_store: filesystem
 
 limits_config:
+  volume_enabled: true
+  volume_max_series: 1000
+  allow_structured_metadata: true
+  discover_log_levels: true
   retention_period: 336h
   reject_old_samples: true
   reject_old_samples_max_age: 336h
