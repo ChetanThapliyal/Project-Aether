@@ -18,6 +18,8 @@ spec:
           port: 80
         - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 8080
     # 2. Ingress between internal ArgoCD components (Server, Repo, Redis, Controller)
     - from:
         - podSelector: {}
