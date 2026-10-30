@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-traffic
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus (via Tailscale / host) to scrape KSM on 8080/8081
+    - ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8081
+  egress:
+    # 1. Allow CoreDNS in kube-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 2. Allow KSM to reach Kubernetes API server (Service CIDR & Node control plane)
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.0/16
+        - ipBlock:
+            cidr: 192.168.1.0/24
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # 3. Allow Promtail to ship logs to OCI Loki over Tailscale
+    - to:
+        - ipBlock:
+            cidr: 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 3100
