@@ -1,0 +1,191 @@
+---
+# =============================================================================
+# Project Aether — DR-04: Backblaze B2 Offsite Restic Replication on Proxmox
+# =============================================================================
+# Implements Task 3.19 / Decision P3-D3:
+# Automates offsite replication of encrypted K3s etcd Restic snapshots from
+# Proxmox host storage (/mnt/aether-pool/restic-k3s-etcd) to Backblaze B2
+# (b2:aether-restic-etcd-offsite:/) using native `restic copy`.
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-etcd-b2.yml
+#   task ansible:etcd:b2
+# =============================================================================
+
+- name: Configure Backblaze B2 Offsite Restic Replication on Proxmox Host
+  hosts: proxmox
+  become: true
+
+  tasks:
+    # ─── Step 1: Load SOPS Secrets ───────────────────────────────────────────
+    - name: Load SOPS-encrypted secrets from group_vars
+      community.sops.load_vars:
+        file: ../group_vars/proxmox/vault.yaml
+      ignore_errors: true
+
+    - name: Load SOPS-encrypted secrets from global secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+      ignore_errors: true
+
+    - name: Verify required Backblaze B2 credentials exist
+      ansible.builtin.assert:
+        that:
+          - b2_application_key_id is defined
+          - b2_application_key is defined
+          - restic_b2_password is defined
+        fail_msg: "Required variables (b2_application_key_id, b2_application_key, restic_b2_password) are missing from SOPS vault!"
+
+    # ─── Step 2: Directories & Credentials Configuration ─────────────────────
+    - name: Ensure /etc/restic configuration directory exists
+      ansible.builtin.file:
+        path: /etc/restic
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Deploy Backblaze B2 remote Restic password
+      ansible.builtin.copy:
+        dest: /etc/restic/b2-etcd-password.txt
+        content: "{{ restic_b2_password }}\n"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Deploy Backblaze B2 offsite environment file
+      ansible.builtin.copy:
+        dest: /etc/restic/b2-offsite.env
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          # Backblaze B2 S3-Compatible Credentials (Managed via Terraform 04-backblaze-b2)
+          export AWS_ACCESS_KEY_ID="{{ b2_application_key_id }}"
+          export AWS_SECRET_ACCESS_KEY="{{ b2_application_key }}"
+          export B2_ACCOUNT_ID="{{ b2_application_key_id }}"
+          export B2_ACCOUNT_KEY="{{ b2_application_key }}"
+
+          # Source Repository (Local HDD ZFS Pool)
+          export RESTIC_FROM_REPOSITORY="/mnt/aether-pool/restic-k3s-etcd"
+          export RESTIC_FROM_PASSWORD_FILE="/etc/restic/etcd-password.txt"
+
+          # Destination Repository (Backblaze B2 via S3-Compatible API)
+          export RESTIC_REPOSITORY="s3:https://{{ b2_s3_endpoint | default('s3.us-east-005.backblazeb2.com') }}/{{ b2_bucket_name | default('aether-restic-etcd-offsite') }}"
+          export RESTIC_PASSWORD_FILE="/etc/restic/b2-etcd-password.txt"
+      no_log: true
+
+    # ─── Step 3: Initialize Remote B2 Repository (Idempotent) ────────────────
+    - name: Check if remote Backblaze B2 repository is initialized
+      ansible.builtin.command: restic cat config
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ b2_application_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ b2_application_key }}"
+        RESTIC_REPOSITORY: "s3:https://{{ b2_s3_endpoint | default('s3.us-east-005.backblazeb2.com') }}/{{ b2_bucket_name | default('aether-restic-etcd-offsite') }}"
+        RESTIC_PASSWORD_FILE: "/etc/restic/b2-etcd-password.txt"
+      register: b2_restic_cat
+      failed_when: false
+      changed_when: false
+
+    - name: Initialize remote Backblaze B2 Restic repository
+      ansible.builtin.command: restic init
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ b2_application_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ b2_application_key }}"
+        RESTIC_REPOSITORY: "s3:https://{{ b2_s3_endpoint | default('s3.us-east-005.backblazeb2.com') }}/{{ b2_bucket_name | default('aether-restic-etcd-offsite') }}"
+        RESTIC_PASSWORD_FILE: "/etc/restic/b2-etcd-password.txt"
+      when: b2_restic_cat.rc != 0
+
+    # ─── Step 4: Deploy Replication Script ───────────────────────────────────
+    - name: Deploy replication script /usr/local/bin/replicate-etcd-b2.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/replicate-etcd-b2.sh
+        owner: root
+        group: root
+        mode: "0750"
+        content: |
+          #!/usr/bin/env bash
+          # =============================================================================
+          # Project Aether — DR-04: Offsite Restic Copy to Backblaze B2
+          # =============================================================================
+          set -euo pipefail
+
+          source /etc/restic/b2-offsite.env
+          LOG_FILE="/var/log/restic-b2-copy.log"
+
+          echo "[$(date -Iseconds)] Starting offsite Restic copy to Backblaze B2..." | tee -a "${LOG_FILE}"
+          restic copy 2>&1 | tee -a "${LOG_FILE}"
+
+          echo "[$(date -Iseconds)] Verifying remote Backblaze B2 repository..." | tee -a "${LOG_FILE}"
+          restic check 2>&1 | tee -a "${LOG_FILE}"
+
+          echo "[$(date -Iseconds)] Backblaze B2 offsite replication successful." | tee -a "${LOG_FILE}"
+
+    # ─── Step 5: Systemd Service & Daily Timer ───────────────────────────────
+    - name: Deploy systemd service unit for B2 replication
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-b2.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Project Aether - Offsite Restic Copy to Backblaze B2 (DR-04)
+          After=k3s-etcd-restic.service network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/replicate-etcd-b2.sh
+          User=root
+          StandardOutput=journal
+          StandardError=journal
+
+    - name: Deploy systemd timer unit (Daily 03:30 UTC)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-b2.timer
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Daily Offsite Replication of etcd Backups to Backblaze B2 (03:30 UTC)
+          Requires=k3s-etcd-b2.service
+
+          [Timer]
+          OnCalendar=*-*-* 03:30:00 UTC
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start k3s-etcd-b2.timer
+      ansible.builtin.systemd:
+        name: k3s-etcd-b2.timer
+        enabled: true
+        state: started
+
+    # ─── Step 6: Initial Replication Run & Verification ──────────────────────
+    - name: Trigger initial Backblaze B2 replication run
+      ansible.builtin.command: /usr/local/bin/replicate-etcd-b2.sh
+      register: initial_replication
+      changed_when: true
+
+    - name: Query Backblaze B2 remote snapshots list
+      ansible.builtin.command: restic snapshots
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ b2_application_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ b2_application_key }}"
+        RESTIC_REPOSITORY: "s3:https://{{ b2_s3_endpoint | default('s3.us-east-005.backblazeb2.com') }}/{{ b2_bucket_name | default('aether-restic-etcd-offsite') }}"
+        RESTIC_PASSWORD_FILE: "/etc/restic/b2-etcd-password.txt"
+      register: b2_snapshots
+      changed_when: false
+
+    - name: Display Backblaze B2 remote snapshots summary
+      ansible.builtin.debug:
+        msg: "{{ b2_snapshots.stdout_lines }}"

@@ -4,7 +4,7 @@ creation_rules:
     gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
 
-  - path_regex: infrastructure/secrets/.*\.ya?ml$
+  - path_regex: (infrastructure/secrets/|infrastructure/ansible/group_vars/).*\.ya?ml$
     gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
 

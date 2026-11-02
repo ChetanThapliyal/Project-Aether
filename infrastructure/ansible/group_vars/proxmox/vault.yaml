@@ -1,0 +1,22 @@
+b2_application_key_id: ENC[AES256_GCM,data:vKqT4MrZbj5cb+IAys0o9GMqr/dERrKO7A==,iv:koQQCL61/MBFFSv72puz2ieliy/ZMvW41A6o3ZMF8PA=,tag:XpJ/tWHPe+xJeInIHlnJYg==,type:str]
+b2_application_key: ENC[AES256_GCM,data:SUrPW08cmUxom8MOwBUXM6sQTRH2fn+UFuv5rgRnWQ==,iv:2guTRn1v9GUgHJ503v3gpM8qCJyocz20jMwpuMjoVew=,tag:31YmcN9EDVmdythsUXpx+A==,type:str]
+restic_b2_password: ENC[AES256_GCM,data:R1Du37ZCECo6HJp/STkOGB5g33TCBeBRZTVwzw9LQY4UjS2eVyMBVMsu8b0=,iv:j6m/TUo8JYwpl5cmnuZjv6zVq3AidqhJXd2PDb5oMZs=,tag:a2IYmt5zf7VKyRIO3XyM+Q==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA2QUI2RmxoYkJNbXRNeTVG
+            S05JRS9EUk81dHcxd0pHRWZCNlY4RFZPb1JNCmxRTEw4MElQRDkxVjlIRTRwUFV6
+            TjAyY3NPZDcwMVpkelgzTW85MmpQK1UKLS0tIEJMK2hEOEtoT1VlYmNTWGhSQlJr
+            UkhFU1VPVjc1UWVGV3daa09CSGNDZTQKOgn9BXE0PuHaSt1DZ8yBgeGU2q3vV3rr
+            PL7mwrGInspZkbWlQj0WA3jBIEFA8eGJtTQc7QU8Uxqch/Eh42693Q==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89
+    gcp_kms:
+        - created_at: "2026-11-02T13:02:10Z"
+          enc: CiQAz4sgJmNO03pS0cw4OXVhdYmgW852ws1Nb560Peiuf481vkkSSQBTCMG1y9nq7BmzjgS1DzXBW7Cz1Ns2vRbmYjcT5wzBpb2I6bHp1z6Y2Z6g+l28TNztQH093LkQNxV4GVdEKJP2ZAYnQJ0dAuA=
+          resource_id: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
+    lastmodified: "2026-11-02T13:02:11Z"
+    mac: ENC[AES256_GCM,data:/D7x2NLfDo7BqJB+YWEq1VfAHUcPR7H8CKMdnfwnTweifzoYJuvUl94TbQsJWz6EWSv0OFjuQwXpp9JoQH5md4GYpG0XKh2vzgqqmgZyPFWkZHHxBFRyZjmD97S7jbBilKC1dPkMyr37t9ojwkC+f77jIjYFXkNqJLfWvhvtKPg=,iv:qJKhccqdXzPSuGCh8ToAyKQ1wuStasVbMmVD5zRUIag=,tag:7glKAfB487V9Y3ry0wfWBg==,type:str]
+    unencrypted_suffix: _unencrypted
+    version: 3.13.3
