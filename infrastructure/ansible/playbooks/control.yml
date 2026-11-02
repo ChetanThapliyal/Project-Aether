@@ -73,3 +73,31 @@
     - name: Display K3s status
       ansible.builtin.debug:
         msg: "K3s control plane is running. Node token retrieved."
+
+    # ----- Deploy Automated Etcd Snapshot Configuration -----
+    - name: Ensure K3s config drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy K3s automated etcd snapshot configuration
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/10-etcd-snapshot.yaml
+        content: |
+          etcd-snapshot-schedule-cron: "0 2 * * *"
+          etcd-snapshot-retention: 14
+          etcd-snapshot-dir: "/var/lib/rancher/k3s/server/db/snapshots"
+          etcd-snapshot-compress: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart K3s Control Plane
+
+  handlers:
+    - name: Restart K3s Control Plane
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
