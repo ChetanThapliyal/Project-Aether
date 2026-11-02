@@ -1,0 +1,16 @@
+# =============================================================================
+# Project Aether — Backblaze B2 Terraform Variables Example
+# =============================================================================
+# Master / Admin Backblaze B2 Application Key credentials used by Terraform
+# to provision the bucket and scoped application key.
+#
+# Can be supplied via:
+# 1. Environment variables: B2_APPLICATION_KEY_ID & B2_APPLICATION_KEY
+# 2. Encrypted SOPS file: terraform.sops.tfvars (decrypted by Taskfile on apply)
+
+b2_application_key_id = "00xxxxxxxxxxxxxxxxxxxx000001"
+b2_application_key    = "K00xxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Bucket & Key Configuration
+bucket_name = "aether-restic-etcd-offsite"
+key_name    = "aether-homelab-restic-etcd"
