@@ -107,7 +107,7 @@ Cloud compute runs on free tiers. The S3-compatible backup bucket is the only li
 
 ### The homelab runs the control plane
 
-Proxmox VE 9.2 runs on the notebook. Three Ubuntu 24.04 VMs are cloned from a cloud-init template: `k3s-control-01` (2 vCPU / 2 GB) and two workers (2 vCPU / 3.5 GB each). Terraform clones them with the `bpg/proxmox` provider; Ansible configures the hosts and the cluster.
+Proxmox VE 9.2 runs on the notebook. Three Ubuntu 24.04 VMs are cloned from a cloud-init template: `k3s-control-01` (2 vCPU / 3 GB) and two workers (2 vCPU / 3.5 GB each). Terraform clones them with the `bpg/proxmox` provider; Ansible configures the hosts and the cluster.
 
 K3s is pinned at v1.36.4. The control plane uses embedded etcd. A three-server etcd quorum would need two more VMs and roughly 4 GB of RAM, which the 12 GB host does not have to spare. The trade-off is explicit: after a control-plane loss, the cluster is rebuilt from Git and Terraform rather than failed over. The etcd snapshot chain that makes that recovery practical is Phase 03 work.
 
@@ -133,7 +133,7 @@ OCI apps are published on the tailnet through tsdproxy. The K3s ingress path wil
 
 `aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and accepts SSH only from Tailscale's CGNAT range (`fd7a:115c:a1e0::/48`).
 
-It runs Uptime Kuma, Homepage, Hawser, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: it is stateless, and its target rebuild time is 15 minutes.
+It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: it is stateless, and its target rebuild time is 15 minutes.
 
 Homepage talks to the Docker API through a socket proxy with mutations disabled, so a compromised dashboard container cannot POST to the daemon. A systemd drop-in starts Docker after `tailscaled`, which prevents the observer from coming up before its network.
 
@@ -148,7 +148,8 @@ Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI 
 | `tag:oci` | `tag:oci` | Container network | Local containers on OCI |
 | `tag:gcp-dmz` | `tag:k3s` | 80 / 443 | Synthetic health checks |
 | `tag:gcp-dmz` | `tag:oci` | 80 / 443 | Synthetic health checks |
-| `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100 | Prometheus node_exporter scrape |
+| `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100, 8080, 30082–30084 | Prometheus telemetry scrapes (node_exporter, KSM, ArgoCD) |
+| `tag:k3s` | `tag:oci` | 3100 | Promtail log shipping to OCI Loki (ADR-019) |
 | `tag:oci` | `tag:gcp-dmz` | 2376 | Hawser / Dockhand |
 
 `tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
@@ -177,13 +178,14 @@ Pre-commit runs gitleaks, a SOPS-encryption check, kubeconform, `terraform fmt`/
 
 ### Terraform
 
-Three root modules, split by blast radius and state-lock contention rather than by environment tier:
+Four root modules, split by blast radius and state-lock contention rather than by environment tier:
 
 | Root | What it provisions |
 |---|---|
 | `01-oci-compute` | OCI instance, security lists, subnets, and imports for unmanaged networking |
 | `02-gcp-dmz` | GCP VPC, IPv6 subnet, firewall rules, and the DMZ instance |
 | `03-homelab` | Proxmox VM clones from the Ubuntu cloud-init template |
+| `04-backblaze-b2` | Backblaze B2 offsite backup bucket (`aether-restic-etcd-offsite`) & write-isolated Application Key for 3-2-1 DR |
 
 `02-gcp-dmz` reads `01-oci-compute` outputs through `terraform_remote_state`, so the DMZ firewall can allow the OCI address without a copied value. `03-homelab` uses `bpg/proxmox` with `insecure = false` and a valid Let's Encrypt certificate.
 
@@ -268,9 +270,11 @@ Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch p
 | [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | Single environment, namespace isolation, VM rollback |
 | [015](docs/adr/015-ci-validation-pipeline.md) | PR validation and a phased drift pipeline (proposed) |
 | [016](docs/adr/016-kubernetes-storage-strategy.md) | Kubernetes storage strategy: local-path default, Longhorn rejected, NFS for media |
+| [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | Offsite backup & 3-2-1 DR: Backblaze B2 S3 API, write-isolated keys, restic copy |
 | [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, lightweight Promtail on K3s, Tailscale mesh transit |
+| [020](docs/adr/020-public-observability-data-diode.md) | Public observability: Glance dashboard (<50 MiB RAM) & push-based data diode |
 
-ADR-017 (Kestra) and ADR-018 (GCP DMZ) are still open. The decisions are settled; the records are not written.
+ADR-017 (Kestra platform automation) is pending formalization.
 
 Also in the repo:
 
@@ -293,7 +297,7 @@ Project Aether/
 │   ├── ops/restic-nightly.yml
 │   └── system/git-sync-flows.yml
 ├── docs/
-│   ├── adr/                     # 001-015
+│   ├── adr/                     # 001-020
 │   ├── disaster-recovery/       # RTO/RPO and five scenarios
 │   ├── diagrams/                # banner and Excalidraw source
 │   └── runbooks/                # five operational runbooks
@@ -303,7 +307,8 @@ Project Aether/
 │   └── terraform/
 │       ├── 01-oci-compute/
 │       ├── 02-gcp-dmz/
-│       └── 03-homelab/
+│       ├── 03-homelab/
+│       └── 04-backblaze-b2/
 ├── kubernetes/
 │   ├── bootstrap/argocd/        # Helm values and KSOPS CMP
 │   ├── cluster/                 # root App-of-Apps and child Applications
