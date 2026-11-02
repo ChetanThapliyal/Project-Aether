@@ -162,6 +162,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/proxmox-monitoring.yml {{.CLI_ARGS}}
 
+  ansible:etcd:sync:
+    desc: "Deploy automated off-node etcd snapshot sync to Proxmox (DR-02)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/proxmox-etcd-sync.yml {{.CLI_ARGS}}
+
   ansible:oci:ops:
     desc: "Configure OCI operational automation (Telegram alerts, Restic backups)"
     dir: infrastructure/ansible
