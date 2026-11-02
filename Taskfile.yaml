@@ -168,6 +168,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/proxmox-etcd-sync.yml {{.CLI_ARGS}}
 
+  ansible:etcd:restic:
+    desc: "Deploy automated encrypted Restic repository for etcd on Proxmox (DR-03)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/proxmox-etcd-restic.yml {{.CLI_ARGS}}
+
   ansible:oci:ops:
     desc: "Configure OCI operational automation (Telegram alerts, Restic backups)"
     dir: infrastructure/ansible
