@@ -1,0 +1,196 @@
+---
+# =============================================================================
+# Project Aether — DR-03: Encrypted Restic Backup Repository on Proxmox
+# =============================================================================
+# Implements Task 3.18 / Decision P3-D5:
+# Automates deployment of a dedicated encrypted Restic repository for K3s etcd
+# snapshots on the physical Proxmox VE ZFS mirror pool (/mnt/aether-pool/restic-k3s-etcd/).
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-etcd-restic.yml
+#   task ansible:etcd:restic
+# =============================================================================
+
+- name: Configure Encrypted Restic Repository on Proxmox Host
+  hosts: proxmox
+  become: true
+
+  tasks:
+    # ─── Step 1: Load SOPS Secrets (if present) ──────────────────────────────
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+      ignore_errors: true
+
+    # ─── Step 2: Install Restic on Proxmox ───────────────────────────────────
+    - name: Ensure restic package is installed
+      ansible.builtin.apt:
+        name: restic
+        state: present
+        update_cache: true
+
+    # ─── Step 3: Directories & Password Management ───────────────────────────
+    - name: Ensure /etc/restic configuration directory exists
+      ansible.builtin.file:
+        path: /etc/restic
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Ensure target Restic repository directory exists on ZFS pool
+      ansible.builtin.file:
+        path: /mnt/aether-pool/restic-k3s-etcd
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Check if Restic password file exists
+      ansible.builtin.stat:
+        path: /etc/restic/etcd-password.txt
+      register: password_stat
+
+    - name: Deploy SOPS-defined etcd restic password (if provided)
+      ansible.builtin.copy:
+        dest: /etc/restic/etcd-password.txt
+        content: "{{ homelab_etcd_restic_password }}"
+        owner: root
+        group: root
+        mode: "0600"
+      when: homelab_etcd_restic_password is defined and (homelab_etcd_restic_password | string | length > 0)
+      no_log: true
+
+    - name: Generate random 32-character passphrase if no password exists
+      ansible.builtin.shell: |
+        python3 -c "import secrets; print(secrets.token_urlsafe(24))" > /etc/restic/etcd-password.txt
+        chmod 0600 /etc/restic/etcd-password.txt
+      when: (homelab_etcd_restic_password is not defined or homelab_etcd_restic_password | string | length == 0) and not password_stat.stat.exists
+
+    # ─── Step 4: Initialize Restic Repository (Idempotent) ───────────────────
+    - name: Check if Restic repository is already initialized
+      ansible.builtin.command: >
+        restic --repo /mnt/aether-pool/restic-k3s-etcd
+        --password-file /etc/restic/etcd-password.txt
+        cat config
+      register: restic_cat
+      failed_when: false
+      changed_when: false
+
+    - name: Initialize Restic repository on ZFS pool
+      ansible.builtin.command: >
+        restic --repo /mnt/aether-pool/restic-k3s-etcd
+        --password-file /etc/restic/etcd-password.txt
+        init
+      when: restic_cat.rc != 0
+
+    # ─── Step 5: Deploy Backup Script & Systemd Timer ────────────────────────
+    - name: Deploy backup script /usr/local/bin/backup-etcd-restic.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/backup-etcd-restic.sh
+        owner: root
+        group: root
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          # =============================================================================
+          # Project Aether — Encrypted Restic Backup of K3s etcd Snapshots (DR-03)
+          # =============================================================================
+          set -euo pipefail
+
+          export RESTIC_REPOSITORY="/mnt/aether-pool/restic-k3s-etcd"
+          export RESTIC_PASSWORD_FILE="/etc/restic/etcd-password.txt"
+          SNAPSHOTS_DIR="/mnt/aether-pool/k3s-etcd-snapshots"
+          LOG_FILE="/var/log/restic-etcd.log"
+
+          echo "[$(date -Iseconds)] Starting Restic backup of etcd snapshots..." | tee -a "${LOG_FILE}"
+
+          # 1. Verify snapshot directory has files
+          if [ ! -d "${SNAPSHOTS_DIR}" ] || [ -z "$(ls -A "${SNAPSHOTS_DIR}")" ]; then
+            echo "[$(date -Iseconds)] WARNING: No snapshots found in ${SNAPSHOTS_DIR}. Skipping backup." | tee -a "${LOG_FILE}"
+            exit 0
+          fi
+
+          # 2. Execute incremental backup with tag
+          restic backup \
+            --tag "k3s-etcd" \
+            --host "homelab-pve" \
+            "${SNAPSHOTS_DIR}" 2>&1 | tee -a "${LOG_FILE}"
+
+          # 3. Apply retention policy: keep 14 daily, 4 weekly, 6 monthly snapshots
+          restic forget \
+            --tag "k3s-etcd" \
+            --keep-daily 14 \
+            --keep-weekly 4 \
+            --keep-monthly 6 \
+            --prune 2>&1 | tee -a "${LOG_FILE}"
+
+          # 4. Quick integrity check (structural check without reading full data packs)
+          restic check 2>&1 | tee -a "${LOG_FILE}"
+
+          echo "[$(date -Iseconds)] etcd snapshot Restic backup completed successfully." | tee -a "${LOG_FILE}"
+
+    - name: Deploy systemd service unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-restic.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Encrypted Restic Backup of K3s etcd Snapshots
+          After=k3s-etcd-sync.service network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/backup-etcd-restic.sh
+          User=root
+          StandardOutput=journal
+          StandardError=journal
+
+    - name: Deploy systemd timer unit (Daily 03:00 UTC)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-restic.timer
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Daily Encrypted Restic Backup of K3s etcd Snapshots (03:00 UTC)
+          Requires=k3s-etcd-restic.service
+
+          [Timer]
+          OnCalendar=*-*-* 03:00:00 UTC
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start k3s-etcd-restic.timer
+      ansible.builtin.systemd:
+        name: k3s-etcd-restic.timer
+        enabled: true
+        state: started
+
+    # ─── Step 6: Initial Backup & Verification ───────────────────────────────
+    - name: Trigger initial Restic backup run
+      ansible.builtin.command: /usr/local/bin/backup-etcd-restic.sh
+      register: initial_backup
+      changed_when: true
+
+    - name: Query Restic repository snapshots list
+      ansible.builtin.command: >
+        restic --repo /mnt/aether-pool/restic-k3s-etcd
+        --password-file /etc/restic/etcd-password.txt
+        snapshots
+      register: restic_snapshots
+      changed_when: false
+
+    - name: Display Restic snapshots summary
+      ansible.builtin.debug:
+        msg: "{{ restic_snapshots.stdout_lines }}"
