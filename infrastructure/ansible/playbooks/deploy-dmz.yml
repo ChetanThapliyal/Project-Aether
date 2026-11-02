@@ -103,8 +103,8 @@
       loop:
         - "{{ dmz_dir }}"
         - "{{ dmz_dir }}/uptime-kuma"
-        - "{{ dmz_dir }}/homepage"
-        - "{{ dmz_dir }}/homepage/config"
+        - "{{ dmz_dir }}/glance"
+        - "{{ dmz_dir }}/glance/assets"
 
     # ─── Environment & Secrets ────────────────────────────
     - name: Deploy DMZ .env configuration file
@@ -128,21 +128,25 @@
         mode: "0600"
       no_log: true
 
-    # ─── Homepage Configuration Files ─────────────────────
-    - name: Deploy default Homepage configs
+    # ─── Stop and Retire Homepage Container ───────────────
+    - name: Stop and remove retired Homepage container
+      community.docker.docker_container:
+        name: homepage
+        state: absent
+      ignore_errors: true
+
+    # ─── Glance Configuration Files ───────────────────────
+    - name: Deploy Glance config and assets
       copy:
         src: "{{ item.src }}"
-        dest: "{{ dmz_dir }}/homepage/config/{{ item.dest }}"
+        dest: "{{ item.dest }}"
         owner: "{{ dmz_user }}"
         group: "{{ dmz_group }}"
         mode: "0644"
-        force: "{{ item.force | default(false) }}"
       loop:
-        - { src: "../../docker/gcp-dmz/homepage/settings.yaml", dest: "settings.yaml" }
-        - { src: "../../docker/gcp-dmz/homepage/services.yaml", dest: "services.yaml", force: true }
-        - { src: "../../docker/gcp-dmz/homepage/bookmarks.yaml", dest: "bookmarks.yaml" }
-        - { src: "../../docker/gcp-dmz/homepage/widgets.yaml", dest: "widgets.yaml" }
-        - { src: "../../docker/gcp-dmz/homepage/docker.yaml", dest: "docker.yaml", force: true }
+        - { src: "../../docker/gcp-dmz/glance/glance.yml", dest: "{{ dmz_dir }}/glance/glance.yml" }
+        - { src: "../../docker/gcp-dmz/glance/assets/user.css", dest: "{{ dmz_dir }}/glance/assets/user.css" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-logo.svg", dest: "{{ dmz_dir }}/glance/assets/aether-logo.svg" }
 
     # ─── Docker Compose File ──────────────────────────────
     - name: Copy docker-compose.yml to DMZ host
@@ -154,28 +158,39 @@
         mode: "0640"
 
     # ─── Workaround for GHCR IPv4-only limitation on GCP VM ───
+    - name: Check if Hawser image exists on GCP DMZ host
+      command: docker image inspect ghcr.io/finsys/hawser:0.2.50
+      register: hawser_img_check
+      failed_when: false
+      changed_when: false
+
     - name: Pull Hawser image locally (IPv4 available)
       delegate_to: localhost
       become: false
       command: docker pull ghcr.io/finsys/hawser:latest
+      when: hawser_img_check.rc != 0
 
     - name: Save Hawser image to tar archive locally
       delegate_to: localhost
       become: false
       command: docker save -o /tmp/hawser-latest.tar ghcr.io/finsys/hawser:latest
+      when: hawser_img_check.rc != 0
 
     - name: Copy Hawser image to GCP DMZ host
       copy:
         src: /tmp/hawser-latest.tar
         dest: /tmp/hawser-latest.tar
+      when: hawser_img_check.rc != 0
 
     - name: Load Hawser image into Docker on GCP DMZ host
       command: docker load -i /tmp/hawser-latest.tar
+      when: hawser_img_check.rc != 0
 
     - name: Clean up remote tar archive
       file:
         path: /tmp/hawser-latest.tar
         state: absent
+      when: hawser_img_check.rc != 0
 
     - name: Clean up local tar archive
       delegate_to: localhost
@@ -183,13 +198,18 @@
       file:
         path: /tmp/hawser-latest.tar
         state: absent
+      when: hawser_img_check.rc != 0
+
+    - name: Ensure Hawser image is tagged correctly
+      command: docker tag ghcr.io/finsys/hawser:latest ghcr.io/finsys/hawser:0.2.50
+      ignore_errors: true
 
     # ─── Start Docker Compose Stack ───────────────────────
     - name: Launch DMZ observability stack
       community.docker.docker_compose_v2:
         project_src: "{{ dmz_dir }}"
         state: present
-        pull: missing
+        pull: never
 
     # ─── Verification ─────────────────────────────────────
     - name: Wait for Uptime Kuma to respond locally
@@ -201,13 +221,13 @@
       retries: 15
       delay: 3
 
-    - name: Wait for Homepage to respond locally
+    - name: Wait for Glance to respond locally
       uri:
         url: http://127.0.0.1:3000
         status_code: [200, 302]
-      register: homepage_check
-      until: homepage_check.status in [200, 302]
-      retries: 15
+      register: glance_check
+      until: glance_check.status in [200, 302]
+      retries: 20
       delay: 3
 
     - name: Print deployment summary
@@ -216,7 +236,7 @@
           - "=========================================================="
           - " Project Aether — GCP DMZ Observability Stack Live!        "
           - "=========================================================="
-          - " Homepage      : http://aether-gcp-dmz:3000 (Tailscale)    "
+          - " Glance        : http://aether-gcp-dmz:3000 (Tailscale)    "
           - " Uptime Kuma   : http://aether-gcp-dmz:3001 (Tailscale)    "
           - " Cloudflared   : {{ 'Active (tunnel profile)' if (gcp_dmz_cloudflare_tunnel_token is defined and gcp_dmz_cloudflare_tunnel_token | length > 0) else 'Inactive (configure gcp_dmz_cloudflare_tunnel_token to activate)' }}"
           - "=========================================================="
