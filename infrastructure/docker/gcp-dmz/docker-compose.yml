@@ -45,26 +45,21 @@ services:
       - dmz-net
 
   # ---------------------------------------------------------------------------
-  # Homepage — Platform Dashboard
+  # Glance — Ultra-Lightweight Platform Dashboard (OPS-10)
   # ---------------------------------------------------------------------------
-  homepage:
-    image: gethomepage/homepage:v2.5.0  # Pinned 2026-10 (IaC-05)
-    container_name: homepage
+  glance:
+    image: glanceapp/glance:latest
+    container_name: glance
     restart: unless-stopped
-    depends_on:
-      - socket-proxy
     ports:
-      # Direct access over Tailscale mesh (aether-gcp-dmz:3000)
-      - "3000:3000"
+      # Direct access over Tailscale mesh & Cloudflare Tunnel (aether-gcp-dmz:3000)
+      - "3000:8080"
     volumes:
-      - ./homepage/config:/app/config
+      - ./glance:/app/config:ro
+      - ./glance/assets:/app/assets:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       - dmz-net
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - DOCKER_HOST=tcp://socket-proxy:2375
-      - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS:-*}
 
   # ---------------------------------------------------------------------------
   # Hawser — Dockhand Agent (OPS-01)
