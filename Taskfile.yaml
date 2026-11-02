@@ -169,7 +169,7 @@ tasks:
       - ansible-playbook playbooks/oci-ops.yml {{.CLI_ARGS}}
 
   ansible:dmz:
-    desc: "Deploy GCP DMZ observability stack (Uptime Kuma, Homepage, Cloudflared)"
+    desc: "Deploy GCP DMZ observability stack (Uptime Kuma, Glance, Cloudflared)"
     dir: infrastructure/ansible
     cmds:
       - ansible-playbook playbooks/deploy-dmz.yml {{.CLI_ARGS}}
