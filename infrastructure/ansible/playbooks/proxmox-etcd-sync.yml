@@ -1,0 +1,157 @@
+---
+# =============================================================================
+# Project Aether — DR-02: Automated Off-Node K3s etcd Snapshot Sync to Proxmox
+# =============================================================================
+# Implements GITOPS-11 / Task 3.17:
+# Sets up automated daily pull of etcd snapshots from k3s-control-01 to the
+# physical Proxmox VE ZFS mirror pool (/mnt/aether-pool/k3s-etcd-snapshots/).
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-etcd-sync.yml
+#   task ansible:etcd:sync
+# =============================================================================
+
+# ─── Step 1: Generate Dedicated SSH Keypair on Proxmox ──────────────────────
+- name: Setup SSH Keypair on Proxmox Host
+  hosts: proxmox
+  become: true
+  tasks:
+    - name: Ensure /root/.ssh directory exists
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Generate dedicated Ed25519 keypair for etcd snapshot sync
+      community.crypto.openssh_keypair:
+        path: /root/.ssh/id_ed25519_etcd_sync
+        type: ed25519
+        comment: "k3s-etcd-sync@homelab-pve"
+        mode: "0600"
+        owner: root
+        group: root
+      register: etcd_sync_key
+
+# ─── Step 2: Authorize Sync Key on K3s Control Plane ────────────────────────
+- name: DR-02 | Authorize Sync Key and Permissions on K3s Control Plane
+  hosts: control
+  become: true
+  tasks:
+    - name: Authorize Proxmox sync public key for owl on control plane
+      ansible.posix.authorized_key:
+        user: owl
+        state: present
+        key: "{{ hostvars['homelab']['etcd_sync_key']['public_key'] }}"
+        comment: "k3s-etcd-sync-from-proxmox"
+
+    - name: Authorize Proxmox sync public key for root on control plane
+      ansible.posix.authorized_key:
+        user: root
+        state: present
+        key: "{{ hostvars['homelab']['etcd_sync_key']['public_key'] }}"
+        comment: "k3s-etcd-sync-from-proxmox"
+
+# ─── Step 3: Deploy Sync Script & Systemd Timer on Proxmox Host ─────────────
+- name: DR-02 | Deploy Sync Script & Systemd Timer on Proxmox Host
+  hosts: proxmox
+  become: true
+  tasks:
+    - name: Ensure destination directory on ZFS storage pool exists
+      ansible.builtin.file:
+        path: /mnt/aether-pool/k3s-etcd-snapshots
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Deploy sync script /usr/local/bin/sync-k3s-etcd-snapshots.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/sync-k3s-etcd-snapshots.sh
+        owner: root
+        group: root
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          DEST_DIR="/mnt/aether-pool/k3s-etcd-snapshots"
+          SOURCE_HOST="192.168.1.51"
+          SOURCE_USER="owl"
+          SOURCE_DIR="/var/lib/rancher/k3s/server/db/snapshots/"
+          LOG_FILE="/var/log/k3s-etcd-sync.log"
+
+          mkdir -p "${DEST_DIR}"
+          echo "[$(date -Iseconds)] Starting etcd snapshot synchronization from ${SOURCE_HOST}..." | tee -a "${LOG_FILE}"
+
+          # Use sudo rsync so user owl has full read access to 0600 root-owned snapshot files
+          rsync -avz --delete \
+            --rsync-path="sudo rsync" \
+            -e "ssh -o StrictHostKeyChecking=accept-new -i /root/.ssh/id_ed25519_etcd_sync" \
+            "${SOURCE_USER}@${SOURCE_HOST}:${SOURCE_DIR}" \
+            "${DEST_DIR}/" 2>&1 | tee -a "${LOG_FILE}"
+
+          SNAPSHOT_COUNT=$(find "${DEST_DIR}" -type f -name "*snapshot*" -o -name "*manual-test*" | wc -l)
+          if [ "${SNAPSHOT_COUNT}" -eq 0 ]; then
+            echo "[$(date -Iseconds)] ERROR: No etcd snapshots found in ${DEST_DIR} after sync!" | tee -a "${LOG_FILE}"
+            exit 1
+          fi
+
+          echo "[$(date -Iseconds)] Successfully synced ${SNAPSHOT_COUNT} snapshot(s) to ${DEST_DIR}." | tee -a "${LOG_FILE}"
+
+    - name: Deploy systemd service unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-sync.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Synchronize K3s etcd snapshots from control-01 to Proxmox ZFS pool
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/sync-k3s-etcd-snapshots.sh
+          User=root
+          StandardOutput=journal
+          StandardError=journal
+
+    - name: Deploy systemd timer unit (Daily 02:30 UTC)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-etcd-sync.timer
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Daily synchronization of K3s etcd snapshots to off-node ZFS pool
+          Requires=k3s-etcd-sync.service
+
+          [Timer]
+          OnCalendar=*-*-* 02:30:00 UTC
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start k3s-etcd-sync.timer
+      ansible.builtin.systemd:
+        name: k3s-etcd-sync.timer
+        enabled: true
+        state: started
+
+    - name: Trigger initial synchronization run to verify pipeline
+      ansible.builtin.command: /usr/local/bin/sync-k3s-etcd-snapshots.sh
+      register: initial_sync
+      changed_when: true
+
+    - name: Display synchronization result
+      ansible.builtin.debug:
+        msg: "{{ initial_sync.stdout_lines }}"
