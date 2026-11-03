@@ -4,6 +4,11 @@ set -Eeuo pipefail
 source /opt/backup/restic.env
 : "${UPTIME_KUMA_PUSH_URL:?UPTIME_KUMA_PUSH_URL is empty: check quoting in restic.env}"
 
+# One backup at a time (host runs and Kestra runs share this path).
+exec 9>"{{ app_base_dir }}/.restic-backup.lock"
+flock -n 9 || { echo "ERROR: another backup is running"; exit 1; }
+restic unlock   # removes only stale locks (dead PID on this host, or older than 30 min)
+
 failed=0
 dump() {  # container user db outfile
   docker exec "$1" pg_dump -U "$2" "$3" > "$4.tmp" && mv "$4.tmp" "$4" \
