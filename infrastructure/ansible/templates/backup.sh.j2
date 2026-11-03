@@ -1,20 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# The heartbeat fires only if every step succeeded (Convention C6).
+set -Eeuo pipefail
 source /opt/backup/restic.env
+: "${UPTIME_KUMA_PUSH_URL:?UPTIME_KUMA_PUSH_URL is empty: check quoting in restic.env}"
 
-echo "==> Dumping PostgreSQL Databases..."
-docker exec blinko-postgres pg_dump -U postgres postgres > {{ app_base_dir }}/blinko/db.sql || true
-docker exec bookorbit-db pg_dump -U bookorbit bookorbit > {{ app_base_dir }}/bookorbit/db.sql || true
-docker exec affine-postgres pg_dump -U affine affine > {{ app_base_dir }}/affine/db.sql || true
-docker exec kestra-postgres pg_dump -U kestra kestra > {{ app_base_dir }}/kestra/db.sql || true
+failed=0
+dump() {  # container user db outfile
+  docker exec "$1" pg_dump -U "$2" "$3" > "$4.tmp" && mv "$4.tmp" "$4" \
+    || { echo "ERROR: pg_dump $1/$3 failed"; rm -f "$4.tmp"; failed=1; }
+}
+dump blinko-postgres postgres  postgres  {{ app_base_dir }}/blinko/db.sql
+dump bookorbit-db    bookorbit bookorbit {{ app_base_dir }}/bookorbit/db.sql
+dump affine-postgres affine    affine    {{ app_base_dir }}/affine/db.sql
+dump kestra-postgres kestra    kestra    {{ app_base_dir }}/kestra/db.sql
 
-echo "==> Initializing Restic (if needed)..."
-restic init || true
-
-echo "==> Running Restic Backup..."
-restic backup {{ app_base_dir }} --exclude={{ app_base_dir }}/calibre-library --exclude={{ app_base_dir }}/navidrome --exclude={{ app_base_dir }}/kestra/postgres
-echo "==> Pruning old backups (Keeping 7 daily, 4 weekly)..."
+restic cat config >/dev/null 2>&1 || restic init
+restic backup {{ app_base_dir }} --exclude={{ app_base_dir }}/calibre-library \
+  --exclude={{ app_base_dir }}/navidrome --exclude={{ app_base_dir }}/kestra/postgres
 restic forget --keep-daily 7 --keep-weekly 4 --prune
+restic check
 
-echo "==> Pinging Uptime Kuma Heartbeat..."
-curl -s -m 10 --retry 3 "$UPTIME_KUMA_PUSH_URL" > /dev/null || true
-echo "==> Backup Complete!"
+if [ "$failed" -ne 0 ]; then
+  echo "Backup finished WITH ERRORS: heartbeat withheld"; exit 1
+fi
+curl -fsS -m 10 --retry 3 "$UPTIME_KUMA_PUSH_URL" >/dev/null \
+  || echo "WARN: heartbeat push failed (backup itself succeeded)"
+echo "==> Backup complete"

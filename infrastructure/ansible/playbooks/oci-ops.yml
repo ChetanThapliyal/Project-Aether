@@ -97,11 +97,11 @@
     - name: Deploy restic env file
       copy:
         content: |
-          export AWS_ACCESS_KEY_ID={{ oci_backup_s3_access_key }}
-          export AWS_SECRET_ACCESS_KEY={{ oci_backup_s3_secret_key }}
-          export RESTIC_PASSWORD={{ oci_backup_restic_password }}
-          export RESTIC_REPOSITORY=s3:{{ oci_backup_s3_endpoint }}/dr-backups
-          export UPTIME_KUMA_PUSH_URL={{ oci_backup_kuma_push_url }}
+          export AWS_ACCESS_KEY_ID={{ oci_backup_s3_access_key | quote }}
+          export AWS_SECRET_ACCESS_KEY={{ oci_backup_s3_secret_key | quote }}
+          export RESTIC_PASSWORD={{ oci_backup_restic_password | quote }}
+          export RESTIC_REPOSITORY={{ ('s3:' ~ oci_backup_s3_endpoint ~ '/dr-backups') | quote }}
+          export UPTIME_KUMA_PUSH_URL={{ oci_backup_kuma_push_url | quote }}
         dest: /opt/backup/restic.env
         owner: root
         mode: "0600"
@@ -116,13 +116,13 @@
         mode: "0700"
       tags: [backup, restic, ops]
 
-    - name: Schedule nightly backup
+    # FND-02: Kestra (aether.ops.restic-nightly) is the only scheduler.
+    # Keep this task until the cron is gone everywhere, then delete it.
+    - name: Remove legacy cron (Kestra restic-nightly is the only scheduler)
       cron:
         name: "Restic Nightly Backup"
-        minute: "0"
-        hour: "3"
-        job: "/opt/backup/run-backup.sh >> /var/log/restic-backup.log 2>&1"
         user: root
+        state: absent
       tags: [backup, restic, ops]
 
     # ─── Docker Prune (Weekly) ──────────────────────────────

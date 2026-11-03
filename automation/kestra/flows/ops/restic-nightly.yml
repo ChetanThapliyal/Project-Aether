@@ -32,9 +32,8 @@ tasks:
 triggers:
   - id: nightly
     type: io.kestra.plugin.core.trigger.Schedule
-    # 03:30 while the legacy 03:00 cron is still enabled, so Restic does not
-    # see two concurrent backups. Align to 03:00 after the cron is removed.
-    cron: "30 3 * * *"
+    # Sole scheduler since FND-02 (root cron removed). 03:00 UTC = 08:30 IST.
+    cron: "0 3 * * *"
     timezone: UTC
 
 errors:
