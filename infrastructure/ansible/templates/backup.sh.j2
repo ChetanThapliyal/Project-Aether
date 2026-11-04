@@ -18,6 +18,11 @@ dump blinko-postgres postgres  postgres  {{ app_base_dir }}/blinko/db.sql
 dump bookorbit-db    bookorbit bookorbit {{ app_base_dir }}/bookorbit/db.sql
 dump affine-postgres affine    affine    {{ app_base_dir }}/affine/db.sql
 dump kestra-postgres kestra    kestra    {{ app_base_dir }}/kestra/db.sql
+# Anytype coordinator metadata (MongoDB); sync-node and Garage data are files.
+out={{ app_base_dir }}/anytype/mongo.archive
+docker exec anytype-mongo-1-1 mongodump --port 27001 --archive --quiet > "$out.tmp" \
+  && mv "$out.tmp" "$out" \
+  || { echo "ERROR: mongodump anytype failed"; rm -f "$out.tmp"; failed=1; }
 
 restic cat config >/dev/null 2>&1 || restic init
 restic backup {{ app_base_dir }} --exclude={{ app_base_dir }}/calibre-library \

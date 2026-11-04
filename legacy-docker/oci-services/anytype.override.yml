@@ -1,0 +1,48 @@
+# =============================================================================
+# Anytype self-hosted sync — local override for upstream any-sync-dockercompose
+# =============================================================================
+# Deployed as docker-compose.override.yml next to the upstream compose file
+# (cloned by oci-apps.yml). Upstream publishes the sync ports on 0.0.0.0, and
+# Docker-published ports bypass ufw, so rebind them to the host's tailnet IP.
+# Clients reach the network over Tailscale only.
+# ${ANYTYPE_LISTEN_IP} comes from .env (rendered from templates/anytype.env.j2).
+# =============================================================================
+services:
+  any-sync-coordinator:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_COORDINATOR_PORT}:${ANY_SYNC_COORDINATOR_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_COORDINATOR_QUIC_PORT}:${ANY_SYNC_COORDINATOR_QUIC_PORT}/udp"
+      - "${ANY_SYNC_COORDINATOR_METRIC_ADDR}:8000"
+
+  any-sync-filenode:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_FILENODE_PORT}:${ANY_SYNC_FILENODE_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_FILENODE_QUIC_PORT}:${ANY_SYNC_FILENODE_QUIC_PORT}/udp"
+      - "${ANY_SYNC_FILENODE_METRIC_ADDR}:8000"
+
+  any-sync-node-1:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_1_PORT}:${ANY_SYNC_NODE_1_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_1_QUIC_PORT}:${ANY_SYNC_NODE_1_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_1_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_1_METRIC_ADDR}:8000"
+
+  any-sync-node-2:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_2_PORT}:${ANY_SYNC_NODE_2_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_2_QUIC_PORT}:${ANY_SYNC_NODE_2_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_2_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_2_METRIC_ADDR}:8000"
+
+  any-sync-node-3:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_3_PORT}:${ANY_SYNC_NODE_3_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_NODE_3_QUIC_PORT}:${ANY_SYNC_NODE_3_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_3_API_SERVER_ADDR}:8080"
+      - "${ANY_SYNC_NODE_3_METRIC_ADDR}:8000"
+
+  any-sync-consensusnode:
+    ports: !override
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_CONSENSUSNODE_PORT}:${ANY_SYNC_CONSENSUSNODE_PORT}"
+      - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}:${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}/udp"
+      - "${ANY_SYNC_CONSENSUSNODE_METRIC_ADDR}:8000"
