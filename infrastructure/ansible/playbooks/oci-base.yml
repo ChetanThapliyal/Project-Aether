@@ -3,8 +3,7 @@
 # OCI Base Infrastructure Playbook
 # =============================================================================
 # Prepares the OCI VM with base system packages, Docker runtime,
-# shared Docker network, Tailscale reverse proxy (tsdproxy), and
-# anti-reclamation resource daemon (systemhog).
+# shared Docker network, and Tailscale reverse proxy (tsdproxy).
 # =============================================================================
 
 - name: Configure OCI base infrastructure
@@ -15,8 +14,6 @@
     app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
     app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
     docker_network: proxied-net
-    # Set to false to disable systemhog (after upgrading to PAYG)
-    enable_systemhog: true
 
   tasks:
     # ─── Load SOPS Secrets ──────────────────────────────
@@ -112,59 +109,28 @@
         pull: always
       tags: [tsdproxy]
 
-    # ─── Systemhog (OCI Anti-Reclamation) ───────────────────
-    # Temporary workaround to keep CPU/RAM above Oracle's 20%
-    # idle threshold. Remove this entire block after upgrading
-    # to Pay As You Go. Toggle: set enable_systemhog to false.
-    - name: Install systemhog
-      when: enable_systemhog
-      shell: |
-        if [ ! -f /usr/local/bin/systemhog ]; then
-          curl -fsSL https://github.com/p1n2o/systemhog/releases/latest/download/install.sh | bash
-        fi
-      args:
-        creates: /usr/local/bin/systemhog
-      tags: [systemhog, base]
-
-    - name: Write systemhog config
-      when: enable_systemhog
-      copy:
-        dest: /etc/systemhog/config.conf
-        content: |
-          # systemhog configuration (managed by Ansible)
-          [CPU_SETTINGS]
-          TARGET_CPU_MIN = 20
-          TARGET_CPU_MAX = 30
-
-          [RAM_SETTINGS]
-          TARGET_RAM_USAGE = 30
-
-          [SETTINGS]
-          CHECK_INTERVAL = 30
-          SERVICE_NAME = systemhog
-          LOG_FILE = /var/log/systemhog.log
-        owner: root
-        group: root
-        mode: "0644"
-      notify: restart systemhog
-      tags: [systemhog, base]
-
-    - name: Ensure systemhog service is running
-      when: enable_systemhog
-      systemd:
-        name: systemhog
-        state: started
-        enabled: true
-        daemon_reload: true
-      tags: [systemhog, base]
-
-    - name: Stop and disable systemhog when toggled off
-      when: not enable_systemhog
+    # ─── Systemhog removal ──────────────────────────────
+    # systemhog (OCI anti-reclamation load generator) is retired. These
+    # tasks remove it from hosts that still have it; delete them once
+    # no host carries it.
+    - name: Stop and disable systemhog
       systemd:
         name: systemhog
         state: stopped
         enabled: false
-      ignore_errors: true
+      failed_when: false
+      tags: [systemhog, base]
+
+    - name: Remove systemhog files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/systemhog.service
+        - /usr/local/bin/systemhog
+        - /etc/systemhog
+        - /var/log/systemhog.log
+      notify: reload systemd
       tags: [systemhog, base]
 
   handlers:
@@ -173,7 +139,6 @@
         name: docker
         state: restarted
 
-    - name: restart systemhog
+    - name: reload systemd
       systemd:
-        name: systemhog
-        state: restarted
+        daemon_reload: true

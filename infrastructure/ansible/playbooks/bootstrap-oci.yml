@@ -3,7 +3,7 @@
 # OCI Server Orchestration (Master Playbook)
 # =============================================================================
 # Thin entrypoint delegating to modular sub-playbooks for OCI infrastructure:
-#   - oci-base.yml:       Apt updates, Docker runtime, network, tsdproxy, systemhog
+#   - oci-base.yml:       Apt updates, Docker runtime, network, tsdproxy
 #   - oci-apps.yml:       All application container deployments (tagged per-service)
 #   - oci-monitoring.yml: Prometheus, Grafana, datasources, dashboards
 #   - oci-ops.yml:        OPS-02 Telegram notification channels, Restic backups
