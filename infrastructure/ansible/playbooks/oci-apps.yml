@@ -22,8 +22,6 @@
     kestra_git_username: ChetanThapliyal
     # anyproto/any-sync-dockercompose tag; keep templates/anytype.env.j2 in step
     anytype_release: v8.0.1
-    # bookorbit's tailnet IP; Anytype clients connect here over Tailscale
-    anytype_listen_ip: 100.73.110.54
 
   tasks:
     # ─── Load SOPS Secrets ──────────────────────────────
@@ -650,6 +648,19 @@
     - name: Apply nonlocal bind sysctl
       command: sysctl -p /etc/sysctl.d/60-nonlocal-bind.conf
       when: anytype_sysctl.changed
+      tags: [anytype, apps]
+
+    # The host's own tailscale0 address (node bookorbit-net), not a tsdproxy
+    # service IP. ip_nonlocal_bind would silently accept a wrong address.
+    - name: Get host tailnet IP for Anytype
+      command: tailscale ip -4
+      register: anytype_tailnet_ip
+      changed_when: false
+      tags: [anytype, apps]
+
+    - name: Set Anytype listen IP
+      set_fact:
+        anytype_listen_ip: "{{ anytype_tailnet_ip.stdout_lines[0] }}"
       tags: [anytype, apps]
 
     - name: Clone any-sync-dockercompose release
