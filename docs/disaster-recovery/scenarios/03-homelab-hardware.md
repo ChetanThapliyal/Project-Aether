@@ -32,11 +32,11 @@
 | # | Location | Survives |
 |---|---|---|
 | 1 | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Losing k3s only |
-| 2 | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots/` (pulled 02:30 UTC) | Losing the VMs |
-| 3 | Proxmox restic repo `/mnt/aether-pool/restic-k3s-etcd` (03:00 UTC, password `/etc/restic/etcd-password.txt`) | Losing the VMs |
+| 2 | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots/` (ZFS dataset on the HDD, pulled 02:30 UTC) | Losing the VMs or the SSD |
+| 3 | Proxmox restic repo `/mnt/aether-pool/restic-k3s-etcd` (ZFS dataset on the HDD, 03:00 UTC, password `/etc/restic/etcd-password.txt`) | Losing the VMs or the SSD |
 | 4 | Backblaze B2 `aether-restic-etcd-offsite` (03:30 UTC, credentials in `group_vars/proxmox/vault.yaml`) | Losing the whole homelab |
 
-> Until HARD-23, copies 2 and 3 are on the **same SSD** as the VM disks, not on the ZFS HDD. If the SSD fails, only copy 4 is left.
+> Copies 2 and 3 share one HDD (a single-disk pool). If the HDD fails, copies 1 and 4 are left.
 >
 > Restoring a snapshot onto a **new** control-plane VM needs the original K3s server token. Until HARD-10 escrows it in SOPS as `k3s_server_token`, the only copy is on the control VM, so a restore after Branch C or D can't work yet.
 
@@ -48,7 +48,7 @@
 
 1. Power on the laptop. Wait about 2 minutes for Proxmox VE to boot.
 2. `ssh root@192.168.1.200`
-3. Check the ZFS pool: `zpool status aether-pool`. If it's missing, run `zpool import aether-pool`.
+3. Check the ZFS pool: `zpool status aether-pool`. If it's missing, run `zpool import aether-pool`. Then `zfs list -o name,mounted -r aether-pool`: both DR datasets must say `yes`. If one doesn't, the nightly jobs stop with `ERROR: ... is not the aether-pool ZFS dataset`; run `zfs mount -a`.
 4. Start the VMs in order:
    ```bash
    qm start 101                                   # k3s-control-01

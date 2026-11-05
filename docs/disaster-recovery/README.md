@@ -76,7 +76,6 @@ Related:
 These are the gaps I know about and have accepted for now:
 
 - **The OCI backups aren't offsite.** The `dr-backups` bucket is in the same OCI tenancy as the instance. If I lose the tenancy, I lose the backups too. A second-provider copy is deferred to the Phase 04 DR review.
-- **The homelab "HDD tier" is actually on the SSD.** `/mnt/aether-pool/` is a plain directory on `pve-root`, while the ZFS pool is mounted at `/aether-pool`. If the SSD dies, only the B2 copy survives. HARD-23 fixes this.
 - **The K3s server token isn't escrowed** (HARD-10), so Scenario 03 Branch D can't be done yet.
 - **Nothing backs up the Kubernetes PVs** (`local-path`).
 - **Nothing backs up DMZ Uptime Kuma.** If I lose it, I rebuild every monitor by hand and change the OCI backup push URL. FND-17 fixes this.

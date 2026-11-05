@@ -17,7 +17,7 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
 - **Decision:**
   1. *Adopt the 4-Stage 3-2-1 Disaster Recovery Pipeline:*
      - **Stage 1 (DR-01, 02:00 UTC): In-Node Compressed Datastore Snapshots.** `k3s-control-01` runs automated daily cron (`0 2 * * *`) generating frozen, zstd-compressed etcd database snapshots into `/var/lib/rancher/k3s/server/db/snapshots/` with 14-day local retention.
-     - **Stage 2 (DR-02, 02:30 UTC): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD mirror pool.
+     - **Stage 2 (DR-02, 02:30 UTC): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD pool.
      - **Stage 3 (DR-03, 03:00 UTC): Dedicated Encrypted Local Restic Repository.** Proxmox commits snapshot files into an independent encrypted Restic repository at `/mnt/aether-pool/restic-k3s-etcd/` (password `/etc/restic/etcd-password.txt`), applies a GFS retention policy (14 daily, 4 weekly, 6 monthly snapshots), prunes orphaned blobs, and executes integrity checks.
      - **Stage 4 (DR-04, 03:30 UTC): Offsite Cloud Replication via `restic copy`.** Proxmox replicates snapshots to Backblaze B2 (`aether-restic-etcd-offsite`) using native `restic copy` over WAN, verified by remote repository integrity checks.
   2. *Select Backblaze B2 (Decision P3-D3) via S3-Compatible API:*
@@ -62,3 +62,13 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
 - **Dependencies:** K3s embedded etcd, Proxmox VE ZFS subsystem, Restic (v0.16+), Backblaze B2 S3 API, SOPS.
 - **Related ADRs:** ADR-002 (Storage Topology), ADR-003 (Kubernetes Distribution), ADR-007 (Secrets Management), ADR-011 (Terraform Remote Backend), ADR-013 (Tailnet Microsegmentation), ADR-014 (Environment Isolation Strategy), ADR-016 (Kubernetes Storage Strategy).
 - **Review Conditions:** Review if backup size approaches 8 GB (80% of B2 free tier) or when Bare-Metal multi-node HA is introduced.
+
+## Addendum (2026-11-05): stages 2 and 3 moved onto the HDD
+
+Until 5 Nov, `/mnt/aether-pool/` was a plain directory on the Proxmox root filesystem (the SSD that also holds every VM disk), while the ZFS pool was mounted at `/aether-pool` and held almost nothing. Stages 2 and 3 were on the same disk as the data they protect, so the "2 media" leg of 3-2-1 was not met ([INC-2026-007](../incidents/INC-2026-007-dr-copies-on-wrong-disk.md)).
+
+- Each stage now has its own dataset, `aether-pool/k3s-etcd-snapshots` and `aether-pool/restic-k3s-etcd`, mounted at the original paths, with `compression=lz4`, `atime=off` and `copies=2`.
+- `aether-pool` is a **single-disk** vdev, not a mirror. `copies=2` lets ZFS repair bad sectors on that disk; it does not survive losing the disk. B2 covers that.
+- The three DR playbooks and their scripts refuse to run unless each path is its `aether-pool` dataset, so a failed mount can't fall back to the SSD silently.
+- The 3-2-1 media are now: SSD (live etcd on the control VM), HDD (snapshot mirror and local restic repo), and Backblaze B2.
+- New fitness function: `findmnt -n -o SOURCE --target /mnt/aether-pool/restic-k3s-etcd` → `aether-pool/restic-k3s-etcd`.

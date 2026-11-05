@@ -38,3 +38,7 @@ ADR-002: Dual-Tier Storage Topology
 - **Open Questions:** None.
 - **Related ADRs:** ADR-001 (Hypervisor Selection).
 - **Review Conditions:** Review when SSD free space drops below 20%.
+
+## Addendum (2026-11-05): backups must be on a dataset, not a path
+
+"Backup tasks must target the HDD storage pool" was not enforced. The DR jobs wrote to `/mnt/aether-pool/`, which was a directory on the SSD, while the pool was mounted elsewhere ([INC-2026-007](../incidents/INC-2026-007-dr-copies-on-wrong-disk.md)). Each backup target is now a named ZFS dataset mounted at the path the job uses, and the job checks the mount source before writing. The HDD pool is a single-disk vdev. The ZFS ARC is capped at 512 MiB (`/etc/modprobe.d/zfs.conf`), because the 12 GB host has about 1 GiB free.

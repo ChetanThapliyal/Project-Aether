@@ -2,14 +2,14 @@
 
 Project Aether is a homelab run to production standards: a three-node K3s cluster on Proxmox, a cloud VM for applications, and a separate cloud VM in a DMZ that watches everything from outside. No customers depend on it. The data, the backups and the attack surface are real, so failures get the same treatment they would get at work: a blameless review, a root cause, and a guardrail that would catch the same failure next time.
 
-Each review says how the problem was found. Four of the first six came from auditing the platform, because no alert fired. Each review's guardrails add the check that was missing.
+Each review says how the problem was found. Five of the first seven came from auditing the platform, because no alert fired. Each review's guardrails add the check that was missing.
 
 ## Severity
 
 | Level | Meaning in this lab |
 |-------|---------------------|
 | SEV1 | Data loss, or an exposure an attacker could use, was possible |
-| SEV2 | Monitoring or alerting was blind, so a SEV1 could have gone unnoticed |
+| SEV2 | Monitoring, alerting or backup redundancy was silently missing, so a SEV1 could have gone unnoticed or been harder to recover from |
 | SEV3 | Something degraded, with no risk to data or exposure |
 
 ## Index
@@ -22,6 +22,7 @@ Each review says how the problem was found. Four of the first six came from audi
 | INC-2026-004 | 2026-11-03 | DMZ alerts could not leave the host | SEV2 | Investigation | Open, fix planned |
 | [INC-2026-005](INC-2026-005-gitops-blind-to-drift.md) | 2026-11-02 | GitOps showed four apps as healthy while it could no longer manage them | SEV2 | Audit | Fixed and verified |
 | [INC-2026-006](INC-2026-006-logs-dropped-from-two-nodes.md) | 2026-11-02 | Two of three cluster nodes were sending their logs nowhere | SEV2 | Audit | Fixed and verified |
+| [INC-2026-007](INC-2026-007-dr-copies-on-wrong-disk.md) | 2026-11-02 | The local backup copies were on the disk they were meant to protect against | SEV2 | Audit | Fixed and verified |
 
 ## Conventions
 
