@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="100%" height="100%">
+  <!-- Background -->
+  <rect width="1200" height="300" fill="#2a2d34" />
+
+  <!-- Subtle Grid Layer (Dots) -->
+  <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="1" fill="#ffffff" opacity="0.05" />
+  </pattern>
+  <rect width="1200" height="300" fill="url(#dotGrid)" />
+
+  <!-- Ethereal Slate Accents (Dusty Mauve and Sand) -->
+  <circle cx="1050" cy="50" r="150" fill="#BCA3AC" opacity="0.1" />
+  <circle cx="1150" cy="250" r="200" fill="#D4C4B7" opacity="0.08" />
+  <circle cx="50" cy="280" r="100" fill="#BCA3AC" opacity="0.05" />
+
+  <!-- Tech Node Icon (Abstract Network) -->
+  <g stroke="#ffffff" stroke-width="1.5" opacity="0.15" fill="none">
+    <!-- Nodes -->
+    <circle cx="850" cy="150" r="4" fill="#ffffff"/>
+    <circle cx="920" cy="90" r="4" fill="#ffffff"/>
+    <circle cx="970" cy="210" r="4" fill="#ffffff"/>
+    <circle cx="1040" cy="140" r="4" fill="#ffffff"/>
+
+    <!-- Connections -->
+    <path d="M850 150 L920 90 L1040 140 L970 210 Z" />
+    <path d="M850 150 L970 210" />
+    <path d="M920 90 L1040 140" />
+  </g>
+
+  <!-- Typography -->
+  <text x="100" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="56" font-weight="800" fill="#ffffff" letter-spacing="2">Project Aether</text>
+
+  <text x="105" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="400" fill="#D4C4B7" letter-spacing="1">by Chetan Thapliyal</text>
+
+  <text x="105" y="230" font-family="'Fira Code', 'JetBrains Mono', 'Space Mono', Consolas, monospace" font-size="15" font-weight="400" fill="#8b949e" letter-spacing="0.5">K3s Kubernetes | Proxmox VE | Docker | Tailscale</text>
+</svg>

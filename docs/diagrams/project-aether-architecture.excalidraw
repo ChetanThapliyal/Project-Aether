@@ -1,0 +1,50 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    { "type": "text", "id": "t_title", "x": 60, "y": 40, "width": 600, "height": 30, "text": "Project Aether: Zero-Trust Multi-Cloud Control Plane", "fontSize": 24, "fontFamily": 1, "strokeColor": "#1e3a5f" },
+    { "type": "text", "id": "t_sub", "x": 60, "y": 75, "width": 750, "height": 22, "text": "Tailscale WireGuard Overlay Mesh  ·  Least-Privilege Grants  ·  Carrier-Grade NAT Bypass", "fontSize": 16, "fontFamily": 1, "strokeColor": "#64748b" },
+
+    { "type": "rectangle", "id": "bg_homelab", "x": 50, "y": 120, "width": 430, "height": 450, "roundness": { "type": 3 }, "backgroundColor": "#dbe4ff", "fillStyle": "solid", "strokeColor": "#3b82f6", "strokeWidth": 2 },
+    { "type": "text", "id": "h_homelab", "x": 70, "y": 140, "width": 350, "height": 25, "text": "Homelab Core (Proxmox VE 9.2)", "fontSize": 20, "fontFamily": 1, "strokeColor": "#1e40af" },
+    { "type": "text", "id": "s_homelab1", "x": 70, "y": 170, "width": 380, "height": 18, "text": "HP Notebook · i3-5005U · 12 GB DDR3 · ZFS aether-pool", "fontSize": 13, "fontFamily": 1, "strokeColor": "#475569" },
+    { "type": "text", "id": "s_homelab2", "x": 70, "y": 190, "width": 380, "height": 18, "text": "Private LAN (Behind CGNAT · Zero Inbound Public IPv4)", "fontSize": 13, "fontFamily": 1, "strokeColor": "#b91c1c" },
+
+    { "type": "rectangle", "id": "k3s_ctl", "x": 70, "y": 225, "width": 390, "height": 65, "roundness": { "type": 3 }, "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#1e40af", "label": { "text": "k3s-control-01\n2 vCPU / 2 GB RAM · Embedded etcd datastore", "fontSize": 14 } },
+    { "type": "rectangle", "id": "k3s_w1", "x": 70, "y": 305, "width": 190, "height": 65, "roundness": { "type": 3 }, "backgroundColor": "#e7f5ff", "fillStyle": "solid", "strokeColor": "#3b82f6", "label": { "text": "k3s-worker-01\n2 vCPU / 3.5 GB RAM", "fontSize": 13 } },
+    { "type": "rectangle", "id": "k3s_w2", "x": 270, "y": 305, "width": 190, "height": 65, "roundness": { "type": 3 }, "backgroundColor": "#e7f5ff", "fillStyle": "solid", "strokeColor": "#3b82f6", "label": { "text": "k3s-worker-02\n2 vCPU / 3.5 GB RAM", "fontSize": 13 } },
+    { "type": "rectangle", "id": "k3s_svc", "x": 70, "y": 385, "width": 390, "height": 60, "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#047857", "label": { "text": "Platform Services (Ingress & Routing)\nMetalLB (L2) · Envoy Gateway (Gateway API) · cert-manager", "fontSize": 13 } },
+    { "type": "rectangle", "id": "node_exp", "x": 70, "y": 460, "width": 390, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#fee2e2", "fillStyle": "solid", "strokeColor": "#dc2626", "label": { "text": "node-exporter (Metrics Telemetry)", "fontSize": 13 } },
+
+    { "type": "rectangle", "id": "bg_oci", "x": 720, "y": 120, "width": 430, "height": 450, "roundness": { "type": 3 }, "backgroundColor": "#e5dbff", "fillStyle": "solid", "strokeColor": "#8b5cf6", "strokeWidth": 2 },
+    { "type": "text", "id": "h_oci", "x": 740, "y": 140, "width": 350, "height": 25, "text": "Oracle Cloud (bookorbit)", "fontSize": 20, "fontFamily": 1, "strokeColor": "#6d28d9" },
+    { "type": "text", "id": "s_oci1", "x": 740, "y": 170, "width": 380, "height": 18, "text": "AP-MUMBAI-1 · VM.Standard.A1.Flex · Always Free ARM", "fontSize": 13, "fontFamily": 1, "strokeColor": "#475569" },
+    { "type": "text", "id": "s_oci2", "x": 740, "y": 190, "width": 380, "height": 18, "text": "2 OCPU (Neoverse-N1) · 12 GB RAM · 100 GB Boot", "fontSize": 13, "fontFamily": 1, "strokeColor": "#475569" },
+
+    { "type": "rectangle", "id": "oci_proxy", "x": 740, "y": 225, "width": 390, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#d0bfff", "fillStyle": "solid", "strokeColor": "#6d28d9", "label": { "text": "tsdproxy: Tailscale TLS Ingress Proxy\nEncrypted HTTPS access over private Tailnet", "fontSize": 13 } },
+    { "type": "rectangle", "id": "oci_apps", "x": 740, "y": 295, "width": 390, "height": 70, "roundness": { "type": 3 }, "backgroundColor": "#f3f0ff", "fillStyle": "solid", "strokeColor": "#8b5cf6", "label": { "text": "36+ Offloaded Docker Services\nn8n · Gitea · Vaultwarden · Immich · Blinko · Navidrome", "fontSize": 13 } },
+    { "type": "rectangle", "id": "oci_prom", "x": 740, "y": 380, "width": 390, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#eebefa", "fillStyle": "solid", "strokeColor": "#c026d3", "label": { "text": "Prometheus & Grafana Telemetry\nScrapes homelab node metrics via Tailnet", "fontSize": 13 } },
+    { "type": "rectangle", "id": "oci_dr", "x": 740, "y": 450, "width": 390, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#ffd8a8", "fillStyle": "solid", "strokeColor": "#d97706", "label": { "text": "Disaster Recovery Backups (Restic)\nNightly cron to S3 + Uptime Kuma Push Ping", "fontSize": 13 } },
+
+    { "type": "rectangle", "id": "mesh_box", "x": 510, "y": 280, "width": 180, "height": 110, "roundness": { "type": 3 }, "backgroundColor": "#1e293b", "fillStyle": "solid", "strokeColor": "#334155", "label": { "text": "Tailscale Grants\nZero-Trust Mesh\ntag:k3s ↔ tag:oci", "fontSize": 14 } },
+
+    { "type": "rectangle", "id": "bg_gcp", "x": 360, "y": 640, "width": 480, "height": 230, "roundness": { "type": 3 }, "backgroundColor": "#d3f9d8", "fillStyle": "solid", "strokeColor": "#22c55e", "strokeWidth": 2 },
+    { "type": "text", "id": "h_gcp", "x": 380, "y": 660, "width": 420, "height": 22, "text": "GCP DMZ: aether-gcp-dmz (Independent Observer)", "fontSize": 18, "fontFamily": 1, "strokeColor": "#047857" },
+    { "type": "text", "id": "s_gcp", "x": 380, "y": 685, "width": 440, "height": 18, "text": "us-central1-a · e2-micro · Strictly $0.00/mo (IPv6 Egress Only)", "fontSize": 13, "fontFamily": 1, "strokeColor": "#15803d" },
+
+    { "type": "rectangle", "id": "gcp_kuma", "x": 380, "y": 715, "width": 440, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#047857", "label": { "text": "Uptime Kuma · Synthetic Probes + Telegram Alerts", "fontSize": 13 } },
+    { "type": "rectangle", "id": "gcp_dash", "x": 380, "y": 768, "width": 440, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#c3fae8", "fillStyle": "solid", "strokeColor": "#0f766e", "label": { "text": "Homepage Dashboard & Cloudflare Tunnel", "fontSize": 13 } },
+    { "type": "rectangle", "id": "gcp_sec", "x": 380, "y": 820, "width": 440, "height": 40, "roundness": { "type": 3 }, "backgroundColor": "#e6fcf5", "fillStyle": "solid", "strokeColor": "#0f766e", "label": { "text": "Hawser Agent & tecnativa/docker-socket-proxy", "fontSize": 13 } },
+
+    { "type": "arrow", "id": "a_scrape", "x": 740, "y": 407, "width": 280, "height": 73, "points": [[0,0],[-280,73]], "strokeColor": "#c026d3", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "Node Metrics Scrape", "fontSize": 12 } },
+    { "type": "arrow", "id": "a_gcp_hlab", "x": 420, "y": 715, "width": 140, "height": 145, "points": [[0,0],[-140,-145]], "strokeColor": "#047857", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "HTTP/S Health Checks", "fontSize": 12 } },
+    { "type": "arrow", "id": "a_gcp_oci", "x": 780, "y": 715, "width": 140, "height": 145, "points": [[0,0],[140,-145]], "strokeColor": "#047857", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "HTTP/S Health Checks", "fontSize": 12 } },
+    { "type": "arrow", "id": "a_oci_gcp", "x": 860, "y": 570, "width": 60, "height": 145, "points": [[0,0],[-60,145]], "strokeColor": "#6d28d9", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "Health Probes & Hawser Agent", "fontSize": 12 } }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": 20
+  },
+  "files": {}
+}
