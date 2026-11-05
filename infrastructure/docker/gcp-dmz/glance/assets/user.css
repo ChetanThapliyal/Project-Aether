@@ -1,0 +1,326 @@
+/* =============================================================================
+   Project Aether — Custom Styling for Glance Dashboard
+   ============================================================================= */
+
+:root {
+  --color-primary: #06b6d4;
+}
+
+/* Header Navigation & Wordmark (DooPlex Aesthetic) */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 1.5rem;
+  text-decoration: none;
+}
+
+.logo img {
+  height: 28px;
+  max-height: 32px;
+  width: auto;
+  display: block;
+}
+
+.logo-text,
+.logo span {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: 0.14em;
+  background: linear-gradient(135deg, #06b6d4 0%, #38bdf8 65%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+   Environment Vitals Cards (DooPlex Aesthetic)
+   ============================================================================= */
+
+.vitals-card {
+  padding: 14px 16px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+}
+
+.vitals-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vitals-title {
+  font-size: 0.95em;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f1f5f9;
+}
+
+.vitals-badge {
+  font-size: 0.72em;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.vitals-badge.healthy {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.top-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.top-grid.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.top-item {
+  text-align: center;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.top-label {
+  font-size: 0.65em;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
+.top-value {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-top: 2px;
+  color: #f8fafc;
+}
+
+.top-value.highlight {
+  color: #06b6d4;
+}
+
+.section-title {
+  font-size: 0.72em;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 12px 0 6px 0;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bar-row:last-child {
+  border-bottom: none;
+}
+
+.bar-name {
+  font-weight: 500;
+  width: 95px;
+  font-size: 0.85em;
+  flex-shrink: 0;
+  color: #cbd5e1;
+}
+
+/* Set the track as a reference container for CSS Container Queries */
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  margin: 0 10px;
+  overflow: hidden;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+/* The fill acts as a window displaying the track-locked gradient */
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+}
+
+/* Multi-stop dynamic gradient locked to 100cqw (Container Query Width) */
+.bar-fill::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 100cqw;
+  background: linear-gradient(
+    90deg,
+    #06b6d4 0%,    /* cyan */
+    #3b82f6 50%,   /* blue */
+    #8b5cf6 68%,   /* purple */
+    #ec4899 82%,   /* pink */
+    #ef4444 95%    /* red */
+  );
+  z-index: -1;
+}
+
+.bar-info {
+  font-size: 0.82em;
+  color: #cbd5e1;
+  text-align: right;
+  width: 155px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================================================
+   Iframe Widgets & Kiosk Styling
+   ============================================================================= */
+
+iframe {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #0b0f19;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* =============================================================================
+   Grafana Overview & Telemetry Components (Public-Internet Safe)
+   ============================================================================= */
+
+.gauge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gauge-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.gauge-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #06b6d4, #3b82f6);
+}
+
+.gauge-label {
+  font-size: 0.7em;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.gauge-val {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: #06b6d4;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge-sub {
+  font-size: 0.68em;
+  opacity: 0.6;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.pod-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82em;
+  text-align: left;
+}
+
+.pod-table th {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pod-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.pod-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pod-table code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95em;
+  color: #38bdf8;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
