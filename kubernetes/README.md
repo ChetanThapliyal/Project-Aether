@@ -20,29 +20,22 @@ With the default 3-minute poll interval, a pushed change lands in the cluster wi
 
 ```
 kubernetes/
-├── bootstrap/                    ← One-time manual setup. ArgoCD NEVER manages this.
-│   └── argocd/
-│       ├── values.yaml           ← Helm values (memory tuning + KSOPS sidecar wiring)
-│       └── cmp-ksops-config.yaml ← ConfigMap: the KSOPS plugin definition. Applied BEFORE Helm.
-│
-├── cluster/                      ← Root App-of-Apps manifests. Managed BY ArgoCD.
-│   ├── root-application.yaml     ← The ONE manifest I apply manually to bootstrap
-│   ├── platform.yaml             ← Child App → kubernetes/platform/namespaces/
-│   └── smoke-test.yaml           ← Child App → kubernetes/platform/smoke-test/
-│
-├── platform/                     ← Platform infrastructure. Managed BY ArgoCD via cluster/.
-│   ├── namespaces/
-│   │   └── namespaces.yaml       ← Sync wave -3: 7 core platform + apps namespaces (PSA labeled)
-│   └── smoke-test/
-│       ├── kustomization.yaml
-│       ├── ksops-secret.yaml     ← KSOPS generator (triggers CMP sidecar discovery)
-│       ├── secret.sops.yaml      ← SOPS-encrypted. Safe to commit.
-│       └── configmap.yaml
-│
-└── apps/                         ← User applications. Sync wave 1+.
-    └── .gitkeep
+├── bootstrap/argocd/            ← Helm-owned (task k8s:bootstrap-argocd). Never ArgoCD-managed.
+├── cluster/                     ← Application CRs ONLY (root-apps index)
+├── platform/
+│   ├── namespaces/              ← wave -3, PSA labels
+│   ├── metallb/                 ← IPAddressPool + L2Advertisement
+│   ├── gateway/                 ← GatewayClass, Gateway, EnvoyProxy (HARD-14)
+│   ├── cert-manager/            ← issuers + certificates
+│   ├── tailscale/{secret,apps}/ ← KSOPS OAuth secret; ProxyClass + Ingress
+│   ├── monitoring/exporters/    ← reference values (charts are inline in cluster/)
+│   ├── network-policies/        ← default-deny + allow-lists
+│   ├── argocd-metrics/          ← metrics NodePorts (moved in HARD-18)
+│   └── smoke-test/              ← KSOPS end-to-end check
+└── apps/                        ← Phase 04 workloads
 ```
-
+```
+```
 ---
 
 ## Who owns what
