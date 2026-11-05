@@ -32,9 +32,9 @@
 | # | Location | Survives |
 |---|---|---|
 | 1 | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Losing k3s only |
-| 2 | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots/` (ZFS dataset on the HDD, pulled 02:30 UTC) | Losing the VMs or the SSD |
-| 3 | Proxmox restic repo `/mnt/aether-pool/restic-k3s-etcd` (ZFS dataset on the HDD, 03:00 UTC, password `/etc/restic/etcd-password.txt`) | Losing the VMs or the SSD |
-| 4 | Backblaze B2 `aether-restic-etcd-offsite` (03:30 UTC, credentials in `group_vars/proxmox/vault.yaml`) | Losing the whole homelab |
+| 2 | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots/` (ZFS dataset on the HDD, pulled 02:30 IST) | Losing the VMs or the SSD |
+| 3 | Proxmox restic repo `/mnt/aether-pool/restic-k3s-etcd` (ZFS dataset on the HDD, 03:00 IST, password `/etc/restic/etcd-password.txt`) | Losing the VMs or the SSD |
+| 4 | Backblaze B2 `aether-restic-etcd-offsite` (03:30 IST, credentials in `group_vars/proxmox/vault.yaml`) | Losing the whole homelab |
 
 > Copies 2 and 3 share one HDD (a single-disk pool). If the HDD fails, copies 1 and 4 are left.
 >

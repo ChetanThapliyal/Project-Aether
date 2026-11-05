@@ -123,10 +123,10 @@
 
           echo "[$(date -Iseconds)] Starting Restic backup of etcd snapshots..." | tee -a "${LOG_FILE}"
 
-          # 1. Verify snapshot directory has files
+          # 1. Verify snapshot directory has files (empty input is a FAILURE: Convention C6, HARD-04 / N2)
           if [ ! -d "${SNAPSHOTS_DIR}" ] || [ -z "$(ls -A "${SNAPSHOTS_DIR}")" ]; then
-            echo "[$(date -Iseconds)] WARNING: No snapshots found in ${SNAPSHOTS_DIR}. Skipping backup." | tee -a "${LOG_FILE}"
-            exit 0
+            echo "[$(date -Iseconds)] ERROR: No snapshots in ${SNAPSHOTS_DIR}; upstream sync failed?" | tee -a "${LOG_FILE}"
+            exit 1
           fi
 
           # 2. Execute incremental backup with tag
@@ -162,12 +162,13 @@
 
           [Service]
           Type=oneshot
-          ExecStart=/usr/local/bin/backup-etcd-restic.sh
+          # One DR stage at a time: serialises timer runs, boot catch-up (Persistent=true) and manual runs (HARD-04).
+          ExecStart=/usr/bin/flock -w 3600 /run/lock/k3s-etcd-dr.lock /usr/local/bin/backup-etcd-restic.sh
           User=root
           StandardOutput=journal
           StandardError=journal
 
-    - name: Deploy systemd timer unit (Daily 03:00 UTC)
+    - name: Deploy systemd timer unit (Daily 03:00 Asia/Kolkata)
       ansible.builtin.copy:
         dest: /etc/systemd/system/k3s-etcd-restic.timer
         owner: root
@@ -175,29 +176,31 @@
         mode: "0644"
         content: |
           [Unit]
-          Description=Daily Encrypted Restic Backup of K3s etcd Snapshots (03:00 UTC)
-          Requires=k3s-etcd-restic.service
+          Description=Daily Encrypted Restic Backup of K3s etcd Snapshots (03:00 Asia/Kolkata)
+          # No Requires=: in a .timer it starts the service whenever the timer starts (HARD-04 / N1).
 
           [Timer]
-          OnCalendar=*-*-* 03:00:00 UTC
+          # One clock (IST) for the whole pipeline: K3s snapshot 02:00 -> sync 02:30 -> restic 03:00 -> B2 03:30.
+          OnCalendar=*-*-* 03:00:00 Asia/Kolkata
           Persistent=true
 
           [Install]
           WantedBy=timers.target
+      register: restic_timer_unit
 
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
 
-    - name: Enable and start k3s-etcd-restic.timer
+    - name: Enable and start k3s-etcd-restic.timer (restart if its schedule changed)
       ansible.builtin.systemd:
         name: k3s-etcd-restic.timer
         enabled: true
-        state: started
+        state: "{{ 'restarted' if restic_timer_unit.changed else 'started' }}"
 
     # ─── Step 6: Initial Backup & Verification ───────────────────────────────
     - name: Trigger initial Restic backup run
-      ansible.builtin.command: /usr/local/bin/backup-etcd-restic.sh
+      ansible.builtin.command: /usr/bin/flock -w 3600 /run/lock/k3s-etcd-dr.lock /usr/local/bin/backup-etcd-restic.sh
       register: initial_backup
       changed_when: true
 

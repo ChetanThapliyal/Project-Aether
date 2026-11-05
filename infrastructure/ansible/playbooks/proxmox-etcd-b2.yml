@@ -155,12 +155,13 @@
 
           [Service]
           Type=oneshot
-          ExecStart=/usr/local/bin/replicate-etcd-b2.sh
+          # One DR stage at a time: serialises timer runs, boot catch-up (Persistent=true) and manual runs (HARD-04).
+          ExecStart=/usr/bin/flock -w 3600 /run/lock/k3s-etcd-dr.lock /usr/local/bin/replicate-etcd-b2.sh
           User=root
           StandardOutput=journal
           StandardError=journal
 
-    - name: Deploy systemd timer unit (Daily 03:30 UTC)
+    - name: Deploy systemd timer unit (Daily 03:30 Asia/Kolkata)
       ansible.builtin.copy:
         dest: /etc/systemd/system/k3s-etcd-b2.timer
         owner: root
@@ -168,29 +169,31 @@
         mode: "0644"
         content: |
           [Unit]
-          Description=Daily Offsite Replication of etcd Backups to Backblaze B2 (03:30 UTC)
-          Requires=k3s-etcd-b2.service
+          Description=Daily Offsite Replication of etcd Backups to Backblaze B2 (03:30 Asia/Kolkata)
+          # No Requires=: in a .timer it starts the service whenever the timer starts (HARD-04 / N1).
 
           [Timer]
-          OnCalendar=*-*-* 03:30:00 UTC
+          # One clock (IST) for the whole pipeline: K3s snapshot 02:00 -> sync 02:30 -> restic 03:00 -> B2 03:30.
+          OnCalendar=*-*-* 03:30:00 Asia/Kolkata
           Persistent=true
 
           [Install]
           WantedBy=timers.target
+      register: b2_timer_unit
 
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
 
-    - name: Enable and start k3s-etcd-b2.timer
+    - name: Enable and start k3s-etcd-b2.timer (restart if its schedule changed)
       ansible.builtin.systemd:
         name: k3s-etcd-b2.timer
         enabled: true
-        state: started
+        state: "{{ 'restarted' if b2_timer_unit.changed else 'started' }}"
 
     # ─── Step 6: Initial Replication Run & Verification ──────────────────────
     - name: Trigger initial Backblaze B2 replication run
-      ansible.builtin.command: /usr/local/bin/replicate-etcd-b2.sh
+      ansible.builtin.command: /usr/bin/flock -w 3600 /run/lock/k3s-etcd-dr.lock /usr/local/bin/replicate-etcd-b2.sh
       register: initial_replication
       changed_when: true
 

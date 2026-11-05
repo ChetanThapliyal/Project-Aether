@@ -17,9 +17,9 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
 - **Decision:**
   1. *Adopt the 4-Stage 3-2-1 Disaster Recovery Pipeline:*
      - **Stage 1 (DR-01, 02:00 UTC): In-Node Compressed Datastore Snapshots.** `k3s-control-01` runs automated daily cron (`0 2 * * *`) generating frozen, zstd-compressed etcd database snapshots into `/var/lib/rancher/k3s/server/db/snapshots/` with 14-day local retention.
-     - **Stage 2 (DR-02, 02:30 UTC): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD pool.
-     - **Stage 3 (DR-03, 03:00 UTC): Dedicated Encrypted Local Restic Repository.** Proxmox commits snapshot files into an independent encrypted Restic repository at `/mnt/aether-pool/restic-k3s-etcd/` (password `/etc/restic/etcd-password.txt`), applies a GFS retention policy (14 daily, 4 weekly, 6 monthly snapshots), prunes orphaned blobs, and executes integrity checks.
-     - **Stage 4 (DR-04, 03:30 UTC): Offsite Cloud Replication via `restic copy`.** Proxmox replicates snapshots to Backblaze B2 (`aether-restic-etcd-offsite`) using native `restic copy` over WAN, verified by remote repository integrity checks.
+     - **Stage 2 (DR-02, 02:30 IST): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD pool.
+     - **Stage 3 (DR-03, 03:00 IST): Dedicated Encrypted Local Restic Repository.** Proxmox commits snapshot files into an independent encrypted Restic repository at `/mnt/aether-pool/restic-k3s-etcd/` (password `/etc/restic/etcd-password.txt`), applies a GFS retention policy (14 daily, 4 weekly, 6 monthly snapshots), prunes orphaned blobs, and executes integrity checks.
+     - **Stage 4 (DR-04, 03:30 IST): Offsite Cloud Replication via `restic copy`.** Proxmox replicates snapshots to Backblaze B2 (`aether-restic-etcd-offsite`) using native `restic copy` over WAN, verified by remote repository integrity checks.
   2. *Select Backblaze B2 (Decision P3-D3) via S3-Compatible API:*
      - Choose Backblaze B2 for the offsite storage tier (10 GB Always-Free storage, free egress via Cloudflare Bandwidth Alliance partnership).
      - Standardize on Backblaze B2's S3-Compatible API endpoint (`s3:https://s3.us-east-005.backblazeb2.com/<bucket>`). The legacy native B2 Go client in Restic relies on the deprecated `/b2api/v1/b2_authorize_account` API which rejects modern bucket-restricted Application Keys with HTTP 400. B2's S3 API avoids this limitation completely, allowing modern bucket-scoped keys to function seamlessly.
@@ -46,7 +46,7 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
     - Zero-Trust boundary preserved with outbound-only WAN replication.
   - *Negative:*
     - Requires maintaining two separate Restic password files (`/etc/restic/etcd-password.txt` and `/etc/restic/b2-etcd-password.txt`).
-    - Staggered timers (02:00, 02:30, 03:00, 03:30 UTC) require sequential scheduling discipline.
+    - Staggered timers (02:00, 02:30, 03:00, 03:30, all `Asia/Kolkata`) require sequential scheduling discipline. Until 5 Nov 2026 the Proxmox timers ran on UTC while K3s snapshotted at 02:00 IST, which put six hours between stages 1 and 2 (HARD-04). The three Proxmox stages also share one `flock`, so a boot catch-up or a manual run can't overlap another stage.
   - *Risks:*
     - If snapshot size grows beyond the 10 GB free tier in future years, billing or pruning adjustments will be required (mitigated by B2 lifecycle rules and 14-day local retention).
 - **Security Considerations:**
