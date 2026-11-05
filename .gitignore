@@ -122,6 +122,9 @@ Thumbs.db
 .agents/
 scripts/
 misc/
+.directory
+.claude/
+skills-lock.json
 
 # =========================
 # Vagrant (if used for local testing)
