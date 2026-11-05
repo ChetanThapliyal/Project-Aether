@@ -6,7 +6,7 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | Unknown start (the heartbeat monitor had never received a push) to 2026-11-03 |
-| Status | Fixed; awaiting the first scheduled run to confirm |
+| Status | Fixed and verified |
 
 ## Summary
 
@@ -34,6 +34,8 @@ All times UTC.
 | 2026-11-03 13:45 | The fixed script runs from Kestra. Snapshot saved, `restic check` clean, heartbeat received |
 | 2026-11-03 13:54 | A negative test (a deliberately broken `pg_dump`) withholds the heartbeat as intended, but stops on a restic repository lock |
 | 2026-11-03 | The lock is traced to the test being started twice, 11 seconds apart. A run lock is added to the script |
+| 2026-11-04 03:00 | First scheduled run with the fix. One snapshot, heartbeat received |
+| 2026-11-05 03:00 | Second scheduled run, same result. A run started while the lock is held exits with `another backup is running` |
 
 ## Root cause
 
@@ -71,7 +73,7 @@ Commits `0826dc5` and `ffbc283`.
 
 ## Guardrails added
 
-- The heartbeat is the last step, so the 24-hour push monitor pages on a missed night and on a failed one.
+- The heartbeat is the last step, so the push monitor pages on a missed night and on a failed one. Its window is 25 hours with no retries: one hour of slack for a slow run, and an alert by about 04:00 the morning a backup is missed.
 - The negative test (break one dump, expect `heartbeat withheld` and exit code 1) is part of the runbook for any change to the script.
 - The run lock makes a second, overlapping run exit with an error instead of contending for the repository.
 

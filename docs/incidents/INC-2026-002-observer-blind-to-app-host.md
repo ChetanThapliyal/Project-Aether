@@ -10,7 +10,7 @@
 
 ## Summary
 
-The DMZ observer runs Uptime Kuma outside the app host, so it can raise an alarm when the app host can't. Its monitors for the app host had not passed a single check in three days. Each proxied service is its own node on the private overlay network. The services had lost the tag the access policy uses to make them visible to the DMZ, so the DMZ could not even resolve their names. The tags were being reset every time a container was recreated, and an image auto-updater recreated containers every night. The monitors now target fixed addresses that survive a recreate, and the nightly auto-update is off.
+The DMZ observer runs Uptime Kuma outside the app host, so it can raise an alarm when the app host can't. Its monitors for the app host had not passed a single check in three days. Each proxied service is its own node on the private overlay network. The services had lost the tag the access policy uses to make them visible to the DMZ, so the DMZ could not even resolve their names. The tags were being reset every time a container was recreated, and an image auto-updater recreated containers every night. The monitors now target fixed addresses that survive a recreate.
 
 ## Impact
 
@@ -26,8 +26,10 @@ All times UTC.
 | ≤ 2026-10-30 | The DMZ's app-host monitors stop passing. Over the next 72 hours they pass 0 of about 2,600 checks |
 | 2026-11-02 | An audit finds the monitors failing and traces it: untagged nodes are left out of the DMZ's network map, so DNS answers "no such host" |
 | 2026-11-03 | The services are tagged by hand. Monitoring returns, but the tag also widens DMZ access ([INC-2026-003](INC-2026-003-fix-widened-dmz-exposure.md)) |
-| 2026-11-03 | Tags are found to reset on container recreate. Monitors are moved to fixed addresses, the nightly auto-update is turned off, and the corrected policy goes live |
+| 2026-11-03 | Tags are found to reset on container recreate. Monitors are moved to fixed addresses and the corrected policy goes live. Auto-update is switched to notify-only, but on the DMZ's environment in the update tool, not the app host's |
 | 2026-11-03 | Verified: all app-host monitors on the observer are UP |
+| 2026-11-04 and 05 | The 04:00 auto-update keeps recreating app-host containers (4 on 5 Nov). The monitors stay UP through both nights, including one whose node has no probe tag and is reached by its pinned address only |
+| 2026-11-05 | The update tool's run history shows auto-update still enabled for the app host. It is turned off on the correct environment the same day |
 
 ## Root cause
 
@@ -57,12 +59,12 @@ Commit `13fca25`, plus console changes.
 
 - A dedicated probe tag, granting only the monitored services on 443.
 - Two named host entries in the policy, pinned by address. A recreate resets a node's tags but keeps its address, so the monitors keep working through updates.
-- The image auto-updater moved from auto-apply to notify-only.
 
 ## Guardrails added
 
 - Policy tests check that the DMZ can reach the probe targets, so a policy change that breaks monitoring fails at save time.
 - Follow-up: move to a proxy version that assigns tags from its own configuration through an OAuth client, so tags can't be lost or set by hand again.
+- Auto-update is off on the app host's environment, and the check reads the tool's run history per environment. The first attempt changed the wrong environment and looked done in the UI.
 - Follow-up: pin application images, so each update is a reviewed change.
 
 ## Lessons

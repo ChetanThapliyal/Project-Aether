@@ -16,7 +16,7 @@ Each review says how the problem was found. Five of the first seven came from au
 
 | ID | Date | Title | Severity | Found by | Status |
 |----|------|-------|----------|----------|--------|
-| [INC-2026-001](INC-2026-001-silent-backup-heartbeat.md) | 2026-11-02 | Nightly backups reported success while their heartbeat never arrived | SEV2 | Audit | Fixed, awaiting first scheduled run |
+| [INC-2026-001](INC-2026-001-silent-backup-heartbeat.md) | 2026-11-02 | Nightly backups reported success while their heartbeat never arrived | SEV2 | Audit | Fixed and verified |
 | [INC-2026-002](INC-2026-002-observer-blind-to-app-host.md) | 2026-11-02 | The outside observer could not see the services it monitored | SEV2 | Audit | Mitigated and verified |
 | [INC-2026-003](INC-2026-003-fix-widened-dmz-exposure.md) | 2026-11-03 | Restoring monitoring opened admin tools to the DMZ | SEV1 | Verification check | Fixed and verified |
 | INC-2026-004 | 2026-11-03 | DMZ alerts could not leave the host | SEV2 | Investigation | Open, fix planned |
