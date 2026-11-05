@@ -17,6 +17,18 @@
   become: true
 
   tasks:
+    - name: HARD-23 | Refuse to run unless the DR paths are ZFS datasets on aether-pool
+      # Runs before any file: state=directory task, which would otherwise recreate
+      # a plain directory on the SSD (pve-root) if a dataset failed to mount.
+      ansible.builtin.command: findmnt -n -o FSTYPE,SOURCE --target {{ item }}
+      loop:
+        - /mnt/aether-pool/k3s-etcd-snapshots
+        - /mnt/aether-pool/restic-k3s-etcd
+      register: dr_fs
+      changed_when: false
+      check_mode: false
+      failed_when: dr_fs.rc != 0 or dr_fs.stdout.split() != ['zfs', 'aether-pool/' ~ (item | basename)]
+
     # ─── Step 1: Load SOPS Secrets ───────────────────────────────────────────
     - name: Load SOPS-encrypted secrets from group_vars
       community.sops.load_vars:
@@ -110,6 +122,12 @@
           # Project Aether — DR-04: Offsite Restic Copy to Backblaze B2
           # =============================================================================
           set -euo pipefail
+
+          # HARD-23: a dataset can fail to mount after a reboot; never write DR data to the SSD.
+          for p in /mnt/aether-pool/k3s-etcd-snapshots /mnt/aether-pool/restic-k3s-etcd; do
+            [ "$(findmnt -n -o SOURCE --target "$p" 2>/dev/null)" = "aether-pool/$(basename "$p")" ] \
+              || { echo "ERROR: $p is not the aether-pool ZFS dataset (not mounted?)"; exit 1; }
+          done
 
           source /etc/restic/b2-offsite.env
           LOG_FILE="/var/log/restic-b2-copy.log"
