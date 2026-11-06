@@ -1,12 +1,15 @@
+# tsdproxy v2: Tailscale reverse proxy for every OCI service (FND-03).
+# Config comes from ./config/tsdproxy.yaml, rendered by Ansible (oci-base.yml) with
+# OAuth providers app / probe / admin. No auth key in the environment: without a
+# config file, v2 generates defaults that 502 every service without a host port (#496).
 services:
   tsdproxy:
-    image: almeidapaulopt/tsdproxy:1
+    image: almeidapaulopt/tsdproxy:2.3.4@sha256:f2285da7d5d792ac348dd2a91f2acf7b92f7e0c8800fc6af3141a557b35ec320
     container_name: tsdproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/data
-    env_file:
-      - .env
+      - ./config:/config
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
     networks:

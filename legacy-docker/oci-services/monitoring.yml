@@ -37,6 +37,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "prometheus"
       tsdproxy.container_port: "9090"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   grafana:
     image: grafana/grafana:latest
@@ -57,6 +58,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "grafana"
       tsdproxy.container_port: "3000"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   loki:
     image: grafana/loki:3.0.0
@@ -75,6 +77,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "loki"
       tsdproxy.container_port: "3100"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -93,6 +96,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "alertmanager"
       tsdproxy.container_port: "9093"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
 networks:
   proxied-net:

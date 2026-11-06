@@ -1,0 +1,36 @@
+# Managed by Ansible (oci-base.yml, FND-03). Edit the template, not this file.
+# tsdproxy reads it only at start; the playbook recreates the container when it changes.
+defaultProxyProvider: app
+docker:
+  local:
+    host: unix:///var/run/docker.sock
+    defaultProxyProvider: app
+    # tsdproxy #496: reach containers over proxied-net. No targetHostname: v2's generated
+    # default (host.docker.internal) returns 502 for every service that publishes no host port.
+    tryDockerInternalNetwork: true
+# "lists", never "files": v3 refuses to start on a config that still has "files" (#512).
+lists: {}
+tailscale:
+  # One provider per role: proxies that share a credential get the same tags.
+  # Pick one with the container label tsdproxy.proxyprovider; no label means "app".
+  providers:
+    app:
+      clientId: "{{ oci_tsdproxy_oauth_client_id }}"
+      clientSecret: "{{ oci_tsdproxy_oauth_client_secret }}"
+      tags: "tag:oci-app"
+    probe:
+      clientId: "{{ oci_tsdproxy_oauth_client_id }}"
+      clientSecret: "{{ oci_tsdproxy_oauth_client_secret }}"
+      tags: "tag:oci-probe,tag:oci-app"
+    admin:
+      clientId: "{{ oci_tsdproxy_oauth_client_id }}"
+      clientSecret: "{{ oci_tsdproxy_oauth_client_secret }}"
+      tags: "tag:oci-admin"
+  dataDir: /data/
+http:
+  hostname: 0.0.0.0
+  port: 8080
+log:
+  level: info
+  json: false
+proxyAccessLog: true

@@ -67,6 +67,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "bookorbit"
       tsdproxy.container_port: "3000"
+      tsdproxy.proxyprovider: "probe"   # FND-03: tags from the probe provider
 
   postgres:
     container_name: bookorbit-db

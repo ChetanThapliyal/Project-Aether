@@ -68,6 +68,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "kestra"
       tsdproxy.container_port: "8080"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   kestra-postgres:
     image: postgres:16

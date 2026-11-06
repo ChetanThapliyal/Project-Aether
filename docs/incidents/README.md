@@ -23,6 +23,8 @@ Each review says how the problem was found. Five of the first seven came from au
 | [INC-2026-005](INC-2026-005-gitops-blind-to-drift.md) | 2026-11-02 | GitOps showed four apps as healthy while it could no longer manage them | SEV2 | Audit | Fixed and verified |
 | [INC-2026-006](INC-2026-006-logs-dropped-from-two-nodes.md) | 2026-11-02 | Two of three cluster nodes were sending their logs nowhere | SEV2 | Audit | Fixed and verified |
 | [INC-2026-007](INC-2026-007-dr-copies-on-wrong-disk.md) | 2026-11-02 | The local backup copies were on the disk they were meant to protect against | SEV2 | Audit | Fixed and verified |
+| INC-2026-008 | 2026-11-05 | Starting a backup timer also ran its job, and the stages ran on two clocks | SEV3 | Verification check | Open, fix applied, awaiting first night |
+| INC-2026-009 | 2026-11-06 | Planned proxy upgrade took every tailnet service down for 30 minutes | SEV3 | Change | Open, service restored, write-up pending |
 
 ## Conventions
 

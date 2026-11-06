@@ -91,22 +91,51 @@
         group: "{{ app_user }}"
       tags: [tsdproxy]
 
-    - name: Copy tsdproxy env file
-      copy:
-        content: |
-          TSDPROXY_AUTHKEY={{ oci_tsdproxy_tsdproxy_authkey }}
-        dest: "{{ app_base_dir }}/tsdproxy/.env"
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: "0600"
-      no_log: true
+    # FND-03: tsdproxy v2 signs nodes in through a Tailscale OAuth client, with
+    # one provider per role (app / probe / admin) so each node gets its role's tags.
+    - name: Require the tsdproxy OAuth client in SOPS
+      ansible.builtin.assert:
+        that:
+          - oci_tsdproxy_oauth_client_id | default('') | length > 0
+          - oci_tsdproxy_oauth_client_secret | default('') | length > 0
+        fail_msg: >-
+          oci_tsdproxy_oauth_client_id / oci_tsdproxy_oauth_client_secret are missing from
+          ansible-secrets.sops.yaml. Without a config, tsdproxy v2 502s every service (#496).
+        quiet: true
       tags: [tsdproxy]
 
-    - name: Start tsdproxy
+    - name: Create tsdproxy config directory
+      file:
+        path: "{{ app_base_dir }}/tsdproxy/config"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      tags: [tsdproxy]
+
+    - name: Render tsdproxy config
+      template:
+        src: ../templates/tsdproxy.yaml.j2
+        dest: "{{ app_base_dir }}/tsdproxy/config/tsdproxy.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      register: tsdproxy_config
+      tags: [tsdproxy]
+
+    - name: Remove the v1 auth-key env file (replaced by the OAuth config)
+      file:
+        path: "{{ app_base_dir }}/tsdproxy/.env"
+        state: absent
+      tags: [tsdproxy]
+
+    - name: Start tsdproxy (recreate when its config changed; it reads it only at start)
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/tsdproxy"
         state: present
-        pull: always
+        pull: missing
+        recreate: "{{ 'always' if tsdproxy_config.changed else 'auto' }}"
       tags: [tsdproxy]
 
     # ─── Systemhog removal ──────────────────────────────

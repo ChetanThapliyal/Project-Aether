@@ -18,6 +18,7 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "dockhand"
       tsdproxy.container_port: "3000"
+      tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
 networks:
   proxied-net:
