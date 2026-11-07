@@ -44,3 +44,54 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
   - Administrative operator devices (`tag:operator`) retain full access to `tag:k8s`.
   - Cluster nodes (`tag:k3s`) can communicate directly with `tag:k8s` proxies.
   - GCP DMZ monitoring (`tag:gcp-dmz`) is permitted on HTTP/HTTPS (`80, 443`) to probe `tag:k8s` MagicDNS endpoints.
+
+---
+
+### Addendum: Role Tags Set by Configuration, Policy Tests, and SSH (FND-03)
+- **Date:** 2026-11-07
+- **Context:** Three findings showed that the tag model above was not holding up.
+  - Every service on the OCI host is its own tailnet node, published by tsdproxy. tsdproxy v1 signed each one in with a single untagged auth key and signed it in again on every container recreate, which reset any tag set by hand in the console. The DMZ observer could not see those nodes and went blind ([INC-2026-002](../incidents/INC-2026-002-observer-blind-to-app-host.md)).
+  - `tag:oci` meant both "runs on OCI" and "the DMZ may reach it on 80/443". When every service was tagged `tag:oci` to restore monitoring, the DMZ could reach 16 of 17 services, including admin tools ([INC-2026-003](../incidents/INC-2026-003-fix-widened-dmz-exposure.md)).
+  - The policy had no tests, so nothing failed when the set of reachable services grew.
+- **Decision:** Tag OCI services by role, have tsdproxy set those tags from its configuration, and encode the security boundaries as policy tests.
+- **Role tags:**
+
+  | Tag | Carried by | Who may reach it |
+  |-----|------------|------------------|
+  | `tag:oci` | The OCI host's own node only | Operator; other `tag:oci`; K3s on 3100 (Loki) |
+  | `tag:oci-app` | User-facing apps | Operator |
+  | `tag:oci-probe` | The OCI services the DMZ monitors (with `tag:oci-app`) | Operator; DMZ on 443 |
+  | `tag:oci-admin` | Docker UI, log viewer, workflow engine, Prometheus, Grafana, Loki, Alertmanager | Operator only, never the DMZ (ADR-020) |
+
+  Each tag has one meaning. Location is never used to grant access.
+- **Tags come from configuration:**
+  - tsdproxy v2 signs nodes in through one OAuth client (scopes `devices:core` and `auth_keys`) holding all three role tags.
+  - Each role has its own provider in `tsdproxy.yaml` (`app`, `probe`, `admin`), rendered by Ansible from SOPS. A container picks its provider with the label `tsdproxy.proxyprovider`, and the default is `app`.
+  - Node state is kept per provider, so a container recreate keeps the node, its address and its tags.
+  - Tags are not set in the console.
+- **Tag ownership rule:** an OAuth client can mint a key for exactly its full tag set without consulting `tagOwners`. For a subset, each requested tag must be owned by one of the client's tags; `autogroup:admin` does not count. So each role tag also owns itself (`"tag:oci-app": ["autogroup:admin", "tag:oci-app"]`). This is the same pattern as `tag:k8s` being owned by `tag:k8s-operator` above. Self-ownership grants nothing new: a node can only advertise a tag it already has.
+- **Grants removed:**
+  - `tag:gcp-dmz → tag:oci` on 80/443: replaced by `tag:gcp-dmz → tag:oci-probe` on 443.
+  - The temporary address aliases for the two probed services (added 2026-11-03, while tags still reset).
+  - `autogroup:shared → tag:oci` on 443: no machine is shared. People outside the tailnet reach the one public app through Funnel (see ADR-004).
+  - `tag:AIAgent`: no device carried it.
+  - `tag:homelab-dc` was removed from the OCI host, which had carried three role tags at once.
+  - Funnel is granted only through `tag:funnel`, no longer to every member device.
+- **Policy tests:** the policy file has a `tests` block, which the admin console runs on every save, rejecting a policy that fails one. It checks that:
+  - the DMZ reaches `tag:oci-probe:443`, `tag:k3s:443` and `tag:k8s:443`, and nothing on `tag:oci`, `tag:oci-app`, `tag:oci-admin`, the K3s API or the Proxmox UI;
+  - OCI reaches the metrics ports and the DMZ's monitoring ports, and not the K3s API or SSH;
+  - K3s reaches only Loki on OCI;
+  - Proxmox reaches only the DMZ heartbeat port.
+
+  An `sshTests` block checks the operator's SSH access to the DMZ.
+- **Tailscale SSH:** only the DMZ runs Tailscale SSH today; other hosts use OpenSSH over the tailnet, which the grants govern.
+  - `tag:operator` devices: `accept`, non-root and root.
+  - Devices signed in as a user (`autogroup:member`): `check` every 12 h, non-root only.
+  - Users to their own devices: `accept`.
+- **Consequences:**
+  - Positive: a container update can no longer move a security boundary or blind the observer. A grant that widens DMZ access fails at save time.
+  - Negative: moving a service between roles creates a new node (state is per provider), so the old one must be removed first. A bulk re-create needs one certificate per node, and tsdproxy issues them slowly ([INC-2026-009](../incidents/README.md#index)).
+- **Validation / Fitness Functions:**
+  - `tailscale status --json` shows every OCI service node with exactly its role tags, and none untagged.
+  - After `docker compose up -d --force-recreate` of a service, the same node keeps the same address and tags (verified 2026-11-07 on the Uptime Kuma node).
+  - Every policy change is verified from the source (what answers from the DMZ) and at the destination (the packet filter on the target node).
