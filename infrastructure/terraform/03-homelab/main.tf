@@ -66,7 +66,13 @@ resource "proxmox_virtual_environment_vm" "k3s_nodes" {
       }
     }
 
+    # domain must be set (INC-2026-010). Left empty, Proxmox copies `search` from
+    # the hypervisor's /etc/resolv.conf, which Tailscale manages, into the
+    # cloud-init network data. That data feeds the instance-id, so a host DNS
+    # change made every VM look new on its next boot, and cloud-init
+    # regenerated its SSH host keys. home.arpa is the RFC 8375 home-network name.
     dns {
+      domain  = "home.arpa"
       servers = local.nameservers
     }
 
