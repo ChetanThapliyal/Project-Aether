@@ -70,6 +70,17 @@
   hosts: proxmox
   become: true
   tasks:
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+
+    - name: HARD-06 | Verify the Kuma heartbeat secrets exist
+      ansible.builtin.assert:
+        that:
+          - kuma_push_base is defined
+          - kuma_push_tokens is defined and kuma_push_tokens.etcd_sync is defined
+        fail_msg: "kuma_push_base / kuma_push_tokens.etcd_sync missing from SOPS; the sync would run without a heartbeat."
+
     - name: Ensure destination directory on ZFS storage pool exists
       ansible.builtin.file:
         path: /mnt/aether-pool/k3s-etcd-snapshots
@@ -117,6 +128,11 @@
           fi
 
           echo "[$(date -Iseconds)] Successfully synced ${SNAPSHOT_COUNT} snapshot(s) to ${DEST_DIR}." | tee -a "${LOG_FILE}"
+
+          # HARD-06: heartbeat on SUCCESS only (set -e means we only get here if every step passed)
+          curl -fsS -m 10 --retry 3 "{{ kuma_push_base }}/{{ kuma_push_tokens.etcd_sync }}?status=up&msg=OK" >/dev/null \
+            || echo "[$(date -Iseconds)] WARN: heartbeat push failed (sync itself succeeded)" | tee -a "${LOG_FILE}"
+      no_log: true  # HARD-06: the rendered script contains a push token
 
     - name: Deploy systemd service unit
       ansible.builtin.copy:

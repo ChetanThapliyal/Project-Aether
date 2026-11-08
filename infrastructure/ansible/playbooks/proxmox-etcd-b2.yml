@@ -46,7 +46,9 @@
           - b2_application_key_id is defined
           - b2_application_key is defined
           - restic_b2_password is defined
-        fail_msg: "Required variables (b2_application_key_id, b2_application_key, restic_b2_password) are missing from SOPS vault!"
+          - kuma_push_base is defined
+          - kuma_push_tokens is defined and kuma_push_tokens.etcd_b2 is defined
+        fail_msg: "Required variables (b2_application_key_id, b2_application_key, restic_b2_password, kuma_push_base, kuma_push_tokens.etcd_b2) are missing from SOPS vault!"
 
     # ─── Step 2: Directories & Credentials Configuration ─────────────────────
     - name: Ensure /etc/restic configuration directory exists
@@ -131,6 +133,15 @@
 
           source /etc/restic/b2-offsite.env
           LOG_FILE="/var/log/restic-b2-copy.log"
+          SNAPSHOTS_DIR="/mnt/aether-pool/k3s-etcd-snapshots"
+
+          # HARD-06 / INC-2026-010: stale input is a FAILURE (sync may have failed upstream).
+          # Checks the same mirror restic reads; the restic repo itself is not inspected.
+          newest=$(find "${SNAPSHOTS_DIR}" -maxdepth 1 -type f -name 'etcd-snapshot-*' -printf '%T@\n' | sort -n | tail -1)
+          if [ -z "${newest}" ] || [ $(( $(date +%s) - ${newest%.*} )) -gt 93600 ]; then   # 26 h
+            echo "[$(date -Iseconds)] ERROR: newest snapshot older than 26h in ${SNAPSHOTS_DIR}; upstream sync failed?" | tee -a "${LOG_FILE}"
+            exit 1
+          fi
 
           echo "[$(date -Iseconds)] Starting offsite Restic copy to Backblaze B2..." | tee -a "${LOG_FILE}"
           restic copy 2>&1 | tee -a "${LOG_FILE}"
@@ -139,6 +150,11 @@
           restic check 2>&1 | tee -a "${LOG_FILE}"
 
           echo "[$(date -Iseconds)] Backblaze B2 offsite replication successful." | tee -a "${LOG_FILE}"
+
+          # HARD-06: heartbeat on SUCCESS only (set -e means we only get here if every step passed)
+          curl -fsS -m 10 --retry 3 "{{ kuma_push_base }}/{{ kuma_push_tokens.etcd_b2 }}?status=up&msg=OK" >/dev/null \
+            || echo "[$(date -Iseconds)] WARN: heartbeat push failed (replication itself succeeded)" | tee -a "${LOG_FILE}"
+      no_log: true  # HARD-06: the rendered script contains a push token
 
     # ─── Step 5: Systemd Service & Daily Timer ───────────────────────────────
     - name: Deploy systemd service unit for B2 replication

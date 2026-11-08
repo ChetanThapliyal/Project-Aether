@@ -8,15 +8,25 @@ route:
   repeat_interval: 4h
   receiver: 'telegram'
   routes:
-    # ─── P0: Dead-man's switch & critical alerts repeat every 1h ───
+    # HARD-06: Watchdog never reaches Telegram; it feeds the DMZ Kuma heartbeat every minute
+    - matchers:
+        - alertname = Watchdog
+      receiver: 'kuma-watchdog'
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
     - matchers:
         - severity = critical
       receiver: 'telegram'
       repeat_interval: 1h
 
 receivers:
+  - name: 'kuma-watchdog'
+    webhook_configs:
+      - url: '{{ kuma_push_base }}/{{ kuma_push_tokens.watchdog }}?status=up&msg=watchdog'
+        send_resolved: false
   - name: 'telegram'
-{% if telegram_bot_token is defined and telegram_bot_token | string | length > 0 and telegram_chat_id is defined and telegram_chat_id | string | length > 0 %}
+    # HARD-06 / N6: no fallback branch. oci-monitoring.yml asserts these secrets before rendering.
     telegram_configs:
       - bot_token: '{{ telegram_bot_token }}'
         chat_id: {{ telegram_chat_id }}
@@ -32,6 +42,3 @@ receivers:
           {{ '{{' }} range .Alerts {{ '}}' }}
             • {{ '{{' }} .Annotations.summary {{ '}}' }} (<i>{{ '{{' }} .Labels.instance {{ '}}' }}</i>)
           {{ '{{' }} end {{ '}}' }}
-{% else %}
-    webhook_configs: []
-{% endif %}

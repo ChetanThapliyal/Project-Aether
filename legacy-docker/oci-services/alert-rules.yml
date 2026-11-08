@@ -87,3 +87,44 @@ groups:
         annotations:
           summary: "Root filesystem on {{ $labels.instance }} has <15% space"
           description: "Disk exhaustion risk on homelab SSD Tier 1."
+
+  - name: platform-reconcilers
+    rules:
+      # ─── Meta: proves rule evaluation → Alertmanager → dispatch is alive ───
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+          tier: meta
+        annotations:
+          summary: "Always firing. If Uptime Kuma stops receiving it, the alert path is broken."
+
+      # ─── GitOps: catches Bug V (Unknown) and drift (OutOfSync) ───
+      - alert: ArgoAppNotSynced
+        expr: argocd_app_info{sync_status!="Synced"} == 1
+        for: 30m
+        labels:
+          severity: warning
+          tier: gitops
+        annotations:
+          summary: "ArgoCD app {{ $labels.name }} is {{ $labels.sync_status }}"
+          description: "Unknown = ArgoCD cannot diff the app: no auto-sync, no self-heal. Check .status.conditions."
+
+      - alert: ArgoAppUnhealthy
+        expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+        for: 15m
+        labels:
+          severity: warning
+          tier: gitops
+        annotations:
+          summary: "ArgoCD app {{ $labels.name }} health is {{ $labels.health_status }}"
+
+      # ─── Crash loops that straddle an API outage (rate[10m] misses them) ───
+      - alert: K8sPodRestartBurst
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          tier: kubernetes
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted >5 times in 1h"

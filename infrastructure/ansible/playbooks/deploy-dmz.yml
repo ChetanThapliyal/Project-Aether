@@ -2,7 +2,7 @@
 # =============================================================================
 # Project Aether — GCP DMZ Observability Deployment Playbook
 # =============================================================================
-# Deploys Uptime Kuma, Homepage, and Cloudflared on the GCP e2-micro DMZ instance.
+# Deploys Uptime Kuma, Glance, and Cloudflared on the GCP e2-micro DMZ instance.
 # Stack location: /opt/dmz
 # Access: Tailscale mesh (ports 3000, 3001) + Cloudflare Zero-Trust Tunnel
 # =============================================================================
@@ -242,16 +242,6 @@
           - "=========================================================="
 
     # ─── OPS-02: Uptime Kuma — Telegram Alert Channel ─────
-    # Requires the following in ansible-secrets.sops.yaml:
-    #   uptime_kuma_admin_password: <your UK admin password>
-    #   telegram_bot_token:  <token from @BotFather>
-    #   telegram_chat_id:    <your personal chat ID or group ID>
-    #
-    # How to get telegram_chat_id:
-    #   1. Send any message to your bot
-    #   2. curl "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq '.result[0].message.chat.id'
-    #
-    # This block is skipped entirely if telegram_bot_token is not in secrets.
     - name: OPS-02 | Check if Telegram secrets are available
       set_fact:
         telegram_configured: >-
@@ -305,6 +295,35 @@
         msg: "{{ uk_dmz_provision.stdout }}"
       when: telegram_configured and uk_dmz_provision is defined
       tags: [ops-02, notifications]
+
+    # ─── HARD-06: Push monitors (needs uptime-kuma-api + the Telegram notification above) ───
+    - name: HARD-06 | Provision push monitors in GCP DMZ UK (watchdog + DR stages)
+      command: >
+        python3 "{{ playbook_dir }}/../templates/provision_uk_push_monitors.py"
+        --url http://aether-gcp-dmz:3001
+        --username che01tan
+        --password {{ uptime_kuma_admin_password | quote }}
+        --notification "Telegram — Aether Alerts"
+        --monitors {{ monitors | to_json | quote }}
+      vars:
+        monitors:
+          - { name: "Watchdog — OCI Alertmanager",  token: "{{ kuma_push_tokens.watchdog }}",    interval: 300 }
+          - { name: "DR-02 etcd sync (Proxmox)",    token: "{{ kuma_push_tokens.etcd_sync }}",   interval: 93600 }
+          - { name: "DR-03 etcd restic (Proxmox)",  token: "{{ kuma_push_tokens.etcd_restic }}", interval: 93600 }
+          - { name: "DR-04 etcd → B2 (Proxmox)",    token: "{{ kuma_push_tokens.etcd_b2 }}",     interval: 93600 }
+      register: uk_push_provision
+      changed_when: "'OK:' in uk_push_provision.stdout"
+      delegate_to: localhost
+      become: false
+      when: telegram_configured
+      no_log: true
+      tags: [hard-06, notifications]
+
+    - name: HARD-06 | Show push monitor provisioning result (monitor names only, no tokens)
+      debug:
+        msg: "{{ uk_push_provision.stdout_lines }}"
+      when: telegram_configured and uk_push_provision.stdout_lines is defined
+      tags: [hard-06, notifications]
 
   handlers:
     - name: Reload systemd daemon

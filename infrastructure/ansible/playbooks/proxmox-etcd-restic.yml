@@ -34,6 +34,13 @@
         file: ../../secrets/ansible-secrets.sops.yaml
       ignore_errors: true
 
+    - name: HARD-06 | Verify the Kuma heartbeat secrets exist
+      ansible.builtin.assert:
+        that:
+          - kuma_push_base is defined
+          - kuma_push_tokens is defined and kuma_push_tokens.etcd_restic is defined
+        fail_msg: "kuma_push_base / kuma_push_tokens.etcd_restic missing from SOPS; the backup would run without a heartbeat."
+
     # ─── Step 2: Install Restic on Proxmox ───────────────────────────────────
     - name: Ensure restic package is installed
       ansible.builtin.apt:
@@ -129,6 +136,13 @@
             exit 1
           fi
 
+          # HARD-06 / INC-2026-010: stale input is a FAILURE (sync may have failed upstream)
+          newest=$(find "${SNAPSHOTS_DIR}" -maxdepth 1 -type f -name 'etcd-snapshot-*' -printf '%T@\n' | sort -n | tail -1)
+          if [ -z "${newest}" ] || [ $(( $(date +%s) - ${newest%.*} )) -gt 93600 ]; then   # 26 h
+            echo "[$(date -Iseconds)] ERROR: newest snapshot older than 26h in ${SNAPSHOTS_DIR}; upstream sync failed?" | tee -a "${LOG_FILE}"
+            exit 1
+          fi
+
           # 2. Execute incremental backup with tag
           restic backup \
             --tag "k3s-etcd" \
@@ -147,6 +161,11 @@
           restic check 2>&1 | tee -a "${LOG_FILE}"
 
           echo "[$(date -Iseconds)] etcd snapshot Restic backup completed successfully." | tee -a "${LOG_FILE}"
+
+          # HARD-06: heartbeat on SUCCESS only (set -e means we only get here if every step passed)
+          curl -fsS -m 10 --retry 3 "{{ kuma_push_base }}/{{ kuma_push_tokens.etcd_restic }}?status=up&msg=OK" >/dev/null \
+            || echo "[$(date -Iseconds)] WARN: heartbeat push failed (backup itself succeeded)" | tee -a "${LOG_FILE}"
+      no_log: true  # HARD-06: the rendered script contains a push token
 
     - name: Deploy systemd service unit
       ansible.builtin.copy:

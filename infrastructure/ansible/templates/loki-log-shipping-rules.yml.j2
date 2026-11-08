@@ -1,0 +1,14 @@
+groups:
+  - name: log-shipping
+    rules:
+{% for node in groups['k3s_cluster'] %}
+      - alert: LogShippingStalled
+        expr: 'absent_over_time({node_name="{{ node }}"}[15m])'
+        for: 15m
+        labels:
+          severity: warning
+          tier: logging
+          node_name: "{{ node }}"
+        annotations:
+          summary: "No logs from {{ node }} have reached Loki for 30 minutes"
+{% endfor %}

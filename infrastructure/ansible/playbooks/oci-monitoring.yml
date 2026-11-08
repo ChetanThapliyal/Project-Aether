@@ -4,10 +4,6 @@
 # =============================================================================
 # Deploys Prometheus and Grafana monitoring stack on OCI, including
 # datasource and dashboard provisioning.
-#
-# Examples:
-#   ansible-playbook playbooks/oci-monitoring.yml
-#   ansible-playbook playbooks/bootstrap-oci.yml --tags monitoring
 # =============================================================================
 
 - name: Deploy OCI monitoring stack
@@ -75,6 +71,15 @@
       notify: restart prometheus
       tags: [monitoring]
 
+    - name: HARD-06 | Refuse to render Alertmanager without its receivers' secrets
+      ansible.builtin.assert:
+        that:
+          - telegram_bot_token is defined and (telegram_bot_token | string | length) > 0
+          - telegram_chat_id is defined and (telegram_chat_id | string | length) > 0
+          - kuma_push_base is defined and kuma_push_tokens.watchdog is defined
+        fail_msg: "Missing receiver secrets. Rendering now would create a receiver that drops every alert."
+      tags: [monitoring]
+
     - name: Deploy alertmanager configuration
       template:
         src: ../templates/alertmanager.yml.j2
@@ -135,6 +140,21 @@
         project_src: "{{ app_base_dir }}/monitoring"
         state: present
         pull: always
+      tags: [monitoring]
+
+    - name: HARD-06 | Create Loki ruler directory for the default tenant
+      ansible.builtin.file:
+        path: "{{ app_base_dir }}/monitoring/loki-data/rules/fake"
+        state: directory
+        mode: "0777"
+      tags: [monitoring]
+
+    - name: HARD-06 | Deploy Loki log-shipping rules
+      ansible.builtin.template:
+        src: ../templates/loki-log-shipping-rules.yml.j2
+        dest: "{{ app_base_dir }}/monitoring/loki-data/rules/fake/log-shipping.yml"
+        mode: "0644"
+      notify: restart loki
       tags: [monitoring]
 
   handlers:

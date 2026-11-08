@@ -43,3 +43,12 @@ limits_config:
 
 analytics:
   reporting_enabled: false
+
+ruler:
+  alertmanager_url: http://alertmanager:9093   # same compose network (default)
+  enable_api: true
+  rule_path: /loki/rules-temp
+  storage:
+    type: local
+    local:
+      directory: /loki/rules                    # = ./loki-data/rules on the host
