@@ -105,3 +105,10 @@ networks:
   dmz-net:
     name: dmz-net
     driver: bridge
+    # FND-08 M13 / INC-2026-004: the DMZ VM has no public IPv4 (terraform/02-gcp-dmz,
+    # cost choice), so its only route to the internet is IPv6. Without IPv6 here no
+    # container can reach anything public, and Kuma's Telegram alerts time out.
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:d3a2::/64   # ULA; Docker NATs it out through the host's IPv6
