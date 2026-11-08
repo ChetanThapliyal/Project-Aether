@@ -63,4 +63,21 @@ resource "oci_core_security_list" "main" {
       max = 22
     }
   }
+
+  # Tailscale direct paths. The homelab sits behind ISP carrier-grade NAT whose
+  # mapping varies by destination, so hole-punching from home fails and
+  # tailnet traffic falls back to the DERP relay. With this port open, the
+  # home side can always reach the host directly. WireGuard authenticates
+  # every packet, so nothing else is exposed.
+  ingress_security_rules {
+    protocol    = "17"
+    source      = "0.0.0.0/0"
+    source_type = "CIDR_BLOCK"
+    stateless   = false
+    description = "Tailscale WireGuard (direct paths)"
+    udp_options {
+      min = 41641
+      max = 41641
+    }
+  }
 }

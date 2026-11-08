@@ -38,6 +38,17 @@
         state: present
       tags: [base, system]
 
+    # Pairs with the UDP 41641 rule on the OCI security list. Without both, the
+    # homelab (behind carrier-grade NAT) can't open a direct path and stays on
+    # the DERP relay.
+    - name: Allow Tailscale's WireGuard port through ufw
+      community.general.ufw:
+        rule: allow
+        port: "41641"
+        proto: udp
+        comment: Tailscale direct paths
+      tags: [base, firewall]
+
     - name: Ensure docker service is running
       systemd:
         name: docker
