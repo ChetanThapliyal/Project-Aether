@@ -122,6 +122,22 @@
         state: present
         update_cache: true
 
+    # tailscale_port defaults to 41641. A node can override it in the inventory
+    # when the home NAT holds a broken mapping for its old port: a new source
+    # port gets a fresh mapping (INC-2026-011).
+    - name: Set tailscaled's UDP port
+      ansible.builtin.lineinfile:
+        path: /etc/default/tailscaled
+        regexp: '^PORT='
+        line: 'PORT="{{ tailscale_port | default(41641) }}"'
+      register: tailscaled_port
+
+    - name: Restart tailscaled when its port changed
+      ansible.builtin.systemd:
+        name: tailscaled
+        state: restarted
+      when: tailscaled_port.changed
+
     - name: Enable and start Tailscale service
       ansible.builtin.systemd:
         name: tailscaled
