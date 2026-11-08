@@ -273,6 +273,7 @@ Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch p
 | [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | Offsite backup & 3-2-1 DR: Backblaze B2 S3 API, write-isolated keys, restic copy |
 | [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, lightweight Promtail on K3s, Tailscale mesh transit |
 | [020](docs/adr/020-public-observability-data-diode.md) | Public observability: Glance dashboard (<50 MiB RAM) & push-based data diode |
+| [021](docs/adr/021-internal-dns-and-pki.md) | Internal DNS & PKI: 10-year root CA with a stable key; `lab.` subdomain with DNS-01 certificates (Phase 04) |
 
 ADR-017 (Kestra platform automation) is pending formalization.
 
