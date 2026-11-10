@@ -120,7 +120,11 @@ Thumbs.db
 *.log
 *.tmp
 .agents/
-scripts/
+# scripts/ is local scratch, except the checks that hooks and tasks call (HARD-19)
+scripts/*
+!scripts/check-*.sh
+!scripts/check-*.py
+!scripts/k3s-compare.sh
 misc/
 .directory
 .claude/

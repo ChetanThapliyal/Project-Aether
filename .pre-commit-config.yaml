@@ -61,3 +61,12 @@ repos:
     rev: v8.18.2
     hooks:
       - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: tracked-refs
+        name: Ansible-referenced files are tracked by Git
+        entry: scripts/check-tracked-refs.sh
+        language: script
+        pass_filenames: false
+        files: ^infrastructure/ansible/

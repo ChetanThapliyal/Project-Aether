@@ -252,3 +252,13 @@ tasks:
             sys.exit("DRIFT: " + "; ".join(problems) + ". Run: task k8s:bootstrap-argocd")
         print(f"ok: {rel['chart']} rev {rel['revision']} matches Git")
         EOF
+
+  lint:helm-values:
+    desc: "Fail on Helm values keys the pinned chart does not define (Bugs G/N/X class)"
+    cmds:
+      - python3 scripts/check-helm-values.py
+
+  lint:tracked-refs:
+    desc: "Fail if Ansible references files Git does not track"
+    cmds:
+      - bash scripts/check-tracked-refs.sh
