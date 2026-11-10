@@ -40,6 +40,7 @@
           INSTALL_K3S_VERSION="{{ k3s_version }}" \
           sh -s - server \
             --cluster-init \
+            --secrets-encryption \
             --token "{{ k3s_server_token.split('::server:') | last }}" \
             --write-kubeconfig-mode "644" \
             --tls-san "{{ ansible_host }}" \
@@ -123,6 +124,34 @@
           etcd-snapshot-retention: 14
           etcd-snapshot-dir: "/var/lib/rancher/k3s/server/db/snapshots"
           etcd-snapshot-compress: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart K3s Control Plane
+
+    # ----- Secrets encryption at rest (HARD-13) -----
+    # On an existing cluster the order is fixed (K3s docs): `k3s secrets-encrypt
+    # enable` first, then the flag and a restart, then `rotate-keys`. Adding the
+    # flag before `enable` is the wrong order, so refuse until K3s has an
+    # encryption config. A fresh install gets --secrets-encryption above.
+    - name: HARD-13 | Check for an encryption config
+      ansible.builtin.stat:
+        path: /var/lib/rancher/k3s/server/cred/encryption-config.json
+      register: k3s_enc_config
+
+    - name: HARD-13 | Refuse to persist the flag before `secrets-encrypt enable`
+      ansible.builtin.assert:
+        that: k3s_enc_config.stat.exists
+        fail_msg: >-
+          No encryption config yet. Run `sudo k3s secrets-encrypt enable` on the control VM
+          first (HARD-13 step 2), then re-run this playbook.
+        quiet: true
+
+    - name: HARD-13 | Persist secrets encryption
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/30-secrets-encryption.yaml
+        content: |
+          secrets-encryption: true
         owner: root
         group: root
         mode: "0644"

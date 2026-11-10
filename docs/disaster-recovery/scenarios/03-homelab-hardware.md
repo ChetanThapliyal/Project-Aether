@@ -111,7 +111,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 
 ### Branch D: Total Hardware Loss — Restore from Backblaze B2
 
-> Drilled 10 Nov 2026 (HARD-11) in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill. The drill used the restic copy; the locked-bucket path in step 4 was checked on 10 Nov as far as a verified, byte-identical snapshot (HARD-12), not yet through a container restore.
+> Drilled 10 Nov 2026 (HARD-11) in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill. The drill used the restic copy; the locked-bucket path in step 4 was checked on 10 Nov as far as a verified, byte-identical snapshot (HARD-12), not yet through a container restore. Secrets have been encrypted at rest since 10 Nov (HARD-13). The encryption key travels inside the snapshot's token-encrypted bootstrap data, so the escrowed token is still the only extra thing a restore needs: a container restore of an encrypted snapshot read `argocd-sops-age-key` back intact.
 
 1. Install Proxmox on replacement hardware, then rebuild the storage, the network and template 9000. Then `task tf:apply DIR=03-homelab`.
 2. `task ansible:common`
@@ -120,7 +120,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
    K3S_TOKEN=$(sops -d --extract '["k3s_server_token"]' infrastructure/secrets/ansible-secrets.sops.yaml)
    ssh owl@192.168.1.51 "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.4+k3s1 INSTALL_K3S_SKIP_START=true \
      K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
-     --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb"
+     --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb --secrets-encryption"
    ```
 4. From my workstation, fetch the latest snapshot from the Object Lock bucket (HARD-12) with the read-only key, and decrypt it with the escrowed age identity:
    ```bash
