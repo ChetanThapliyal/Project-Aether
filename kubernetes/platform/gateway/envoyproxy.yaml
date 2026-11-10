@@ -1,0 +1,21 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: aether-proxy
+  namespace: gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        pod:
+          nodeSelector:
+            kubernetes.io/hostname: k3s-worker-01   # data plane apart from the controller-heavy worker-02 (§2)
+        container:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi    # measured 73 Mi idle (10 Nov)
+            limits:
+              cpu: 250m
+              memory: 256Mi   # re-size after Phase 04 traffic
