@@ -1,6 +1,8 @@
 global:
   nodeSelector:
     kubernetes.io/hostname: k3s-worker-02
+  networkPolicy:
+    create: false   # chart 10.0.0 flipped the default to true; argocd ingress policy is GitOps-owned (allow-argocd-traffic)
 
 controller:
   replicas: 1
@@ -113,6 +115,9 @@ configs:
   cm:
     admin.enabled: "true"
     url: "https://argocd.tail7067ab.ts.net"
+    # ArgoCD 3.0 changed the default tracking method to annotation. Keep label for the
+    # upgrade; switching is a separate change (HARD-08, backlog).
+    application.resourceTrackingMethod: label
     # make sync waves gate on child Application health (app-of-apps)
     resource.customizations.health.argoproj.io_Application: |
       hs = {}

@@ -4,7 +4,7 @@ version: "3"
 # (decrypted per task) and gcloud Application Default Credentials.
 # No repository-level .env file is used by this Taskfile.
 vars:
-  ARGOCD_CHART_VERSION: "7.8.26"
+  ARGOCD_CHART_VERSION: "10.11.7"
 
 tasks:
   default:
