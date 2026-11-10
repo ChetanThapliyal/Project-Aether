@@ -117,8 +117,8 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 3. On the new control VM, install K3s without starting it, **with the same flags as `control.yml`**. `task ansible:control` skips the install once the binary exists, so flags left out here are never added later (a K3s without `--disable traefik --disable servicelb` deploys both on first start). From my workstation:
    ```bash
    K3S_TOKEN=$(sops -d --extract '["k3s_server_token"]' infrastructure/secrets/ansible-secrets.sops.yaml)
-   ssh owl@<control VM> "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.4+k3s1 INSTALL_K3S_SKIP_START=true \
-     K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san <control VM> \
+   ssh owl@192.168.1.51 "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.4+k3s1 INSTALL_K3S_SKIP_START=true \
+     K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
      --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb"
    ```
 4. From my workstation, fetch the latest snapshot from B2:
@@ -136,7 +136,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
    I copy `./dr-restore/staged/$NAME` to `/var/lib/rancher/k3s/server/db/snapshots/` on the control VM. Check `$NAME` is set before step 5: with an empty name the reset fails with `snapshot path does not exist`, and a plain start afterwards creates a new, **empty** cluster with new CAs. If that happens, stop K3s, delete `/var/lib/rancher/k3s/server/{db,tls,cred,token}` and start again from this step.
 5. Restore with the escrowed token. SOPS and the Age key are on my workstation, not the VM, so I pass the token over SSH. The command exits by design after "restart without --cluster-reset flag now":
    ```bash
-   ssh owl@<control VM> "sudo k3s server --cluster-reset \
+   ssh owl@192.168.1.51 "sudo k3s server --cluster-reset \
      --cluster-reset-restore-path=/var/lib/rancher/k3s/server/db/snapshots/$NAME --token='$K3S_TOKEN'"
    ```
 6. `sudo systemctl start k3s`, then `task ansible:control` (checks the token and applies the snapshot schedule).
