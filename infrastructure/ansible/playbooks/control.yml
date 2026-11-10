@@ -13,6 +13,21 @@
     k3s_version: "v1.36.4+k3s1"
 
   tasks:
+    # ----- Server token escrow (HARD-10) -----
+    # A snapshot can only be restored onto a new VM with the original server
+    # token, so it lives in SOPS and must match the live cluster.
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+
+    - name: Require an escrowed server token
+      ansible.builtin.assert:
+        that:
+          - k3s_server_token is defined
+          - k3s_server_token is match('^K10[0-9a-f]+::server:.+')
+        fail_msg: "k3s_server_token is missing from SOPS. Snapshots can't be restored on a new VM without it."
+        quiet: true
+
     # ----- Install K3s Server -----
     - name: Check if K3s is already installed
       ansible.builtin.stat:
@@ -25,6 +40,7 @@
           INSTALL_K3S_VERSION="{{ k3s_version }}" \
           sh -s - server \
             --cluster-init \
+            --token "{{ k3s_server_token.split('::server:') | last }}" \
             --write-kubeconfig-mode "644" \
             --tls-san "{{ ansible_host }}" \
             --node-taint "node-role.kubernetes.io/control-plane:NoSchedule" \
@@ -33,6 +49,9 @@
       args:
         creates: /usr/local/bin/k3s
       when: not k3s_binary.stat.exists
+      # A fresh cluster makes its own CA, so it takes only the passphrase.
+      # A restore (HARD-11) passes the full K10... token instead.
+      no_log: true
 
     # ----- Wait for K3s -----
     - name: Wait for K3s to be ready
@@ -51,6 +70,19 @@
       retries: 30
       delay: 10
       changed_when: false
+
+    - name: Read live server token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/token
+      register: live_server_token
+      no_log: true
+
+    - name: Assert the escrowed token matches the live cluster
+      ansible.builtin.assert:
+        that: (live_server_token.content | b64decode | trim) == k3s_server_token
+        fail_msg: "Live K3s token differs from the SOPS escrow. Re-escrow it (k3s token rotate?) or a restore will fail."
+        quiet: true
+      no_log: true
 
     # ----- Node Taint -----
     - name: Ensure control plane taint is applied
