@@ -3,6 +3,8 @@ version: "3"
 # Infrastructure credentials are supplied by SOPS-encrypted tfvars
 # (decrypted per task) and gcloud Application Default Credentials.
 # No repository-level .env file is used by this Taskfile.
+vars:
+  ARGOCD_CHART_VERSION: "7.8.26"
 
 tasks:
   default:
@@ -205,6 +207,8 @@ tasks:
         --from-file=keys.txt=${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
         --dry-run=client -o yaml | kubectl apply -f -
 
+      - kubectl label --overwrite ns argocd pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
+
   k8s:bootstrap-argocd:
     desc: "Install or upgrade ArgoCD via Helm with homelab tuning"
     deps: [k8s:sops-secret]
@@ -214,10 +218,10 @@ tasks:
       - kubectl apply -f kubernetes/bootstrap/argocd/cmp-ksops-config.yaml
       - >-
         helm upgrade --install argocd argo/argo-cd
-        --version 7.8.26
+        --version {{.ARGOCD_CHART_VERSION}}
         --namespace argocd
         --values kubernetes/bootstrap/argocd/values.yaml
-        --wait --timeout 5m
+        --wait --timeout 5m --rollback-on-failure
 
   argocd:password:
     desc: "Get ArgoCD initial admin password"
@@ -229,3 +233,22 @@ tasks:
     desc: "Port-forward ArgoCD server to localhost:8090"
     cmds:
       - kubectl port-forward svc/argocd-server -n argocd ${ARGOCD_PORT:-8090}:80
+
+  argocd:drift:
+    desc: "Fail if the live ArgoCD Helm release differs from Git (values or chart version)"
+    cmds:
+      - |
+        python3 - <<'EOF'
+        import json, subprocess, sys, yaml
+        live = yaml.safe_load(subprocess.check_output(["helm", "get", "values", "argocd", "-n", "argocd", "-o", "yaml"]))
+        git = yaml.safe_load(open("kubernetes/bootstrap/argocd/values.yaml"))
+        rel = json.loads(subprocess.check_output(["helm", "list", "-n", "argocd", "-f", "^argocd$", "-o", "json"]))[0]
+        problems = []
+        if live != git:
+            problems.append("values differ from kubernetes/bootstrap/argocd/values.yaml")
+        if rel["chart"] != "argo-cd-{{.ARGOCD_CHART_VERSION}}":
+            problems.append(f"chart is {rel['chart']}, Git pins argo-cd-{{.ARGOCD_CHART_VERSION}}")
+        if problems:
+            sys.exit("DRIFT: " + "; ".join(problems) + ". Run: task k8s:bootstrap-argocd")
+        print(f"ok: {rel['chart']} rev {rel['revision']} matches Git")
+        EOF
