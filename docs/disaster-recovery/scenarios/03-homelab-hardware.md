@@ -35,6 +35,7 @@
 | 2 | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots/` (ZFS dataset on the HDD, pulled 02:30 IST) | Losing the VMs or the SSD |
 | 3 | Proxmox restic repo `/mnt/aether-pool/restic-k3s-etcd` (ZFS dataset on the HDD, 03:00 IST, password `/etc/restic/etcd-password.txt`) | Losing the VMs or the SSD |
 | 4 | Backblaze B2 `aether-restic-etcd-offsite` (03:30 IST, credentials in `group_vars/proxmox/vault.yaml`) | Losing the whole homelab |
+| 5 | Backblaze B2 `aether-etcd-offsite-lock` (03:30 IST, one age-encrypted object per night, each locked 30 days; read-only key in `vault.yaml`, age identity in `ansible-secrets.sops.yaml`) | Losing the whole homelab, **and** an attacker with root on the hypervisor |
 
 > Copies 2 and 3 share one HDD (a single-disk pool). If the HDD fails, copies 1 and 4 are left.
 >
@@ -110,7 +111,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 
 ### Branch D: Total Hardware Loss — Restore from Backblaze B2
 
-> Drilled 10 Nov 2026 (HARD-11) in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill.
+> Drilled 10 Nov 2026 (HARD-11) in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill. The drill used the restic copy; the locked-bucket path in step 4 was checked on 10 Nov as far as a verified, byte-identical snapshot (HARD-12), not yet through a container restore.
 
 1. Install Proxmox on replacement hardware, then rebuild the storage, the network and template 9000. Then `task tf:apply DIR=03-homelab`.
 2. `task ansible:common`
@@ -121,9 +122,22 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
      K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
      --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb"
    ```
-4. From my workstation, fetch the latest snapshot from B2:
+4. From my workstation, fetch the latest snapshot from the Object Lock bucket (HARD-12) with the read-only key, and decrypt it with the escrowed age identity:
    ```bash
-   V=infrastructure/ansible/group_vars/proxmox/vault.yaml
+   V=infrastructure/ansible/group_vars/proxmox/vault.yaml; B=aether-etcd-offsite-lock
+   export RCLONE_B2_ACCOUNT=$(sops -d --extract '["b2_offsite_restore_key_id"]' $V)
+   export RCLONE_B2_KEY=$(sops -d --extract '["b2_offsite_restore_key"]' $V)
+   OBJ=$(rclone lsf :b2:$B/etcd/ | sort | tail -1); echo "$OBJ"          # newest night
+   mkdir -p ./dr-restore/staged && rclone copyto :b2:$B/etcd/$OBJ ./dr-restore/$OBJ
+   age -d -i <(sops -d --extract '["dr_offsite_age_identity"]' infrastructure/secrets/ansible-secrets.sops.yaml) \
+     -o ./dr-restore/snap.zip ./dr-restore/$OBJ
+   python3 -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' ./dr-restore/snap.zip ./dr-restore/staged
+   NAME=${OBJ%.zip.age}; ls -lh "./dr-restore/staged/$NAME"   # must exist, about 13 MiB
+   ```
+   If the newest object is missing, it may have been hidden. Hidden versions stay locked for 30 days; I list them with the master key (`rclone lsl --b2-versions`) and download the version I need.
+
+   *Until the old bucket is retired*, the restic copy is a second source:
+   ```bash
    export AWS_ACCESS_KEY_ID=$(sops -d --extract '["b2_application_key_id"]' $V)
    export AWS_SECRET_ACCESS_KEY=$(sops -d --extract '["b2_application_key"]' $V)
    export RESTIC_PASSWORD=$(sops -d --extract '["restic_b2_password"]' $V)
@@ -131,7 +145,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
    restic restore latest --target ./dr-restore
    SNAP=$(ls -t ./dr-restore/mnt/aether-pool/k3s-etcd-snapshots/* | head -1)
    python3 -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$SNAP" ./dr-restore/staged
-   NAME=$(basename "${SNAP%.zip}"); ls -lh "./dr-restore/staged/$NAME"   # must exist, about 13 MiB
+   NAME=$(basename "${SNAP%.zip}")
    ```
    I copy `./dr-restore/staged/$NAME` to `/var/lib/rancher/k3s/server/db/snapshots/` on the control VM. Check `$NAME` is set before step 5: with an empty name the reset fails with `snapshot path does not exist`, and a plain start afterwards creates a new, **empty** cluster with new CAs. If that happens, stop K3s, delete `/var/lib/rancher/k3s/server/{db,tls,cred,token}` and start again from this step.
 5. Restore with the escrowed token. SOPS and the Age key are on my workstation, not the VM, so I pass the token over SSH. The command exits by design after "restart without --cluster-reset flag now":
@@ -143,7 +157,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 7. `task ansible:workers`. ArgoCD, KSOPS, the Age key secret and every Application are already in the restored etcd, and reconcile once the workers are Ready.
 8. In the Tailscale console I remove the stale devices for the old nodes.
 9. Redeploy the DR pipeline: `task ansible:etcd:sync && task ansible:etcd:restic && task ansible:etcd:b2`.
-10. `rm -rf ./dr-restore` (it holds every cluster Secret) and `unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_PASSWORD RESTIC_REPOSITORY K3S_TOKEN`.
+10. `rm -rf ./dr-restore` (it holds every cluster Secret) and `unset RCLONE_B2_ACCOUNT RCLONE_B2_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_PASSWORD RESTIC_REPOSITORY K3S_TOKEN`.
 
 ---
 

@@ -10,11 +10,19 @@
 # Examples:
 #   ansible-playbook playbooks/proxmox-etcd-b2.yml
 #   task ansible:etcd:b2
+#
+# HARD-12: the immutable copy is now the age-encrypted upload to the Object Lock
+# bucket (Terraform 04-backblaze-b2, etcd_offsite_locked). The restic copy to the
+# old bucket runs alongside it until the new restore path is drilled, then it's
+# removed with that bucket.
 # =============================================================================
 
 - name: Configure Backblaze B2 Offsite Restic Replication on Proxmox Host
   hosts: proxmox
   become: true
+
+  vars:
+    rclone_version: v1.75.2 # bump together with the checksum below
 
   tasks:
     - name: HARD-23 | Refuse to run unless the DR paths are ZFS datasets on aether-pool
@@ -49,6 +57,52 @@
           - kuma_push_base is defined
           - kuma_push_tokens is defined and kuma_push_tokens.etcd_b2 is defined
         fail_msg: "Required variables (b2_application_key_id, b2_application_key, restic_b2_password, kuma_push_base, kuma_push_tokens.etcd_b2) are missing from SOPS vault!"
+
+    - name: HARD-12 | Require the upload-only key and the DR age recipient
+      ansible.builtin.assert:
+        that:
+          - b2_offsite_upload_key_id | default('') | length > 0
+          - b2_offsite_upload_key | default('') | length > 0
+          - dr_offsite_age_recipient | default('') is match('^age1[0-9a-z]{58}$')
+        fail_msg: >-
+          b2_offsite_upload_key_id / b2_offsite_upload_key (terraform output in 04-backblaze-b2)
+          or dr_offsite_age_recipient (public half of dr_offsite_age_identity) are missing
+          from group_vars/proxmox/vault.yaml.
+        quiet: true
+
+    - name: HARD-12 | Install age (and unzip for the rclone release)
+      ansible.builtin.apt:
+        name: [age, unzip]
+        state: present
+
+    # Debian's rclone (1.60) authorises with B2 API v1, which B2 rejects for keys
+    # created by current Terraform ("not currently supported on API version
+    # number 1"). Use a pinned upstream release; sha256 from SHA256SUMS and the
+    # GitHub asset digest, which agree.
+    - name: HARD-12 | Remove Debian's rclone
+      ansible.builtin.apt:
+        name: rclone
+        state: absent
+
+    - name: HARD-12 | Download rclone {{ rclone_version }}
+      ansible.builtin.get_url:
+        url: "https://downloads.rclone.org/{{ rclone_version }}/rclone-{{ rclone_version }}-linux-amd64.zip"
+        dest: "/var/cache/rclone-{{ rclone_version }}-linux-amd64.zip"
+        checksum: "sha256:349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702"
+        mode: "0644"
+
+    - name: HARD-12 | Unpack rclone {{ rclone_version }}
+      ansible.builtin.unarchive:
+        src: "/var/cache/rclone-{{ rclone_version }}-linux-amd64.zip"
+        dest: /opt
+        remote_src: true
+        creates: "/opt/rclone-{{ rclone_version }}-linux-amd64/rclone"
+
+    - name: HARD-12 | Link rclone into PATH
+      ansible.builtin.file:
+        src: "/opt/rclone-{{ rclone_version }}-linux-amd64/rclone"
+        dest: /usr/local/bin/rclone
+        state: link
 
     # ─── Step 2: Directories & Credentials Configuration ─────────────────────
     - name: Ensure /etc/restic configuration directory exists
@@ -88,6 +142,13 @@
           # Destination Repository (Backblaze B2 via S3-Compatible API)
           export RESTIC_REPOSITORY="s3:https://{{ b2_s3_endpoint | default('s3.us-east-005.backblazeb2.com') }}/{{ b2_bucket_name | default('aether-restic-etcd-offsite') }}"
           export RESTIC_PASSWORD_FILE="/etc/restic/b2-etcd-password.txt"
+
+          # HARD-12: immutable copy. Upload-only key (native B2 API via rclone), and the
+          # public age recipient only: this host can't read back what it uploads.
+          export RCLONE_B2_ACCOUNT="{{ b2_offsite_upload_key_id }}"
+          export RCLONE_B2_KEY="{{ b2_offsite_upload_key }}"
+          export B2_LOCKED_BUCKET="{{ b2_offsite_locked_bucket | default('aether-etcd-offsite-lock') }}"
+          export DR_AGE_RECIPIENT="{{ dr_offsite_age_recipient }}"
       no_log: true
 
     # ─── Step 3: Initialize Remote B2 Repository (Idempotent) ────────────────
@@ -143,6 +204,29 @@
             exit 1
           fi
 
+          # HARD-12: the newest snapshot, age-encrypted, as its own object in the Object Lock
+          # bucket. B2 locks every version for 30 days; this key can't delete or hide files.
+          # A rerun must not add a second version of the same night. The existence check
+          # lists (listFiles); --ignore-existing would HEAD the object, which needs readFiles,
+          # and this key deliberately can't read (401).
+          latest=$(find "${SNAPSHOTS_DIR}" -maxdepth 1 -type f -name 'etcd-snapshot-*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+          obj="etcd/$(basename "${latest}").age"
+          enc=$(mktemp)
+          trap 'rm -f "${enc}"' EXIT
+          age -r "${DR_AGE_RECIPIENT}" -o "${enc}" "${latest}"
+          echo "[$(date -Iseconds)] Uploading ${obj} to the locked bucket ${B2_LOCKED_BUCKET}..." | tee -a "${LOG_FILE}"
+          in_bucket() { rclone lsf ":b2:${B2_LOCKED_BUCKET}/etcd/" 2>>"${LOG_FILE}" | grep -xF "$(basename "${obj}")" >/dev/null; }
+          if in_bucket; then
+            echo "[$(date -Iseconds)] ${obj} is already in the bucket; not uploading again" | tee -a "${LOG_FILE}"
+          else
+            rclone copyto --no-check-dest "${enc}" ":b2:${B2_LOCKED_BUCKET}/${obj}" 2>&1 | tee -a "${LOG_FILE}"
+          fi
+          if ! in_bucket; then
+            echo "[$(date -Iseconds)] ERROR: ${obj} is not in ${B2_LOCKED_BUCKET} after upload" | tee -a "${LOG_FILE}"
+            exit 1
+          fi
+
+          # Transitional (until the old bucket is retired): restic copy to the unlocked bucket.
           echo "[$(date -Iseconds)] Starting offsite Restic copy to Backblaze B2..." | tee -a "${LOG_FILE}"
           restic copy 2>&1 | tee -a "${LOG_FILE}"
 
@@ -226,3 +310,17 @@
     - name: Display Backblaze B2 remote snapshots summary
       ansible.builtin.debug:
         msg: "{{ b2_snapshots.stdout_lines }}"
+
+    - name: HARD-12 | List the locked bucket
+      ansible.builtin.shell: |
+        set -o pipefail
+        . /etc/restic/b2-offsite.env
+        rclone lsl ":b2:${B2_LOCKED_BUCKET}/etcd/" | sort -k2,3 | tail -5
+      args:
+        executable: /bin/bash
+      register: b2_locked_ls
+      changed_when: false
+
+    - name: HARD-12 | Display the locked bucket's newest objects
+      ansible.builtin.debug:
+        msg: "{{ b2_locked_ls.stdout_lines }}"

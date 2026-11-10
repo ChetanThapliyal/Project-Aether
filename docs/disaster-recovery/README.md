@@ -10,7 +10,7 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 
 | Component | My Target RTO | My Target RPO | Backup Mechanism |
 |---|---|---|---|
-| **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is unmeasured | ≤ 24 h | 4-stage etcd pipeline (ADR-018): K3s snapshot 02:00 UTC → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 `restic copy` 03:30 |
+| **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is rebuild time plus about 3 min of restore (HARD-11) | ≤ 24 h | 4-stage etcd pipeline (ADR-018), all IST: K3s snapshot 02:00 → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 03:30 (age-encrypted object in a 30-day Object Lock bucket, plus a transitional `restic copy`) |
 | **OCI applications & databases** | 45 min (instance loss); none if the OCI tenancy is lost (see §5) | ≤ 24 h | Restic to the OCI Object Storage bucket `dr-backups`, 03:00 UTC (08:30 IST), scheduled by the Kestra flow `aether.ops.restic-nightly` |
 | **GCP DMZ observer** | 15 min for the VM; monitors need a manual rebuild | Uptime Kuma data is **not** backed up | Terraform + Ansible + compose files in Git |
 | **Secrets access** | 15 min | 0 | SOPS with two recipients: Age + GCP Cloud KMS (both proven working, 3 Nov) |
@@ -25,7 +25,7 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 | Terraform state | `gs://tf-backend-oci-hlab-gcs/` (prefixes `oci`, `gcp-dmz`, `homelab`, `backblaze-b2`) | GCS object versions | `gcloud auth application-default login` |
 | Repository secrets | Git: `*.sops.yaml`, `terraform.sops.tfvars`, `group_vars/proxmox/vault.yaml` | Git history, GitHub, local clones | Age key `~/.config/sops/age/keys.txt` or GCP KMS `sops-key` |
 | SOPS Age private key | My workstation | GCP KMS (decrypts everything without it); a copy in the cluster secret `argocd/argocd-sops-age-key`; **offline copy: not documented yet** | — |
-| K3s etcd snapshots | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots` → restic `/mnt/aether-pool/restic-k3s-etcd` → B2 `aether-restic-etcd-offsite` | Local repo: `/etc/restic/etcd-password.txt` on Proxmox (**randomly generated, not in SOPS**). B2 repo: `restic_b2_password` + B2 key in `group_vars/proxmox/vault.yaml` |
+| K3s etcd snapshots | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots` → restic `/mnt/aether-pool/restic-k3s-etcd` → B2 `aether-etcd-offsite-lock` (age, locked 30 days) and `aether-restic-etcd-offsite` (transitional) | Locked bucket: read-only restore key in `group_vars/proxmox/vault.yaml`, age identity `dr_offsite_age_identity` in `ansible-secrets.sops.yaml`. Local repo: `/etc/restic/etcd-password.txt` on Proxmox (**randomly generated, not in SOPS**). B2 repo: `restic_b2_password` + B2 key in `group_vars/proxmox/vault.yaml` |
 | K3s server token | `/var/lib/rancher/k3s/server/token` on the control VM | **None yet.** HARD-10 escrows it in SOPS as `k3s_server_token` | Without it I can't restore a snapshot onto a new VM |
 | Kubernetes persistent volumes | `local-path` on each node's SSD | **None** | — |
 | OCI app volumes & databases | `/home/ubuntu/` on `bookorbit` | Restic repo `s3:<oci endpoint>/dr-backups` (same OCI tenancy) | `/opt/backup/restic.env`, rendered from `oci_backup_*` keys in `ansible-secrets.sops.yaml` |

@@ -41,3 +41,15 @@ variable "days_from_hiding_to_deleting" {
   description = "Days from hiding an older file version to permanently deleting it (B2 lifecycle cleanup for Restic)"
   default     = 1
 }
+
+variable "locked_bucket_name" {
+  type        = string
+  description = "Globally unique name for the Object Lock offsite bucket (HARD-12)"
+  default     = "aether-etcd-offsite-lock"
+}
+
+variable "object_lock_days" {
+  type        = number
+  description = "Governance-mode Object Lock retention, in days. Also how long nightly snapshots are kept (HARD-12)"
+  default     = 30
+}

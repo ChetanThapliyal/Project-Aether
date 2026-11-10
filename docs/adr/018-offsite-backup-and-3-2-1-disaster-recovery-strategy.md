@@ -72,3 +72,26 @@ Until 5 Nov, `/mnt/aether-pool/` was a plain directory on the Proxmox root files
 - The three DR playbooks and their scripts refuse to run unless each path is its `aether-pool` dataset, so a failed mount can't fall back to the SSD silently.
 - The 3-2-1 media are now: SSD (live etcd on the control VM), HDD (snapshot mirror and local restic repo), and Backblaze B2.
 - New fitness function: `findmnt -n -o SOURCE --target /mnt/aether-pool/restic-k3s-etcd` → `aether-pool/restic-k3s-etcd`.
+
+## Addendum (2026-11-10): the offsite copy is immutable for 30 days (HARD-12)
+
+Until now the homelab key could delete anything in the offsite bucket, and hidden versions were purged after a day. Root on the hypervisor could erase the only copy that survives losing the homelab, so the ransomware driver above was not met.
+
+**Why not Object Lock on the restic repository.** B2 locks each object version for a fixed period from its upload. Restic writes `config`, `keys/` and most data packs once and then only references them, so after 30 days those objects are unlocked again and the homelab key could delete them. Losing `keys/` alone makes the repository unreadable. A locked bucket holding a restic repository protects only the last 30 days of new uploads, not the repository. The Terraform provider also can't turn on Object Lock for an existing bucket without replacing it.
+
+**Decision.** Stage 4 gains a second, immutable copy in a new bucket, `aether-etcd-offsite-lock`:
+
+- Each night the hypervisor encrypts the newest etcd snapshot with `age` and uploads it as its own object, `etcd/<snapshot>.zip.age`. Every object stands on its own, so a lock on each one protects every copy completely. This is not the "dumb sync" rejected above: nothing is mirrored, and a corrupted or purged local repository can't reach this bucket.
+- The bucket locks every version for 30 days in governance mode. Lifecycle hides an object when its lock ends and purges it a day later, so the bucket holds the last 30 nights, about 2 MB each.
+- The hypervisor's key can list and upload, nothing else. It can hide an object, because B2 counts a hide as a write, but every hidden version stays locked and recoverable. Deleting a version is refused, even with the bypass flag. Only the account master key, which never leaves the workstation's SOPS files, can bypass governance mode.
+- The hypervisor holds only the age public key, so it can't read back what it uploads. The private key is escrowed in SOPS as `dr_offsite_age_identity` and can be recovered through Age or GCP KMS (Scenario 04). Restores use a separate read-only key.
+- Uploads use `rclone` v1.75 over B2's native API, pinned by checksum. Debian's rclone 1.60 fails here for the same reason restic's B2 client does (it authorises with API v1).
+- The `restic copy` to `aether-restic-etcd-offsite` keeps running alongside until a cold-restore drill from the new copy passes. Then that bucket and its key are retired.
+
+**Verified 2026-11-10.** The first object carries governance retention until 2026-12-10. With the master key, deleting a locked canary was refused (`401 access_denied`). With the upload key, deleting a version was refused with and without the bypass flag. The read-only key couldn't upload. A restore with the read-only key and the escrowed identity gave a snapshot byte-identical to the hypervisor's.
+
+**Remaining risks.**
+
+- An attacker on the hypervisor can stop new backups. The DR heartbeat (HARD-06) pages after one missed night.
+- An attacker can hide objects and wait out the window. Hidden versions stay recoverable for the rest of their 30 days, and the same heartbeat fires long before that.
+- Lifecycle keeps deleting objects as their locks expire, even if backups have stopped, so 30 days without a working upload leaves nothing offsite. The heartbeat is what stands between a stopped job and an empty bucket.
