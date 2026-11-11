@@ -53,16 +53,9 @@ resource "oci_core_security_list" "main" {
     }
   }
 
-  ingress_security_rules {
-    protocol    = "6"
-    source      = "0.0.0.0/0"
-    source_type = "CIDR_BLOCK"
-    stateless   = false
-    tcp_options {
-      min = 22
-      max = 22
-    }
-  }
+  # No public SSH (FND-04). Operators reach the host over the tailnet; sshd is
+  # hardened in oci-base.yml. Break-glass: re-add TCP 22 from your own IP in
+  # the OCI console (Networking > Security lists), or use the serial console.
 
   # Tailscale direct paths. The homelab sits behind ISP carrier-grade NAT whose
   # mapping varies by destination, so hole-punching from home fails and

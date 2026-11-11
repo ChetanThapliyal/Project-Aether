@@ -49,6 +49,38 @@
         comment: Tailscale direct paths
       tags: [base, firewall]
 
+    # FND-04: SSH is reached over the tailnet only (public 22 is closed in the
+    # OCI security list). 10- sorts before 60-cloudimg-settings.conf, and sshd
+    # takes the first value it reads, so these win.
+    - name: FND-04 | sshd hardening drop-in
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-aether-hardening.conf
+        content: |
+          # Managed by Ansible (oci-base.yml, FND-04)
+          PermitRootLogin no
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          MaxAuthTries 3
+        owner: root
+        group: root
+        mode: "0644"
+        validate: /usr/sbin/sshd -t -f %s
+      register: sshd_dropin
+      tags: [ssh, security]
+
+    - name: FND-04 | Validate the full sshd config before reloading
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+      when: sshd_dropin.changed
+      tags: [ssh, security]
+
+    - name: FND-04 | Reload sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: reloaded
+      when: sshd_dropin.changed
+      tags: [ssh, security]
+
     - name: Ensure docker service is running
       systemd:
         name: docker
