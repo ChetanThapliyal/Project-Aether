@@ -90,7 +90,7 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
   - Users to their own devices: `accept`.
 - **Consequences:**
   - Positive: a container update can no longer move a security boundary or blind the observer. A grant that widens DMZ access fails at save time.
-  - Negative: moving a service between roles creates a new node (state is per provider), so the old one must be removed first. A bulk re-create needs one certificate per node, and tsdproxy issues them slowly ([INC-2026-009](../incidents/README.md#index)).
+  - Negative: moving a service between roles creates a new node (state is per provider), so the old one must be removed first. A bulk re-create needs one certificate per node, and tsdproxy issues them slowly ([INC-2026-009](../incidents/INC-2026-009-proxy-upgrade-outage.md)).
 - **Validation / Fitness Functions:**
   - `tailscale status --json` shows every OCI service node with exactly its role tags, and none untagged.
   - After `docker compose up -d --force-recreate` of a service, the same node keeps the same address and tags (verified 2026-11-07 on the Uptime Kuma node).
