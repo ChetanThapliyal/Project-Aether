@@ -135,11 +135,31 @@
         group: "{{ app_user }}"
       tags: [monitoring]
 
+    # The env var only seeds the admin password on Grafana's first start; the
+    # live password is set with `grafana cli admin reset-admin-password`.
+    # Compose recreates the container when this file's contents change.
+    - name: HARD-16 | Require the Grafana admin password in SOPS
+      ansible.builtin.assert:
+        that: grafana_admin_password | default('') | length > 0
+        fail_msg: grafana_admin_password is missing from ansible-secrets.sops.yaml.
+        quiet: true
+      tags: [monitoring]
+
+    - name: HARD-16 | Deploy Grafana secrets env file
+      ansible.builtin.copy:
+        dest: "{{ app_base_dir }}/monitoring/grafana.env"
+        content: "GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}\n"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      tags: [monitoring]
+
     - name: Start monitoring stack
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/monitoring"
         state: present
-        pull: always
+        pull: missing   # images are pinned (HARD-16); upgrades are a tag bump
       tags: [monitoring]
 
     - name: HARD-06 | Create Loki ruler directory for the default tenant

@@ -1,6 +1,6 @@
 services:
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1   # HARD-16: pinned to what ran on 11 Nov
     container_name: node-exporter
     restart: unless-stopped
     pid: host
@@ -15,7 +15,7 @@ services:
       - default
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.16.0
     container_name: prometheus
     restart: unless-stopped
     volumes:
@@ -27,7 +27,8 @@ services:
       - '--storage.tsdb.retention.time=30d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      # No --web.enable-lifecycle (HARD-16): it gave anyone on the tailnet an
+      # unauthenticated /-/quit and /-/reload. The handler uses docker restart.
     depends_on:
       - node-exporter
     networks:
@@ -40,14 +41,19 @@ services:
       tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.3.0
     container_name: grafana
     restart: unless-stopped
+    env_file: [./grafana.env]   # admin password, rendered from SOPS by oci-monitoring.yml
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SERVER_ROOT_URL=http://grafana.tail7067ab.ts.net
       - GF_SECURITY_ALLOW_EMBEDDING=true
+      # Anonymous Viewer is scoped to the "Kiosk" org, for the Glance embed
+      # (HARD-16). Put only public-safe dashboards there, with no datasources
+      # beyond what they need. Until that org exists, anonymous requests get
+      # 401; the main org is never visible without a login.
       - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Kiosk
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     volumes:
       - ./grafana-data:/var/lib/grafana
