@@ -431,7 +431,7 @@ pages:
                         <td>Let's Encrypt / Vault CA Engine</td>
                       </tr>
                       <tr>
-                        <td><code>promtail-daemonset-worker</code></td>
+                        <td><code>alloy (DaemonSet)</code></td>
                         <td>monitoring</td>
                         <td><span class="status-pill">Running</span></td>
                         <td>Shipping logs to OCI Loki :3100</td>
