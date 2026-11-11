@@ -27,6 +27,7 @@ Each review says how the problem was found. Five of the first seven came from au
 | [INC-2026-009](INC-2026-009-proxy-upgrade-outage.md) | 2026-11-06 | A planned proxy upgrade took every tailnet service down for 30 minutes | SEV3 | Change | Fixed and verified |
 | [INC-2026-010](INC-2026-010-host-keys-regenerated-on-reboot.md) | 2026-11-07 | An unclean hypervisor restart regenerated every VM's SSH host keys, and the DR sync failed silently | SEV2 | Verification check | Fixed and verified |
 | [INC-2026-011](INC-2026-011-worker-stuck-on-relay.md) | 2026-11-08 | One worker's tailnet link to the cloud monitoring host fell back to a relay and kept dropping out | SEV3 | Alert | Fixed and verified |
+| [INC-2026-012](INC-2026-012-hypervisor-hung-after-kernel-panic.md) | 2026-11-11 | The hypervisor panicked overnight and stayed frozen for nine hours | SEV3 | Alert | Fixed and verified |
 
 ## Conventions
 

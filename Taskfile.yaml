@@ -158,6 +158,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/oci-monitoring.yml {{.CLI_ARGS}}
 
+  ansible:proxmox:base:
+    desc: "Proxmox VE host baseline: reboot on panic, disable unused services (INC-2026-012)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/proxmox-base.yml {{.CLI_ARGS}}
+
   ansible:proxmox:monitoring:
     desc: "Deploy Node Exporter on physical Proxmox VE host"
     dir: infrastructure/ansible

@@ -1,0 +1,83 @@
+---
+# =============================================================================
+# Proxmox VE Base Playbook
+# =============================================================================
+# Host-level settings for the physical Proxmox VE host.
+#
+# - Reboot on kernel panic (INC-2026-012). The default kernel.panic=0 leaves a
+#   panicked host frozen until someone power-cycles it; with 10 the host
+#   reboots on its own and the VMs auto-start. An oops or an NMI-detected hard
+#   lockup is promoted to a panic so it reboots as well.
+# - Disable services a headless hypervisor doesn't need: CUPS crash-looped
+#   every 90 s under AppArmor, and OpenIPMI fails at boot (no BMC on a laptop).
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-base.yml
+#   task ansible:proxmox:base
+# =============================================================================
+
+- name: Proxmox VE host baseline
+  hosts: proxmox
+  become: true
+
+  tasks:
+    - name: Reboot on kernel panic; treat an oops or hard lockup as a panic
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/90-aether-panic.conf
+        content: |
+          # INC-2026-012: a panic must reboot the host, never leave it frozen.
+          kernel.panic = 10
+          kernel.panic_on_oops = 1
+          # A hard lockup (NMI watchdog) becomes a panic, so it reboots too.
+          # softlockup_panic stays off: a busy host could trip it falsely.
+          kernel.hardlockup_panic = 1
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Apply sysctl
+
+    - name: Stop and mask CUPS (no printing on the hypervisor)
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+        masked: true
+      loop:
+        - cups.path
+        - cups.socket
+        - cups.service
+      failed_when: false   # absent on a host without CUPS
+
+    - name: Stop and mask OpenIPMI (no BMC on this hardware)
+      ansible.builtin.systemd:
+        name: openipmi.service
+        state: stopped
+        enabled: false
+        masked: true
+      failed_when: false
+
+    - name: Clear the failed state left by OpenIPMI
+      ansible.builtin.command: systemctl reset-failed openipmi.service
+      changed_when: false
+      failed_when: false
+
+    - name: Flush handlers so the checks below see the new values
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read the live panic settings
+      ansible.builtin.command: sysctl -n kernel.panic kernel.panic_on_oops kernel.hardlockup_panic
+      register: panic_live
+      changed_when: false
+      check_mode: false   # read-only, safe to run under --check
+
+    - name: Assert the host reboots on panic
+      ansible.builtin.assert:
+        that: panic_live.stdout_lines == ['10', '1', '1']
+        fail_msg: "panic / panic_on_oops / hardlockup_panic are {{ panic_live.stdout_lines }}, expected ['10', '1', '1']"
+        quiet: true
+      when: not ansible_check_mode   # the sysctl isn't applied in check mode
+
+  handlers:
+    - name: Apply sysctl
+      ansible.builtin.command: sysctl -p /etc/sysctl.d/90-aether-panic.conf
+      changed_when: true
