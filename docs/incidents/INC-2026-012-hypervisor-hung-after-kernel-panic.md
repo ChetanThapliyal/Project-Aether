@@ -4,7 +4,7 @@
 |-------|-------|
 | Date found | 2026-11-11 |
 | Severity | SEV3 |
-| Found by | Alert (fired at night), then the operator in the morning |
+| Found by | Alert (delivered to the operator's phone at 02:42 local time, acted on in the morning) |
 | Duration | 2026-11-10 21:09 to 2026-11-11 06:01 UTC (about 9 hours, the whole homelab) |
 | Status | Fixed and verified (the host now reboots itself after a panic). Hardware cause not yet confirmed |
 
@@ -47,7 +47,7 @@ Second, the nine hours. Proxmox ships with `kernel.panic = 0`, which means "afte
 ## Contributing factors
 
 - All three cluster nodes are VMs on one physical host, so one hypervisor crash takes down the whole cluster.
-- The crash happened at 02:39 local time. The alerts fired within four minutes, but nobody was awake to act on them.
+- The crash happened at 02:39 local time. The alerts reached the operator's phone within four minutes, but nobody was awake to act on them.
 - A print service the hypervisor doesn't need was crash-looping every 90 seconds and writing AppArmor denials to the kernel log. Most of the saved crash record was this noise. The fault trace survived, but a noisier loop could have pushed it out.
 
 ## What went well
