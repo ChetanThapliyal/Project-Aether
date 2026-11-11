@@ -25,7 +25,7 @@ Connections that are already up often keep working through a control-plane outag
 | **Homelab K3s cluster** | Up | The pods and etcd talk over the LAN (`192.168.1.0/24`) |
 | **OCI applications** | Up | The containers keep running. Only access through tsdproxy is gone |
 | **GCP DMZ** | Up, but blind | Kuma can't reach its tailnet probe targets |
-| **Cross-cloud telemetry** | Degraded | OCI Prometheus can't scrape the homelab. Promtail can't push to Loki, which is on a tailnet IP |
+| **Cross-cloud telemetry** | Degraded | OCI Prometheus can't scrape the homelab. Alloy can't push to Loki, which is on a tailnet IP |
 | **My remote access** | Blocked over the tailnet | Use the break-glass routes below |
 
 ---
@@ -81,7 +81,7 @@ Once Tailscale has recovered:
      | jq -r '.data.activeTargets[] | "\(.health)\t\(.scrapeUrl)"' | sort | uniq -c
    ```
    If Prometheus isn't published on the host's port 9090, I open the same `/api/v1/targets` URL through `https://prometheus.tail7067ab.ts.net`.
-5. Logs in Loki resume. Promtail buffers for a while, so a short outage leaves no gap.
+5. Logs in Loki resume. Alloy retries a failed push for several minutes, so a short outage leaves no gap. After a longer one, lines it gave up on are missing.
 
 ---
 

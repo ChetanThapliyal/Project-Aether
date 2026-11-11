@@ -40,7 +40,8 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
-    # 3. Allow Promtail to ship logs to OCI Loki over Tailscale
+    # 3. Allow Alloy to ship logs to OCI Loki over Tailscale (HARD-15: Alloy runs
+    #    on the pod network, so this rule now applies to it)
     - to:
         - ipBlock:
             cidr: 100.64.0.0/10

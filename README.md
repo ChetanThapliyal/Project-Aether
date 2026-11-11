@@ -149,7 +149,7 @@ Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI 
 | `tag:gcp-dmz` | `tag:k3s` | 80 / 443 | Synthetic health checks |
 | `tag:gcp-dmz` | `tag:oci` | 80 / 443 | Synthetic health checks |
 | `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100, 8080, 30082–30084 | Prometheus telemetry scrapes (node_exporter, KSM, ArgoCD) |
-| `tag:k3s` | `tag:oci` | 3100 | Promtail log shipping to OCI Loki (ADR-019) |
+| `tag:k3s` | `tag:oci` | 3100 | Alloy log shipping to OCI Loki (ADR-019) |
 | `tag:oci` | `tag:gcp-dmz` | 2376 | Hawser / Dockhand |
 
 `tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
@@ -271,7 +271,7 @@ Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch p
 | [015](docs/adr/015-ci-validation-pipeline.md) | PR validation and a phased drift pipeline (proposed) |
 | [016](docs/adr/016-kubernetes-storage-strategy.md) | Kubernetes storage strategy: local-path default, Longhorn rejected, NFS for media |
 | [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | Offsite backup & 3-2-1 DR: Backblaze B2 S3 API, write-isolated keys, restic copy |
-| [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, lightweight Promtail on K3s, Tailscale mesh transit |
+| [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, Grafana Alloy agent on K3s, Tailscale mesh transit |
 | [020](docs/adr/020-public-observability-data-diode.md) | Public observability: Glance dashboard (<50 MiB RAM) & push-based data diode |
 | [021](docs/adr/021-internal-dns-and-pki.md) | Internal DNS & PKI: 10-year root CA with a stable key; `lab.` subdomain with DNS-01 certificates (Phase 04) |
 

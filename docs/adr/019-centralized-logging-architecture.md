@@ -3,7 +3,7 @@
 ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
 ================================================================================
 ```
-- **Status:** Accepted
+- **Status:** Accepted (agent changed to Alloy, see addendum)
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Project Aether operates a hybrid multi-cloud infrastructure spanning a physical 3-node K3s cluster on a 12 GB RAM notebook (1 control plane, 2 worker VMs with ~3.5 GB allocatable RAM each), an Always-Free Oracle Cloud (OCI A1.Flex) instance (`bookorbit`), and an Always-Free GCP DMZ instance. Container workloads on K3s output application logs to stdout/stderr, which containerd writes to `/var/log/pods/` on node SSDs.
@@ -72,3 +72,18 @@ ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
   - ADR-013 (Tailnet Micro-segmentation)
   - ADR-016 (Kubernetes Storage Strategy)
 - **Review Conditions:** Re-evaluate if log ingestion volume exceeds 20 GB/week or if homelab hardware is upgraded to a dedicated 64 GB multi-node cluster.
+
+---
+
+### Addendum: The Log Agent Is Now Grafana Alloy (HARD-15)
+- **Date:** 2026-11-11
+- **Context:** Promtail is deprecated upstream and no longer gets features. Its chart also needed `hostNetwork: true` to reach Loki, so the `monitoring` NetworkPolicy never applied to it. The egress rule for Loki on `100.64.0.0/10:3100` existed only on paper.
+- **Decision:** Replace the Promtail DaemonSet with Grafana Alloy (chart 1.15.0, Alloy v1.21.3), managed in `kubernetes/cluster/alloy.yaml`. Everything else in this ADR holds: one agent per node, logs read from `/var/log/pods`, shipped to Loki on OCI over the tailnet.
+- **What changed:**
+  - Alloy runs on the pod network. A pod reaches the tailnet through its node's NAT, which was tested before the cut-over. The `monitoring` NetworkPolicy now applies to it: Loki on 3100 is reachable, while the internet and other OCI ports are not.
+  - The labels match the Promtail chart's defaults exactly (`namespace`, `pod`, `container`, `app`, `instance`, `component`, `job`, `node_name`, `stream`, `filename`). Existing streams, queries and the `LogShippingStalled` rule (which needs `node_name`) carried over unchanged.
+  - Read positions are kept on the node (`/var/lib/alloy`), so a restart resumes where it stopped.
+  - Usage reporting to Grafana Labs is off.
+- **Memory:** limit 256 MiB, request 64 MiB, plus a 48 MiB limit on the config-reload sidecar. Measured shortly after the cut-over: Alloy used 45–88 MiB per node and the sidecar 6 MiB. Promtail used 100–112 MiB on the same nodes. The original "< 30 MiB" fitness function was never met by Promtail either, and is replaced by the limit above.
+- **Cut-over:** Promtail and Alloy were swapped in one ArgoCD sync. Alloy started with no saved positions and re-read each log file. Loki refused the lines older than its one-hour window, which Promtail had already shipped, and accepted the rest. No gap and no duplicate streams.
+- **Known behaviour:** kube-router programs a pod's firewall a few seconds after the pod starts. A test pod that runs its check immediately can get through before the policy exists. Test egress from a pod that has been running for a few seconds.
