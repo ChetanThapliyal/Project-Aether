@@ -66,7 +66,7 @@ kubernetes/
      project: default
      source:
        repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
-       targetRevision: HEAD
+       targetRevision: main
        path: kubernetes/apps/my-app
      destination:
        server: https://kubernetes.default.svc
@@ -87,7 +87,7 @@ kubernetes/
 
 ### Conventions for new applications
 
-- `targetRevision: HEAD` resolves to the repository's default branch (`main`), not my local branch. I push to `main`, or use an explicit `targetRevision: main`.
+- Git-sourced Applications use `targetRevision: main`, never `HEAD`. `HEAD` silently means "whatever the default branch is" (HARD-18). Helm-sourced Applications pin the chart version instead.
 - Do not set `plugin:` in `source`. The KSOPS CMP uses auto-discovery via `discover.find.glob: "**/ksops-*.yaml"`. Setting `plugin.name` alongside a `discover` block conflicts with ArgoCD v2.4+.
 - Secrets must be SOPS-encrypted and named `*.sops.yaml`. The pre-commit hook `check-sops-encryption.sh` rejects unencrypted files.
 - Set sync-wave annotations for anything that depends on a namespace, CRD, or operator. Namespaces are wave `-3`; CRDs and operators `-2`; shared secrets `-1`; controllers `0`; user apps `1+`.

@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
-    targetRevision: HEAD
+    targetRevision: main
     path: kubernetes/platform/smoke-test
     # Bug A fix: do NOT set plugin.name when the CMP defines a discover.find.glob rule.
     # ArgoCD CMP v2 auto-discovers the ksops-plugin sidecar when it finds ksops-secret.yaml.

@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
-    targetRevision: HEAD
+    targetRevision: main
     path: kubernetes/platform/tailscale/apps
   destination:
     server: https://kubernetes.default.svc

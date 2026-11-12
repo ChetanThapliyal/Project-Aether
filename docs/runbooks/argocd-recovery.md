@@ -123,7 +123,7 @@ kubectl apply -f kubernetes/cluster/root-application.yaml
 # application.argoproj.io/root-apps created
 ```
 
-`root-apps` reads `kubernetes/cluster/` from `github.com/ChetanThapliyal/Project-Aether.git` at `targetRevision: HEAD` with `automated.prune: true` and `automated.selfHeal: true`. Every child application (platform namespaces wave -3, smoke-test canary, and platform services) reconciles automatically without manually applying individual manifests.
+`root-apps` reads `kubernetes/cluster/` from `github.com/ChetanThapliyal/Project-Aether.git` at `targetRevision: main` with `automated.prune: true` and `automated.selfHeal: true`. Every child application (platform namespaces wave -3, smoke-test canary, and platform services) reconciles automatically without manually applying individual manifests.
 
 ### Step 5: Verify convergence
 

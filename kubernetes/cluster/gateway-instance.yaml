@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
-    targetRevision: HEAD
+    targetRevision: main
     path: kubernetes/platform/gateway
   destination:
     server: https://kubernetes.default.svc
