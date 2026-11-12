@@ -84,7 +84,9 @@ services:
       - dmz-net
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    command: tunnel --no-autoupdate run
+    # The DMZ has no IPv4 (FND-10): cloudflared defaults to IPv4 edge addresses,
+    # so pin it to IPv6. Outbound only (7844 QUIC, TCP fallback); no inbound port.
+    command: tunnel --no-autoupdate --edge-ip-version 6 run
 
 networks:
   dmz-net:
