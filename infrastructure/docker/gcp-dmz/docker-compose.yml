@@ -50,7 +50,7 @@ services:
   # Hawser — Dockhand Agent (OPS-01)
   # ---------------------------------------------------------------------------
   hawser:
-    image: ghcr.io/finsys/hawser:0.2.50
+    image: ghcr.io/finsys/hawser:0.2.53
     container_name: hawser
     restart: unless-stopped
     ports:
