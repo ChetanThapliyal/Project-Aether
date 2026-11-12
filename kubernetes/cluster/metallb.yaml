@@ -24,7 +24,7 @@ spec:
               memory: 32Mi
             limits:
               cpu: 100m
-              memory: 64Mi
+              memory: 128Mi   # HARD-18: OOMKilled at 64Mi in the DR-05 reconnect storm; idles ~52Mi
         speaker:
           resources:
             requests:
