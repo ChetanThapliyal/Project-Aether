@@ -93,7 +93,7 @@ kubernetes/
 - Set sync-wave annotations for anything that depends on a namespace, CRD, or operator. Namespaces are wave `-3`; CRDs and operators `-2`; shared secrets `-1`; controllers `0`; user apps `1+`.
 - **Finalizer rule (HARD-18).** Leaf Applications carry `resources-finalizer.argocd.argoproj.io`, so deleting the Application also deletes what it deployed. `platform-namespaces` must **never** carry it: deleting that Application would cascade-delete every namespace, and everything in them.
   - Without the finalizer, deleting an Application only orphans its resources. That is what `platform-namespaces` relies on. Four older leaf apps also lack it (`cert-manager-issuers`, `gateway-instance`, `metallb-config`, `smoke-test`), so deleting them leaves their resources running.
-  - `root-apps` carries the finalizer. Deleting it deletes every child Application, and each child that has the finalizer then deletes its workloads. Only the namespaces and the four apps above survive. Never delete `root-apps` to "reset" ArgoCD; see the recovery runbook instead.
+  - `root-apps` deliberately has **no** finalizer (removed 2026-11-12). With one, deleting it would delete every child Application, and each child with the finalizer would then delete its workloads. Now deleting it only orphans the children, which keep running. A deliberate teardown deletes the leaf Applications one by one. Still, don't delete `root-apps` to "reset" ArgoCD; see the recovery runbook.
 
 ---
 

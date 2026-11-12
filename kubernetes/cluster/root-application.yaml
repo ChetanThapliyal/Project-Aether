@@ -3,8 +3,8 @@ kind: Application
 metadata:
   name: root-apps
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  # No resources-finalizer (HARD-18): deleting root-apps must only orphan the
+  # child Applications, never cascade into every workload they deploy.
 spec:
   project: default
   source:
