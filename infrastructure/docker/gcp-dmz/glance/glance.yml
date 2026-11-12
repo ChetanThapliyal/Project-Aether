@@ -560,9 +560,12 @@ pages:
     columns:
       - size: full
         widgets:
+          # Cover images come from media:thumbnail, added to the portfolio's RSS
+          # template (Glance ignores media:content).
           - type: rss
             title: Latest from the blog
-            style: vertical-list   # the blog feed carries no cover images
+            style: detailed-list
+            thumbnail-height: 10
             limit: 8
             collapse-after: 4
             cache: 1h
@@ -572,6 +575,18 @@ pages:
 
       - size: small
         widgets:
+          # Lexicon's feed lists notes by their last git change (full history is
+          # fetched at build time on Cloudflare Pages).
+          - type: rss
+            title: Latest notes
+            style: vertical-list
+            limit: 8
+            collapse-after: 5
+            cache: 1h
+            feeds:
+              - url: https://base.chetan-thapliyal.cloud/rss.xml
+                title: Lexicon
+
           - type: bookmarks
             title: Notes
             groups:
