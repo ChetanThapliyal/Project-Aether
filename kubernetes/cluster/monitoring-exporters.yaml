@@ -45,7 +45,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+      # No ServerSideApply: no CRDs installed (Convention C4, HARD-18)
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
