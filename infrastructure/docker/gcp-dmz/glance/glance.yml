@@ -314,52 +314,111 @@ pages:
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents
 
   # ---------------------------------------------------------------------------
-  # Page 3: Infrastructure
+  # Page 3: Infrastructure (FND-19 follow-up): big numbers + live usage bars
+  # from the FND-20 feed, environment cards, ADR tiles.
   # ---------------------------------------------------------------------------
   - name: Infrastructure
     columns:
       - size: full
         widgets:
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Where it runs</span>
-                  <span class="vitals-badge">THREE ENVIRONMENTS</span>
+          - type: custom-api
+            title: Where it runs
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 2m
+            template: |
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Environments</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud, Google Cloud</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Memory in the estate</div><div class="ae-stat-num">25<span>GB</span></div><div class="ae-stat-sub">12 home · 12 Oracle · 1 Google</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Cloud bill</div><div class="ae-stat-num">₹0<span>/mo</span></div><div class="ae-stat-sub">always-free tiers on both clouds</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Apps under GitOps</div><div class="ae-stat-num">{{ .JSON.Int "cluster.apps_total" }}</div><div class="ae-stat-sub">{{ .JSON.Int "cluster.apps_ok" }} synced and healthy right now</div></div>
+              </div>
+
+              <div class="ae-envs">
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">On premises</div><div class="ae-env-name">Home lab</div></div>
+                    <span class="vitals-badge">PROXMOX VE</span>
+                  </div>
+                  <p class="ae-note">A 2015 laptop running a three-node K3s cluster as VMs: one control plane, two workers. Backups land on a ZFS pool on a second disk.</p>
+                  <div class="ae-chips"><span>2 cores · 4 threads</span><span>12 GB RAM</span><span>SSD + 500 GB HDD</span></div>
+                  <div class="section-title">Live usage</div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Host memory</span><small>VMs and hypervisor</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Host memory {{ .JSON.Float "gauges.2.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.2.level" }}" width="{{ .JSON.Float "gauges.2.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.2.pct" | toInt }}%</div>
+                      </div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Host disk</span><small>system SSD</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Host disk {{ .JSON.Float "gauges.3.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.3.level" }}" width="{{ .JSON.Float "gauges.3.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.3.pct" | toInt }}%</div>
+                      </div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Cluster CPU</span><small>3 nodes, averaged</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Cluster CPU {{ .JSON.Float "gauges.0.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.0.level" }}" width="{{ .JSON.Float "gauges.0.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.0.pct" | toInt }}%</div>
+                      </div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Cluster memory</span><small>3 nodes</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Cluster memory {{ .JSON.Float "gauges.1.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.1.level" }}" width="{{ .JSON.Float "gauges.1.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.1.pct" | toInt }}%</div>
+                      </div>
                 </div>
-                <div class="ae-table-wrap">
-                  <table class="ae-table">
-                    <thead>
-                      <tr><th>Environment</th><th>Location</th><th>Specs</th><th>Role</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr><td><strong>GCP DMZ</strong></td><td><code>us-central1-a</code></td><td>2 vCPU / 1 GB RAM</td><td>Outside-in observer and this public page</td></tr>
-                      <tr><td><strong>OCI Core</strong></td><td><code>ap-mumbai-1</code></td><td>2 OCPU / 12 GB RAM</td><td>Metrics, logs, alerting and automation</td></tr>
-                      <tr><td><strong>Homelab</strong></td><td>Proxmox host</td><td>2 cores (4 threads) / 12 GB RAM</td><td>3-node K3s cluster: one control plane, two workers</td></tr>
-                    </tbody>
-                  </table>
+
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">ap-mumbai-1</div><div class="ae-env-name">Oracle Cloud</div></div>
+                    <span class="vitals-badge">A1.FLEX · ARM</span>
+                  </div>
+                  <p class="ae-note">The monitoring and automation core: Prometheus, Loki, Grafana, Alertmanager and Kestra, plus a few small apps, all in Docker.</p>
+                  <div class="ae-chips"><span>2 OCPU</span><span>12 GB RAM</span><span>100 GB disk</span></div>
+                  <div class="section-title">Live usage</div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Memory</span><small>whole host</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Memory {{ .JSON.Float "gauges.4.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.4.level" }}" width="{{ .JSON.Float "gauges.4.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.4.pct" | toInt }}%</div>
+                      </div>
+                      <div class="ae-bar-row">
+                        <div class="ae-bar-label"><span>Disk</span><small>boot volume</small></div>
+                        <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Disk {{ .JSON.Float "gauges.5.pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ .JSON.String "gauges.5.level" }}" width="{{ .JSON.Float "gauges.5.pct" }}" height="10" rx="5"></rect></svg>
+                        <div class="ae-bar-pct">{{ .JSON.Float "gauges.5.pct" | toInt }}%</div>
+                      </div>
+                  <div class="ae-bar-row">
+                    <div class="ae-bar-label"><span>CPU</span><small>whole host</small></div>
+                    <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="CPU {{ .JSON.Float "charts.oci_cpu.last" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill" width="{{ .JSON.Float "charts.oci_cpu.last" }}" height="10" rx="5"></rect></svg>
+                    <div class="ae-bar-pct">{{ .JSON.Float "charts.oci_cpu.last" | toInt }}%</div>
+                  </div>
+                </div>
+
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">us-central1-a</div><div class="ae-env-name">Google Cloud</div></div>
+                    <span class="vitals-badge">E2-MICRO · IPV6</span>
+                  </div>
+                  <p class="ae-note">The outside observer and this page: Uptime Kuma, Glance and a Cloudflare tunnel. It has no public IPv4 and no open ports.</p>
+                  <div class="ae-chips"><span>2 shared vCPU</span><span>1 GB RAM</span><span>₹0</span></div>
+                  <div class="section-title">Live usage</div>
+                  <p class="ae-muted">This host doesn't export metrics yet. It's the next monitoring gap on the list.</p>
                 </div>
               </div>
 
-          - type: bookmarks
+          - type: html
             title: Decisions
-            groups:
-              - title: Key architecture records
-                links:
-                  - title: "ADR-004: Network Access (Tailscale)"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/004-network-access.md
-                  - title: "ADR-009: GitOps Controller (ArgoCD)"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/009-gitops-controller.md
-                  - title: "ADR-013: Tailnet Microsegmentation"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/013-tailnet-microsegmentation.md
-                  - title: "ADR-016: Kubernetes Storage Strategy"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/016-kubernetes-storage-strategy.md
-                  - title: "ADR-018: 3-2-1 Disaster Recovery"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md
-                  - title: "ADR-019: Centralized Logging Architecture"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md
-                  - title: "ADR-021: Internal DNS & PKI"
-                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md
+            hide-header: true
+            frameless: true
+            source: |
+              <div class="ae-section-head">Architecture decisions</div>
+              <div class="ae-adrs">
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/004-network-access.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">004</span><span class="ae-adr-title">Network access</span><span class="ae-adr-sub">Tailscale for operators, nothing public</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/009-gitops-controller.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">009</span><span class="ae-adr-title">GitOps controller</span><span class="ae-adr-sub">ArgoCD app-of-apps</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/013-tailnet-microsegmentation.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">013</span><span class="ae-adr-title">Tailnet segmentation</span><span class="ae-adr-sub">Role tags with policy tests</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/016-kubernetes-storage-strategy.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">016</span><span class="ae-adr-title">Kubernetes storage</span><span class="ae-adr-sub">local-path now, NFS for media</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">018</span><span class="ae-adr-title">3-2-1 disaster recovery</span><span class="ae-adr-sub">ZFS, restic, Object-Locked offsite</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">019</span><span class="ae-adr-title">Centralised logging</span><span class="ae-adr-sub">Loki on OCI, Alloy agents</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">020</span><span class="ae-adr-title">Public observability</span><span class="ae-adr-sub">This page and its data diode</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">021</span><span class="ae-adr-title">Internal DNS and PKI</span><span class="ae-adr-sub">10-year root, stable keys</span></a>
+              </div>
 
   # ---------------------------------------------------------------------------
   # Page 4: Writing. Feeds are fetched by Glance on the DMZ, which has IPv6 only:
