@@ -436,7 +436,123 @@ pages:
               </div>
 
   # ---------------------------------------------------------------------------
-  # Page 4: Writing. Feeds are fetched by Glance on the DMZ, which has IPv6 only:
+  # Page 4: Networking. Role-level only (public-repo detail policy): no IPs,
+  # hostnames or port numbers. Static design facts dated below; update this page
+  # when a networking chore lands (FND-03/11/12/14/18, GOP-04, HARD-20, Phase 04).
+  # ---------------------------------------------------------------------------
+  - name: Networking
+    columns:
+      - size: full
+        widgets:
+          - type: html
+            title: Networking
+            frameless: true
+            hide-header: true
+            source: |
+              <div class="ae-live-head">
+                <span class="ae-live-title">Networking</span>
+                <span class="vitals-badge">DESIGN · 12 NOV 2026</span>
+              </div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Inbound TCP from the internet</div><div class="ae-stat-num ae-ok">0<span>ports</span></div><div class="ae-stat-sub">home is behind carrier-grade NAT; both clouds allow no inbound TCP</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Access rules</div><div class="ae-stat-num">12<span>rules</span></div><div class="ae-stat-sub">across 11 role tags, deny by default</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Policy tests</div><div class="ae-stat-num">7</div><div class="ae-stat-sub">run on every policy save; a save that breaks a boundary is rejected</div></div>
+              </div>
+
+              <div class="vitals-card">
+                <div class="section-title">The one public path</div>
+                <div class="ae-path">
+                  <div class="ae-hop"><span class="ae-hop-k">Visitor</span><span class="ae-hop-v">browser, HTTPS</span></div>
+                  <span class="ae-flow-arrow" aria-hidden="true">→</span>
+                  <div class="ae-hop"><span class="ae-hop-k">Cloudflare edge</span><span class="ae-hop-v">TLS ends here, managed certificate</span></div>
+                  <span class="ae-flow-arrow" aria-hidden="true">→</span>
+                  <div class="ae-hop"><span class="ae-hop-k">Tunnel</span><span class="ae-hop-v">opened outbound by the edge host, over IPv6</span></div>
+                  <span class="ae-flow-arrow" aria-hidden="true">→</span>
+                  <div class="ae-hop ae-hop-end"><span class="ae-hop-k">This page</span><span class="ae-hop-v">Glance, read-only</span></div>
+                </div>
+                <p class="ae-muted">Nothing else is reachable from the internet. The live numbers on this page come from a sanitised summary that the page pulls from the monitoring core over the private mesh, so visitors never touch the private network.</p>
+              </div>
+
+              <div class="ae-section-head">Zones</div>
+              <div class="ae-envs">
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">On premises</div><div class="ae-env-name">Home lab</div></div>
+                    <span class="vitals-badge">CGNAT</span>
+                  </div>
+                  <p class="ae-note">The hypervisor and the three cluster VMs sit on the home LAN behind carrier-grade NAT, so nothing at home can be reached from outside.</p>
+                  <div class="ae-chips"><span>no port forwards</span><span>MetalLB layer 2</span><span>Envoy Gateway</span></div>
+                  <div class="bar-row"><span class="bar-name">Ingress</span><span class="ae-fact">Envoy Gateway on a MetalLB address, certificates from an internal CA</span></div>
+                  <div class="bar-row"><span class="bar-name">In-cluster</span><span class="ae-fact">default-deny NetworkPolicies in the platform, apps, monitoring and ArgoCD namespaces</span></div>
+                  <div class="bar-row"><span class="bar-name">Admin</span><span class="ae-fact">the ArgoCD UI is published on the mesh by the Tailscale operator, not on the LAN</span></div>
+                </div>
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">ap-mumbai-1</div><div class="ae-env-name">Oracle Cloud</div></div>
+                    <span class="vitals-badge">NO INBOUND TCP</span>
+                  </div>
+                  <p class="ae-note">Every service is its own node on the mesh, published by tsdproxy with a role tag: app, admin or probe. The cloud firewall only lets in the mesh's direct-path traffic.</p>
+                  <div class="ae-chips"><span>per-service nodes</span><span>3 roles</span><span>SSH over the mesh only</span></div>
+                  <div class="bar-row"><span class="bar-name">Roles</span><span class="ae-fact">admins reach admin tools; the observer reaches probe services only</span></div>
+                  <div class="bar-row"><span class="bar-name">Logs in</span><span class="ae-fact">cluster nodes may push logs to Loki and nothing else</span></div>
+                  <div class="bar-row"><span class="bar-name">SSH</span><span class="ae-fact">public SSH closed; hardened sshd behind the mesh</span></div>
+                </div>
+                <div class="vitals-card ae-env">
+                  <div class="ae-env-head">
+                    <div><div class="ae-env-kicker">us-central1-a</div><div class="ae-env-name">Google Cloud</div></div>
+                    <span class="vitals-badge">IPV6 ONLY</span>
+                  </div>
+                  <p class="ae-note">The least-trusted machine: the outside observer and this page. It has no public IPv4, accepts no inbound connections, and can reach only probe services and the cluster's front door.</p>
+                  <div class="ae-chips"><span>no public IPv4</span><span>outbound tunnel</span><span>observer role</span></div>
+                  <div class="bar-row"><span class="bar-name">Out</span><span class="ae-fact">probes probe-tagged services and the cluster ingress over HTTPS</span></div>
+                  <div class="bar-row"><span class="bar-name">In</span><span class="ae-fact">receives backup and watchdog heartbeats on its monitor only</span></div>
+                  <div class="bar-row"><span class="bar-name">Public</span><span class="ae-fact">served only through the Cloudflare tunnel</span></div>
+                </div>
+              </div>
+
+              <div class="vitals-card ae-gap-top">
+                <div class="section-title">Who may talk to whom (mesh rules, by role)</div>
+                <div class="ae-flows">
+                  <div class="ae-flow"><span class="ae-flow-from">Operator devices</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">every zone</span><span class="ae-flow-what">admin and SSH</span><span class="ae-flow-note">re-authenticated every 12 h on personal devices</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Edge observer</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">probe services, cluster ingress</span><span class="ae-flow-what">HTTPS</span><span class="ae-flow-note">nothing else on the cloud host; admin tools don't even resolve</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">cluster nodes, hypervisor</span><span class="ae-flow-what">metrics</span><span class="ae-flow-note">scrape only, no SSH or API access</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats, Docker agent</span><span class="ae-flow-note">push monitors and the management agent</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Cluster nodes</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">monitoring core</span><span class="ae-flow-what">logs</span><span class="ae-flow-note">Alloy to Loki; the only path out of the cluster</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Hypervisor</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats</span><span class="ae-flow-note">each backup stage reports in</span></div>
+                </div>
+              </div>
+
+              <div class="vitals-card ae-gap-top">
+                <div class="ae-backups-head">
+                  <div>
+                    <div class="ae-stat-label">Still changing</div>
+                    <div class="ae-stat-num">7<span>queued changes</span></div>
+                    <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
+                  </div>
+                  <span class="vitals-badge">ROADMAP</span>
+                </div>
+                <ul class="ae-changes">
+                  <li><span class="ae-change-id">FND-12</span><div><div class="ae-change-title">Break-glass access to the edge host</div><div class="ae-change-text">Replace a firewall rule that can never match with SSH through Google IAP, gated by IAM, for when the mesh is down.</div></div></li>
+                  <li><span class="ae-change-id">FND-14</span><div><div class="ae-change-title">Metrics from the edge host</div><div class="ae-change-text">Add a node exporter on the edge host and one metrics-only rule from the monitoring core.</div></div></li>
+                  <li><span class="ae-change-id">FND-18</span><div><div class="ae-change-title">Cloud host joins the mesh by code</div><div class="ae-change-text">Ansible enrols the cloud host with a single role tag instead of a hand-made login.</div></div></li>
+                  <li><span class="ae-change-id">FND-11</span><div><div class="ae-change-title">Cluster API names</div><div class="ae-change-text">Optional certificate names so the Kubernetes API answers by its mesh name.</div></div></li>
+                  <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
+                  <li><span class="ae-change-id">HARD-20</span><div><div class="ae-change-title">Gateway to apps</div><div class="ae-change-text">A NetworkPolicy that lets Envoy reach application pods, needed before the first app route.</div></div></li>
+                  <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
+                </ul>
+              </div>
+
+              <div class="ae-section-head">Decisions</div>
+              <div class="ae-adrs">
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/004-network-access.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">004</span><span class="ae-adr-title">Network access</span><span class="ae-adr-sub">a mesh for operators; one public entry point</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/013-tailnet-microsegmentation.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">013</span><span class="ae-adr-title">Tailnet segmentation</span><span class="ae-adr-sub">role tags, rules and tests</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">020</span><span class="ae-adr-title">Public observability</span><span class="ae-adr-sub">the tunnel and the data diode</span></a>
+                <a class="ae-adr" href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md" target="_blank" rel="noreferrer"><span class="ae-adr-num">021</span><span class="ae-adr-title">Internal DNS and PKI</span><span class="ae-adr-sub">names and certificates inside</span></a>
+              </div>
+
+  # ---------------------------------------------------------------------------
+  # Page 5: Writing. Feeds are fetched by Glance on the DMZ, which has IPv6 only:
   # a feed host without an AAAA record (GitHub, for one) can't load here.
   # ---------------------------------------------------------------------------
   - name: Writing

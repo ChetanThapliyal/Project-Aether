@@ -154,6 +154,7 @@
         - { src: "../../docker/gcp-dmz/glance/glance.yml", dest: "{{ dmz_dir }}/glance/glance.yml" }
         - { src: "../../docker/gcp-dmz/glance/assets/user.css", dest: "{{ dmz_dir }}/glance/assets/user.css" }
         - { src: "../../docker/gcp-dmz/glance/assets/favicon.svg", dest: "{{ dmz_dir }}/glance/assets/favicon.svg" }
+      register: glance_files
 
     # ─── Docker Compose File ──────────────────────────────
     - name: Copy docker-compose.yml to DMZ host
@@ -225,6 +226,14 @@
         remove_orphans: true   # FND-08: drops socket-proxy, which only Homepage used
 
     # ─── Verification ─────────────────────────────────────
+    # Cloudflare caches /assets/user.css for 4 h, keyed on Glance's ?v= value,
+    # which changes only when Glance (re)starts. Restart on any Glance file change
+    # so a CSS-only update gets a fresh URL instead of the cached copy.
+    - name: Restart Glance when its config or assets changed (cache-bust the stylesheet)
+      ansible.builtin.command: docker restart glance
+      when: glance_files is changed
+      changed_when: true
+
     - name: Wait for Uptime Kuma to respond locally
       uri:
         url: http://127.0.0.1:3001

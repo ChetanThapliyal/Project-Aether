@@ -573,6 +573,68 @@ code,
   .ae-adrs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ─── Networking page ───────────────────────────────────────────────────── */
+
+.ae-path { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+.ae-hop {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--ae-stone-900);
+  border: 1px solid var(--ae-stone-700);
+  border-radius: 8px;
+  min-width: 0;
+}
+.ae-hop-end { border-color: var(--ae-orange-edge); background: var(--ae-orange-wash); }
+.ae-hop-k { font-family: var(--ae-font-head); font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ae-stone-100); }
+.ae-hop-v { font-size: 1.15rem; color: var(--ae-stone-400); }
+.ae-flow-arrow { align-self: center; font-family: var(--ae-font-head); font-weight: 800; font-size: 2rem; color: var(--ae-orange-light); }
+
+.ae-flows { display: flex; flex-direction: column; }
+.ae-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) 2rem minmax(0, 14rem) max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ae-stone-700);
+}
+.ae-flow:last-child { border-bottom: none; }
+.ae-flow .ae-flow-arrow { font-size: 1.6rem; text-align: center; }
+.ae-flow-from, .ae-flow-to { font-family: var(--ae-font-head); font-weight: 700; font-size: 1.3rem; color: var(--ae-stone-100); }
+.ae-flow-what {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  color: var(--ae-orange-light);
+  background: var(--ae-orange-wash);
+  border: 1px solid var(--ae-orange-edge);
+  white-space: nowrap;
+}
+.ae-flow-note { font-size: 1.15rem; color: var(--ae-stone-400); }
+
+.ae-changes { list-style: none; margin: 0; padding: 0; }
+.ae-changes li {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ae-stone-700);
+}
+.ae-changes li:last-child { border-bottom: none; }
+.ae-change-id { font-family: var(--ae-font-code); font-size: 1.15rem; color: var(--ae-orange-light); }
+.ae-change-title { font-family: var(--ae-font-head); font-weight: 700; font-size: 1.3rem; color: var(--ae-stone-100); }
+.ae-change-text { font-size: 1.2rem; color: var(--ae-stone-400); }
+
+@media (max-width: 900px) {
+  .ae-flow { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
+  .ae-flow-what, .ae-flow-note { grid-column: 1 / -1; }
+  .ae-path > .ae-flow-arrow { display: none; }
+}
+
 /* ─── Narrow screens (recruiters open links on phones) ─────────────────── */
 
 @media (max-width: 700px) {
