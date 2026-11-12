@@ -91,16 +91,6 @@ pages:
                 url: https://status.chetan-thapliyal.cloud/
                 icon: si:cloudflare
 
-          - type: html
-            source: |
-              <div class="vitals-card ae-gap-top">
-                <div class="vitals-header">
-                  <span class="vitals-title">Operator consoles</span>
-                  <span class="vitals-badge">PRIVATE</span>
-                </div>
-                <p class="ae-note">Grafana, Prometheus, ArgoCD, Proxmox and the Uptime Kuma admin are reachable only over the private Tailscale network, behind tested access rules. This page doesn't link into it.</p>
-              </div>
-
       - size: full
         widgets:
           # FND-20: live numbers from the sanitised feed on OCI (ADR-020). Numbers and
@@ -179,13 +169,12 @@ pages:
               </div>
 
   # ---------------------------------------------------------------------------
-  # Page 2: Observability (live trends from the FND-20 feed; no links in)
+  # Page 2: Observability (FND-20 feed + DMZ Kuma; big-number style, no links in)
   # ---------------------------------------------------------------------------
   - name: Observability
     columns:
       - size: full
         widgets:
-          # FND-20: 6-hour trends, drawn here from the feed's pre-scaled points.
           - type: custom-api
             title: Trends
             frameless: true
@@ -193,61 +182,72 @@ pages:
             url: https://public-feed.tail7067ab.ts.net/summary.json
             cache: 2m
             template: |
+              <div class="ae-live-head">
+                <span class="ae-live-title">Observability</span>
+                {{ if .JSON.Bool "fresh" }}
+                <span class="vitals-badge ae-live">LIVE · UPDATED <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> AGO</span>
+                {{ else }}
+                <span class="vitals-badge ae-stale">DATA DELAYED SINCE <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span></span>
+                {{ end }}
+              </div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Scrape targets up</div><div class="ae-stat-num {{ if eq (.JSON.Int "monitoring.targets_up") (.JSON.Int "monitoring.targets_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.targets_up" }}<span>/{{ .JSON.Int "monitoring.targets_total" }}</span></div><div class="ae-stat-sub">nodes, cluster state, ArgoCD, hypervisor</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Alerts firing</div><div class="ae-stat-num {{ if eq (.JSON.Int "monitoring.alerts_firing") 0 }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.alerts_firing" }}</div><div class="ae-stat-sub">Alertmanager to Telegram</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Cluster CPU</div><div class="ae-stat-num">{{ .JSON.Float "charts.cluster_cpu.last" | toInt }}<span>%</span></div><div class="ae-stat-sub">3 nodes, 5-minute average</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Cluster memory</div><div class="ae-stat-num">{{ .JSON.Float "charts.cluster_mem.last" | toInt }}<span>%</span></div><div class="ae-stat-sub">3 nodes, used of total</div></div>
+              </div>
               <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Last 6 hours</span>
-                  {{ if .JSON.Bool "fresh" }}<span class="vitals-badge ae-live">5-MIN STEPS</span>{{ else }}<span class="vitals-badge ae-stale">DATA DELAYED</span>{{ end }}
-                </div>
+                <div class="section-title">Last 6 hours · 5-minute steps</div>
                 <div class="ae-charts">
-                <div class="ae-chart">
-                  <div class="ae-chart-head"><span class="ae-chart-title">Cluster CPU</span><span class="ae-chart-now">{{ .JSON.Float "charts.cluster_cpu.last" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</span></div>
-                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster CPU, last 6 hours">
-                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
-                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
-                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
-                    <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_cpu.area" }}"></polygon>
-                    <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_cpu.line" }}"></polyline>
-                  </svg>
-                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.cluster_cpu.min" }}–{{ .JSON.Float "charts.cluster_cpu.max" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</span><span>now</span></div>
-                </div>
-                <div class="ae-chart">
-                  <div class="ae-chart-head"><span class="ae-chart-title">Cluster memory</span><span class="ae-chart-now">{{ .JSON.Float "charts.cluster_mem.last" }}{{ .JSON.String "charts.cluster_mem.unit" }}</span></div>
-                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster memory, last 6 hours">
-                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
-                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
-                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
-                    <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_mem.area" }}"></polygon>
-                    <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_mem.line" }}"></polyline>
-                  </svg>
-                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.cluster_mem.min" }}–{{ .JSON.Float "charts.cluster_mem.max" }}{{ .JSON.String "charts.cluster_mem.unit" }}</span><span>now</span></div>
-                </div>
-                <div class="ae-chart">
-                  <div class="ae-chart-head"><span class="ae-chart-title">Cloud host CPU</span><span class="ae-chart-now">{{ .JSON.Float "charts.oci_cpu.last" }}{{ .JSON.String "charts.oci_cpu.unit" }}</span></div>
-                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cloud host CPU, last 6 hours">
-                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
-                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
-                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
-                    <polygon class="ae-area" points="{{ .JSON.String "charts.oci_cpu.area" }}"></polygon>
-                    <polyline class="ae-line" points="{{ .JSON.String "charts.oci_cpu.line" }}"></polyline>
-                  </svg>
-                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.oci_cpu.min" }}–{{ .JSON.Float "charts.oci_cpu.max" }}{{ .JSON.String "charts.oci_cpu.unit" }}</span><span>now</span></div>
-                </div>
-                <div class="ae-chart">
-                  <div class="ae-chart-head"><span class="ae-chart-title">Hypervisor CPU temperature</span><span class="ae-chart-now">{{ .JSON.Float "charts.hyp_temp.last" }}{{ .JSON.String "charts.hyp_temp.unit" }}</span></div>
-                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Hypervisor CPU temperature, last 6 hours">
-                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
-                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
-                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
-                    <polygon class="ae-area" points="{{ .JSON.String "charts.hyp_temp.area" }}"></polygon>
-                    <polyline class="ae-line" points="{{ .JSON.String "charts.hyp_temp.line" }}"></polyline>
-                  </svg>
-                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 20–100 °C · range {{ .JSON.Float "charts.hyp_temp.min" }}–{{ .JSON.Float "charts.hyp_temp.max" }}{{ .JSON.String "charts.hyp_temp.unit" }}</span><span>now</span></div>
-                </div>
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Cluster CPU</div><div class="ae-chart-big">{{ .JSON.Float "charts.cluster_cpu.last" }}<span>{{ .JSON.String "charts.cluster_cpu.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.cluster_cpu.min" }}–{{ .JSON.Float "charts.cluster_cpu.max" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster CPU, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_cpu.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_cpu.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                  </div>
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Cluster memory</div><div class="ae-chart-big">{{ .JSON.Float "charts.cluster_mem.last" }}<span>{{ .JSON.String "charts.cluster_mem.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.cluster_mem.min" }}–{{ .JSON.Float "charts.cluster_mem.max" }}{{ .JSON.String "charts.cluster_mem.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster memory, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_mem.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_mem.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                  </div>
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Cloud host CPU</div><div class="ae-chart-big">{{ .JSON.Float "charts.oci_cpu.last" }}<span>{{ .JSON.String "charts.oci_cpu.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.oci_cpu.min" }}–{{ .JSON.Float "charts.oci_cpu.max" }}{{ .JSON.String "charts.oci_cpu.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cloud host CPU, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.oci_cpu.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.oci_cpu.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                  </div>
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Hypervisor CPU temperature</div><div class="ae-chart-big">{{ .JSON.Float "charts.hyp_temp.last" }}<span>{{ .JSON.String "charts.hyp_temp.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.hyp_temp.min" }}–{{ .JSON.Float "charts.hyp_temp.max" }}{{ .JSON.String "charts.hyp_temp.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Hypervisor CPU temperature, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.hyp_temp.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.hyp_temp.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 20–100 °C</span><span>now</span></div>
+                  </div>
                 </div>
               </div>
 
-          # FND-20: backup and alerting heartbeats, from the DMZ's own Uptime Kuma
-          # (a public-safe status page; read over the local Docker network).
+          # Backup and alerting heartbeats from the DMZ's own Uptime Kuma (a
+          # public-safe status page, read over the local Docker network).
           - type: custom-api
             title: Backups and alerting
             frameless: true
@@ -256,10 +256,16 @@ pages:
             cache: 2m
             template: |
               {{ $hb := newRequest "http://uptime-kuma:3001/api/status-page/heartbeat/public" | getResponse }}
+              {{ $total := 0.0 }}{{ $ok := 0.0 }}
+              {{ range .JSON.Array "publicGroupList.0.monitorList" }}{{ $total = add $total 1.0 }}{{ if eq ($hb.JSON.Int (printf "heartbeatList.%d.@reverse.0.status" (.Int "id"))) 1 }}{{ $ok = add $ok 1.0 }}{{ end }}{{ end }}
               <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Backups and alerting</span>
-                  <span class="vitals-badge">CHECKED FROM OUTSIDE</span>
+                <div class="ae-backups-head">
+                  <div>
+                    <div class="ae-stat-label">Backups and alerting</div>
+                    <div class="ae-stat-num {{ if eq $ok $total }}ae-ok{{ else }}ae-bad{{ end }}">{{ $ok | toInt }}<span>/{{ $total | toInt }}</span></div>
+                    <div class="ae-stat-sub">checks passing, watched from outside the private network</div>
+                  </div>
+                  <span class="vitals-badge">UPTIME KUMA</span>
                 </div>
                 <ul class="ae-status">
                   {{ range .JSON.Array "publicGroupList.0.monitorList" }}
@@ -269,7 +275,7 @@ pages:
                   <li>
                     <span class="ae-dot {{ if eq $st 1 }}ae-ok{{ else if eq $st 2 }}ae-warn{{ else }}ae-bad{{ end }}"></span>
                     <span class="ae-status-name">{{ .String "name" }}</span>
-                    <span class="ae-status-meta">{{ if $tm }}last <span {{ $tm | parseTime "2006-01-02 15:04:05.000" | toRelativeTime }}></span> ago · {{ end }}24 h {{ $hb.JSON.Float (printf "uptimeList.%d_24" $id) | mul 100 | toInt }}%</span>
+                    <span class="ae-status-meta">{{ if $tm }}last <span {{ $tm | parseTime "2006-01-02 15:04:05.000" | toRelativeTime }}></span> ago · {{ end }}<b>{{ $hb.JSON.Float (printf "uptimeList.%d_24" $id) | mul 100 | toInt }}%</b> 24 h</span>
                   </li>
                   {{ end }}
                 </ul>
@@ -277,7 +283,7 @@ pages:
 
           - type: html
             source: |
-              <div class="vitals-card">
+              <div class="vitals-card ae-gap-top">
                 <div class="vitals-header">
                   <span class="vitals-title">How the estate is watched</span>
                   <span class="vitals-badge">DESIGN</span>
@@ -291,17 +297,24 @@ pages:
 
       - size: small
         widgets:
-          # FND-20: what the cluster is running (image and tag only).
+          # What the cluster is running (image and tag only).
           - type: custom-api
             title: Running versions
+            frameless: true
+            hide-header: true
             url: https://public-feed.tail7067ab.ts.net/summary.json
             cache: 5m
             template: |
-              <ul class="ae-versions">
-                {{ range .JSON.Array "versions" }}
-                <li><code>{{ .String "image" }}</code><span>{{ .String "tag" }}</span></li>
-                {{ end }}
-              </ul>
+              <div class="vitals-card">
+                <div class="ae-stat-label">Running versions</div>
+                <div class="ae-stat-num">{{ len (.JSON.Array "versions") }}<span>images</span></div>
+                <div class="ae-stat-sub">in the cluster right now, by tag</div>
+                <ul class="ae-versions">
+                  {{ range .JSON.Array "versions" }}
+                  <li><code>{{ .String "image" }}</code><span>{{ .String "tag" }}</span></li>
+                  {{ end }}
+                </ul>
+              </div>
 
           - type: bookmarks
             title: Further reading
