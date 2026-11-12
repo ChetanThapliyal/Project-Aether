@@ -1,8 +1,0 @@
-- greeting:
-    text_size: xl
-    text: "Project Aether — Observability DMZ"
-
-- resources:
-    cpu: true
-    memory: true
-    disk: /

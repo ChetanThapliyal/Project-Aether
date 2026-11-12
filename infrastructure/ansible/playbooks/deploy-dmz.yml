@@ -90,7 +90,14 @@
         owner: root
         group: root
         mode: "0644"
-      notify: Reload systemd daemon
+      register: docker_dropin
+
+    # FND-08: reload now, not via a handler. Handlers are skipped when a later
+    # task fails, which would leave the drop-in written but never loaded.
+    - name: Reload systemd now so the Docker ordering takes effect
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: docker_dropin.changed
 
     # ─── DMZ Directories ─────────────────────────────────
     - name: Ensure /opt/dmz directory hierarchy exists
@@ -118,7 +125,6 @@
           # COMPOSE_PROFILES=tunnel
           CLOUDFLARE_TUNNEL_TOKEN=
           {% endif %}
-          HOMEPAGE_ALLOWED_HOSTS={{ gcp_dmz_homepage_allowed_hosts | default('*') }}
           PUID=1000
           PGID=1000
           HAWSER_TOKEN={{ gcp_dmz_hawser_token | default('') }}
@@ -128,12 +134,13 @@
         mode: "0600"
       no_log: true
 
-    # ─── Stop and Retire Homepage Container ───────────────
-    - name: Stop and remove retired Homepage container
-      community.docker.docker_container:
-        name: homepage
+    # ─── Homepage leftovers (FND-08) ──────────────────────
+    # Homepage was replaced by Glance on 2026-11-02. Delete this task once no
+    # host has the directory.
+    - name: Remove the retired Homepage config directory
+      ansible.builtin.file:
+        path: "{{ dmz_dir }}/homepage"
         state: absent
-      ignore_errors: true
 
     # ─── Glance Configuration Files ───────────────────────
     - name: Deploy Glance config and assets
@@ -209,7 +216,8 @@
       community.docker.docker_compose_v2:
         project_src: "{{ dmz_dir }}"
         state: present
-        pull: never
+        pull: missing          # pinned digests: pulls only on a fresh host (Docker Hub works over IPv6; Hawser is loaded above)
+        remove_orphans: true   # FND-08: drops socket-proxy, which only Homepage used
 
     # ─── Verification ─────────────────────────────────────
     - name: Wait for Uptime Kuma to respond locally

@@ -2,7 +2,13 @@
 # Project Aether — Glance Dashboard Configuration
 # =============================================================================
 # Ultra-lightweight status and public platform dashboard (<50 MiB RAM)
-# Running on GCP DMZ (e2-micro) behind Tailscale & Cloudflare Tunnel
+# Running on GCP DMZ (e2-micro). Public through the Cloudflare Tunnel (FND-10).
+#
+# PUBLIC PAGE RULES (HARD-17, ADR-020):
+#   - No tailnet hostnames or links (*.ts.net, MagicDNS short names), no LAN or
+#     cluster IPs. Operator consoles are named, never linked.
+#   - No numbers presented as live. Static facts carry the date they were true.
+#     Live vitals arrive only through the ADR-020 summary feed.
 # =============================================================================
 
 server:
@@ -36,410 +42,110 @@ pages:
               - timezone: UTC
                 label: UTC
 
-          # DooPlex-Style Homelab Physical Host Vitals
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">🖥️ Homelab Host</span>
-                  <span class="vitals-badge healthy">PVE 9.2</span>
-                </div>
-                <div class="top-grid">
-                  <div class="top-item">
-                    <div class="top-label">Host</div>
-                    <div class="top-value">homelab</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">CPU</div>
-                    <div class="top-value highlight">7.6%</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Uptime</div>
-                    <div class="top-value">14d 6h</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Memory</div>
-                    <div class="top-value">45%</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Package Temp</div>
-                    <div class="top-value highlight">42°C</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Hardware</div>
-                    <div class="top-value">i3-5005U</div>
-                  </div>
-                </div>
-
-                <div class="section-title">Physical Storage &amp; RAM</div>
-
-                <div class="bar-row">
-                  <span class="bar-name">Host RAM</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 45%;"></div>
-                  </div>
-                  <span class="bar-info">5.4 / 12.0 GB (45%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">SSD Root</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 19%;"></div>
-                  </div>
-                  <span class="bar-info">48 / 250 GB (19%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">ZFS Pool</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 37%;"></div>
-                  </div>
-                  <span class="bar-info">185 / 500 GB (37%)</span>
-                </div>
-              </div>
-
           - type: bookmarks
             groups:
-              - title: Platform Control Plane
+              - title: Evidence
                 links:
-                  - title: ArgoCD Control Plane
-                    url: https://argocd.tail7067ab.ts.net
-                    icon: si:argo
-                  - title: Uptime Kuma Status
-                    url: http://aether-gcp-dmz:3001
-                    icon: si:uptimekuma
-                  - title: Proxmox Hypervisor
-                    url: https://homelab.tail7067ab.ts.net:8006
-                    icon: si:proxmox
-                  - title: GitHub Monorepo
+                  - title: GitHub monorepo
                     url: https://github.com/ChetanThapliyal/Project-Aether
                     icon: si:github
-                  - title: Architecture Decision Records
+                  - title: Architecture decisions (20 ADRs)
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
                     icon: si:markdown
+                  - title: Incident reviews
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents
+                    icon: si:markdown
+                  - title: Disaster recovery scenarios
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/disaster-recovery
+                    icon: si:markdown
+                  - title: Runbooks
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/runbooks
+                    icon: si:markdown
+
+          - type: html
+            source: |
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Operator consoles</span>
+                  <span class="vitals-badge">PRIVATE</span>
+                </div>
+                <p class="ae-note">Grafana, Prometheus, ArgoCD, Proxmox and the Uptime Kuma admin are reachable only over the private Tailscale network, behind tested access rules. This page doesn't link into it.</p>
+              </div>
 
       - size: full
         widgets:
           - type: html
             source: |
-              <div style="padding: 12px 14px; background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; margin-bottom: 14px;">
-                <h2 style="margin: 0 0 6px 0; color: #06b6d4; font-size: 1.15em;">🌌 Project Aether — Multi-Tier Autonomous Cloud</h2>
-                <p style="margin: 0; font-size: 0.9em; opacity: 0.85; line-height: 1.5;">
-                  Zero-trust hybrid cloud estate spanning <strong>On-Premise K3s Kubernetes</strong> (Proxmox VE), <strong>OCI Core TSDB</strong>, and <strong>GCP DMZ</strong> edge observers connected via Tailscale WireGuard mesh.
-                </p>
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Project Aether</span>
+                  <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
+                </div>
+                <p class="ae-note">A three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets.</p>
               </div>
 
-          # K3s Cluster Vitals Card
           - type: html
             source: |
               <div class="vitals-card">
                 <div class="vitals-header">
-                  <span class="vitals-title">☸️ K3s Kubernetes Cluster</span>
-                  <span class="vitals-badge healthy">3/3 NODES READY</span>
+                  <span class="vitals-title">Architecture at a glance</span>
+                  <span class="vitals-badge">DESIGN FACTS · 12 NOV 2026</span>
                 </div>
                 <div class="top-grid cols-4">
-                  <div class="top-item">
-                    <div class="top-label">K3s Version</div>
-                    <div class="top-value">v1.36.4</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Active Pods</div>
-                    <div class="top-value highlight">26 / 26</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">GitOps Reconcile</div>
-                    <div class="top-value highlight">15 / 15 Synced</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Cluster CPU</div>
-                    <div class="top-value">4.8%</div>
-                  </div>
+                  <div class="top-item"><div class="top-label">Cluster</div><div class="top-value">K3s · 3 nodes</div></div>
+                  <div class="top-item"><div class="top-label">GitOps apps</div><div class="top-value">17 in ArgoCD</div></div>
+                  <div class="top-item"><div class="top-label">Clouds</div><div class="top-value">Home · OCI · GCP</div></div>
+                  <div class="top-item"><div class="top-label">Monthly cost</div><div class="top-value">₹0 cloud</div></div>
                 </div>
-
-                <div class="section-title">Node Memory Budget (&lt; 50% target ceiling)</div>
-
-                <div class="bar-row">
-                  <span class="bar-name">control-01</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 57%;"></div>
-                  </div>
-                  <span class="bar-info">1.71 / 3.00 GiB (57%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">worker-01</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 30%;"></div>
-                  </div>
-                  <span class="bar-info">1.02 / 3.50 GiB (30%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">worker-02</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 46%;"></div>
-                  </div>
-                  <span class="bar-info">1.58 / 3.50 GiB (46%)</span>
-                </div>
+                <div class="section-title">How it is built</div>
+                <div class="bar-row"><span class="bar-name">Delivery</span><span class="ae-fact">ArgoCD app-of-apps tracking <code>main</code>; Helm charts pinned; values linted in CI</span></div>
+                <div class="bar-row"><span class="bar-name">Edge</span><span class="ae-fact">Envoy Gateway on a MetalLB address, internal PKI from cert-manager</span></div>
+                <div class="bar-row"><span class="bar-name">Security</span><span class="ae-fact">Tailnet roles with policy tests, default-deny NetworkPolicies, Secrets encrypted at rest, no public SSH</span></div>
+                <div class="bar-row"><span class="bar-name">Observability</span><span class="ae-fact">Prometheus, Loki (Grafana Alloy agents) and Alertmanager to Telegram, plus a dead-man's switch</span></div>
+                <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots to ZFS, restic, then an Object-Locked offsite bucket; cold restore drilled</span></div>
               </div>
 
-          # Cloud Tiers & Telemetry Vitals Card
           - type: html
             source: |
               <div class="vitals-card">
                 <div class="vitals-header">
-                  <span class="vitals-title">☁️ Cloud Core (OCI) &amp; Edge DMZ (GCP)</span>
-                  <span class="vitals-badge">TELEMETRY &amp; INGRESS</span>
+                  <span class="vitals-title">Live status</span>
+                  <span class="vitals-badge">IN PROGRESS</span>
                 </div>
-                <div class="top-grid cols-4">
-                  <div class="top-item">
-                    <div class="top-label">OCI Compute</div>
-                    <div class="top-value">2 OCPU ARM</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Prometheus Targets</div>
-                    <div class="top-value highlight">6 / 6 Up</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">DMZ Observers</div>
-                    <div class="top-value highlight">100% Passing</div>
-                  </div>
-                  <div class="top-item">
-                    <div class="top-label">Synthetic Uptime</div>
-                    <div class="top-value">99.98%</div>
-                  </div>
-                </div>
-
-                <div class="section-title">Cloud Resource Quotas</div>
-
-                <div class="bar-row">
-                  <span class="bar-name">OCI RAM</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 42%;"></div>
-                  </div>
-                  <span class="bar-info">5.1 / 12.0 GB (42%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">OCI Disk</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 32%;"></div>
-                  </div>
-                  <span class="bar-info">32 / 100 GB (32%)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">GCP DMZ RAM</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 58%;"></div>
-                  </div>
-                  <span class="bar-info">570 / 969 MiB (58%)</span>
-                </div>
+                <p class="ae-note">Live vitals aren't public yet. They will come from a sanitised summary that the monitoring core pushes to this host, so this page never queries the private network (ADR-020). Until then, the page shows only facts that stay true.</p>
               </div>
 
   # ---------------------------------------------------------------------------
-  # Page 2: Monitoring (Grafana Telemetry & Fleet Status — Public Edge Safe)
+  # Page 2: Observability (how it is monitored; no live numbers, no links in)
   # ---------------------------------------------------------------------------
-  - name: Monitoring
+  - name: Observability
     columns:
-      - size: small
+      - size: full
         widgets:
+          - type: html
+            source: |
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">How the estate is watched</span>
+                  <span class="vitals-badge">DESIGN</span>
+                </div>
+                <div class="bar-row"><span class="bar-name">Metrics</span><span class="ae-fact">Prometheus on Oracle Cloud scrapes the cluster nodes, kube-state-metrics, ArgoCD and the Proxmox host over the tailnet</span></div>
+                <div class="bar-row"><span class="bar-name">Logs</span><span class="ae-fact">Grafana Alloy on every node ships pod logs to Loki; an alert fires if any node goes quiet for 30 minutes</span></div>
+                <div class="bar-row"><span class="bar-name">Alerts</span><span class="ae-fact">Alertmanager to Telegram, with a watchdog heartbeat to this host so a dead alert path is itself noticed</span></div>
+                <div class="bar-row"><span class="bar-name">Outside-in</span><span class="ae-fact">Uptime Kuma here probes the public services and receives push heartbeats from every backup stage</span></div>
+                <div class="bar-row"><span class="bar-name">Reviews</span><span class="ae-fact">Every real failure gets a written incident review with root cause and guardrails</span></div>
+              </div>
+
           - type: bookmarks
             groups:
-              - title: Fleet Telemetry Targets
+              - title: Read more
                 links:
-                  - title: K3s Cluster Overview
-                    url: http://grafana.tail7067ab.ts.net/d/k8s_views_global/kubernetes-views-global
-                    icon: si:kubernetes
-                  - title: Homelab Proxmox VE
-                    url: http://grafana.tail7067ab.ts.net/d/node-exporter-full/node-exporter-full-bookorbit?var-host=homelab:9100
-                    icon: si:proxmox
-                  - title: OCI Telemetry Core
-                    url: http://grafana.tail7067ab.ts.net/d/node-exporter-full/node-exporter-full-bookorbit?var-host=bookorbit:9100
-                    icon: si:oracle
-                  - title: GCP DMZ Observer
-                    url: http://grafana.tail7067ab.ts.net/d/node-exporter-full/node-exporter-full-bookorbit?var-host=aether-gcp-dmz:9100
-                    icon: si:googlecloud
-                  - title: ArgoCD Control Plane
-                    url: http://grafana.tail7067ab.ts.net/d/LCAgc9rWz/argocd
-                    icon: si:argo
-                  - title: Prometheus TSDB Raw
-                    url: http://prometheus.tail7067ab.ts.net
-                    icon: si:prometheus
-
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">🔒 Operator Access</span>
-                  <span class="vitals-badge">TAILNET</span>
-                </div>
-                <p style="font-size: 0.82em; opacity: 0.85; line-height: 1.5; margin: 0 0 10px 0;">
-                  Public visitors see sanitized snapshot telemetry. To interact with raw timeseries PromQL and live Grafana controls:
-                </p>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <a href="http://grafana.tail7067ab.ts.net/d/k8s_views_global/kubernetes-views-global" target="_blank" style="display: block; padding: 6px 10px; background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.3); border-radius: 6px; font-size: 0.8em; color: #38bdf8; text-decoration: none; text-align: center; font-weight: 600;">
-                    Launch Grafana Web UI ↗
-                  </a>
-                  <a href="http://prometheus.tail7067ab.ts.net" target="_blank" style="display: block; padding: 6px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; font-size: 0.8em; color: #cbd5e1; text-decoration: none; text-align: center;">
-                    Launch Prometheus TSDB ↗
-                  </a>
-                </div>
-              </div>
-
-      - size: full
-        widgets:
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">📊 GRAFANA OVERVIEW DASHBOARD</span>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <span class="vitals-badge healthy">● LIVE TELEMETRY</span>
-                    <span class="vitals-badge">PUBLIC EDGE SAFE</span>
-                  </div>
-                </div>
-
-                <!-- Core Telemetry Dials (Matching Grafana Gauges) -->
-                <div class="gauge-grid">
-                  <div class="gauge-item">
-                    <div class="gauge-label">CPU Busy</div>
-                    <div class="gauge-val">7.6%</div>
-                    <div class="gauge-sub">Homelab Host (i3)</div>
-                  </div>
-                  <div class="gauge-item">
-                    <div class="gauge-label">Cluster CPU</div>
-                    <div class="gauge-val">4.75%</div>
-                    <div class="gauge-sub">K3s 3-Node Alloc</div>
-                  </div>
-                  <div class="gauge-item">
-                    <div class="gauge-label">RAM Used</div>
-                    <div class="gauge-val">44.2%</div>
-                    <div class="gauge-sub">5.4 / 12 GB Total</div>
-                  </div>
-                  <div class="gauge-item">
-                    <div class="gauge-label">Cluster Memory</div>
-                    <div class="gauge-val">40.2%</div>
-                    <div class="gauge-sub">Allocated Quota</div>
-                  </div>
-                  <div class="gauge-item">
-                    <div class="gauge-label">CPU Temp</div>
-                    <div class="gauge-val">42°C</div>
-                    <div class="gauge-sub">Core1: 43°C</div>
-                  </div>
-                  <div class="gauge-item">
-                    <div class="gauge-label">Fan RPM</div>
-                    <div class="gauge-val">550</div>
-                    <div class="gauge-sub">Level 1 Cooling</div>
-                  </div>
-                </div>
-
-                <!-- Storage Capacity Rows (Matching Grafana Disk Gauges) -->
-                <div class="section-title">Storage &amp; Filesystem Capacity (&gt;60% Threshold Alerting)</div>
-
-                <div class="bar-row">
-                  <span class="bar-name">NVMe Root</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 37.5%;"></div>
-                  </div>
-                  <span class="bar-info">Free: 298 GB (37.5% used)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">SSD Local-Path</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 15.2%;"></div>
-                  </div>
-                  <span class="bar-info">Free: 223 GB (15.2% used)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">HDD ZFS Pool</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 38.7%;"></div>
-                  </div>
-                  <span class="bar-info">Free: 315 GB (38.7% used)</span>
-                </div>
-
-                <div class="bar-row">
-                  <span class="bar-name">OCI Boot Disk</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: 32.0%;"></div>
-                  </div>
-                  <span class="bar-info">Free: 68 GB (32.0% used)</span>
-                </div>
-              </div>
-
-              <!-- Pod Status Table (Matching Grafana Table in Screenshot) -->
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">🚀 Core Kubernetes Pod Status (K3s Control &amp; Data Plane)</span>
-                  <span class="vitals-badge healthy">26/26 PODS RUNNING</span>
-                </div>
-
-                <div class="pod-table-wrap">
-                  <table class="pod-table">
-                    <thead>
-                      <tr>
-                        <th>Pod Name</th>
-                        <th>Namespace</th>
-                        <th>Status</th>
-                        <th>Readiness / Role</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><code>argocd-server-75d977b9f5</code></td>
-                        <td>argocd</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>GitOps Control UI &amp; Webhook</td>
-                      </tr>
-                      <tr>
-                        <td><code>argocd-application-controller-0</code></td>
-                        <td>argocd</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>15/15 Child Apps Synced</td>
-                      </tr>
-                      <tr>
-                        <td><code>envoy-gateway-7944fcc7f9</code></td>
-                        <td>gateway-system</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>L2 MetalLB VIP 192.168.1.100</td>
-                      </tr>
-                      <tr>
-                        <td><code>coredns-54996dc9b4</code></td>
-                        <td>kube-system</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>Cluster DNS 10.43.0.10:53</td>
-                      </tr>
-                      <tr>
-                        <td><code>metrics-server-6dc596dfb8</code></td>
-                        <td>kube-system</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>Kubelet Summary Scraper</td>
-                      </tr>
-                      <tr>
-                        <td><code>metallb-speaker-8ptl8</code></td>
-                        <td>metallb-system</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>L2 ARP Pool Advertisement</td>
-                      </tr>
-                      <tr>
-                        <td><code>cert-manager-5ccf6b67d5</code></td>
-                        <td>cert-manager</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>Let's Encrypt / Vault CA Engine</td>
-                      </tr>
-                      <tr>
-                        <td><code>alloy (DaemonSet)</code></td>
-                        <td>monitoring</td>
-                        <td><span class="status-pill">Running</span></td>
-                        <td>Shipping logs to OCI Loki :3100</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                  - title: "ADR-019: Centralized logging"
+                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md
+                  - title: "ADR-020: Public observability (this page)"
+                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md
+                  - title: Incident reviews
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents
 
   # ---------------------------------------------------------------------------
   # Page 3: Infrastructure
@@ -451,7 +157,7 @@ pages:
           - type: html
             source: |
               <div style="padding: 12px;">
-                <h3 style="margin: 0 0 12px 0;">🌐 Multi-Tier Topology & Resource Budget</h3>
+                <h3 style="margin: 0 0 12px 0;">Where it runs</h3>
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">
                   <thead>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
@@ -466,18 +172,18 @@ pages:
                       <td style="padding: 6px 8px;"><strong>GCP DMZ</strong></td>
                       <td style="padding: 6px 8px;"><code>us-central1-a</code></td>
                       <td style="padding: 6px 8px;">2 vCPU / 1 GB RAM</td>
-                      <td style="padding: 6px 8px;">External Synthetic Observer & Edge Gateway</td>
+                      <td style="padding: 6px 8px;">Outside-in observer and this public page</td>
                     </tr>
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
                       <td style="padding: 6px 8px;"><strong>OCI Core</strong></td>
                       <td style="padding: 6px 8px;"><code>ap-mumbai-1</code></td>
                       <td style="padding: 6px 8px;">2 OCPU / 12 GB RAM</td>
-                      <td style="padding: 6px 8px;">Observability TSDB, Log Store & Automation Engine</td>
+                      <td style="padding: 6px 8px;">Metrics, logs, alerting and automation</td>
                     </tr>
                     <tr>
                       <td style="padding: 6px 8px;"><strong>Homelab</strong></td>
                       <td style="padding: 6px 8px;">Local Proxmox</td>
-                      <td style="padding: 6px 8px;">4 Cores / 12 GB RAM</td>
+                      <td style="padding: 6px 8px;">2 cores (4 threads) / 12 GB RAM</td>
                       <td style="padding: 6px 8px;">3-Node K3s Cluster (control-01, worker-01, worker-02)</td>
                     </tr>
                   </tbody>
@@ -496,8 +202,12 @@ pages:
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/013-tailnet-microsegmentation.md
                   - title: "ADR-016: Kubernetes Storage Strategy"
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/016-kubernetes-storage-strategy.md
+                  - title: "ADR-018: 3-2-1 Disaster Recovery"
+                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md
                   - title: "ADR-019: Centralized Logging Architecture"
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md
+                  - title: "ADR-021: Internal DNS & PKI"
+                    url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md
 
   # ---------------------------------------------------------------------------
   # Page 4: Feeds & Upstream

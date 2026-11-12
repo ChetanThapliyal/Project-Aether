@@ -3,8 +3,12 @@
 # =============================================================================
 # Services:
 #   1. Uptime Kuma  : Independent external synthetic monitoring & status pages
-#   2. Homepage     : Unified status and public platform dashboard
-#   3. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+#   2. Glance       : Public platform page (HARD-17: no tailnet names, no fake vitals)
+#   3. Hawser       : Dockhand agent
+#   4. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+#
+# Images are pinned as tag@digest (FND-08), so Dependabot can propose a bump and
+# nothing changes without a commit. The deploy pulls only images that are missing.
 # =============================================================================
 
 services:
@@ -12,7 +16,7 @@ services:
   # Uptime Kuma — Synthetic Monitoring
   # ---------------------------------------------------------------------------
   uptime-kuma:
-    image: louislam/uptime-kuma:2
+    image: louislam/uptime-kuma:2.5.6@sha256:9912da7d7d9b6ddc0c2d904beb84d24689c1ed9c33b81419eb9008663a92a329
     container_name: uptime-kuma
     restart: unless-stopped
     ports:
@@ -26,29 +30,10 @@ services:
       - UPTIME_KUMA_PORT=3001
 
   # ---------------------------------------------------------------------------
-  # Docker Socket Proxy — Hardened Read-Only Docker Daemon Proxy (OPS-08)
-  # ---------------------------------------------------------------------------
-  socket-proxy:
-    image: tecnativa/docker-socket-proxy:latest
-    container_name: socket-proxy
-    restart: unless-stopped
-    environment:
-      - CONTAINERS=1  # Allow read of container info
-      - SERVICES=0
-      - TASKS=0
-      - NETWORKS=0
-      - INFO=1        # Allow query of docker daemon engine info
-      - POST=0        # Disallow mutation/write operations
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - dmz-net
-
-  # ---------------------------------------------------------------------------
   # Glance — Ultra-Lightweight Platform Dashboard (OPS-10)
   # ---------------------------------------------------------------------------
   glance:
-    image: glanceapp/glance:latest
+    image: glanceapp/glance:v0.8.7@sha256:bc5a392672c1ec8823c50b61f3bd4b7e5acc34fcbb8477862577b3af1c633875
     container_name: glance
     restart: unless-stopped
     ports:

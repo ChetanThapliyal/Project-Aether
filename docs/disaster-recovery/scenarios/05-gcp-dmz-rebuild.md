@@ -80,7 +80,7 @@ task ansible:dmz
 The playbook:
 1. Adds a Docker drop-in that waits for `tailscaled`.
 2. Creates a 2 GB swapfile (the e2-micro has 1 GB RAM).
-3. Deploys Uptime Kuma (3001), Glance (3000), socket-proxy (read-only, `POST=0`) and Hawser (2376) on `dmz-net`. FND-08 later removes socket-proxy.
+3. Deploys Uptime Kuma (3001), Glance (3000) and Hawser (2376) on `dmz-net`, from images pinned by tag and digest. A fresh VM pulls them on first run (`pull: missing`; Docker Hub works over IPv6, and the GHCR-hosted Hawser image is copied over by the playbook).
 4. Starts `cloudflared` only with the compose profile `tunnel` and a `CLOUDFLARE_TUNNEL_TOKEN`.
 5. Provisions the Telegram notification channel in Kuma.
 
@@ -107,10 +107,10 @@ The new VM has a new tailnet IP. I check `tailscale-policy.sops.yaml` for any `h
    ```bash
    ssh owl@aether-gcp-dmz "sudo docker ps --format '{{.Names}}\t{{.Status}}'"
    ```
-   I expect `uptime-kuma`, `glance`, `socket-proxy` (until FND-08), `hawser`, and `cloudflared` only if the tunnel is enabled.
-3. The socket proxy is read-only:
+   I expect `uptime-kuma`, `glance`, `hawser`, and `cloudflared` once the public tunnel is on (FND-10). No `socket-proxy`: FND-08 removed it.
+3. The public page leaks nothing from the tailnet (HARD-17):
    ```bash
-   ssh owl@aether-gcp-dmz "sudo docker inspect socket-proxy --format '{{join .Config.Env \"\n\"}}'" | grep -x 'POST=0'
+   curl -s http://aether-gcp-dmz:3000 | grep -c tail7067ab   # → 0
    ```
 4. Kuma can send alerts: use *Test* on the Telegram notification. If it hangs, the DMZ containers have no internet route out (INC-2026-004 / FND-08).
 5. Both Kuma instances (OCI → DMZ, DMZ → OCI) are green again, and the next backup run turns the push monitor UP.

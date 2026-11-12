@@ -3,7 +3,7 @@
 ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diode
 ================================================================================
 ```
-- **Status:** Accepted
+- **Status:** Accepted (diode not built yet; see the 2026-11-12 addendum)
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Project Aether requires a unified, public-facing platform dashboard and operational status view accessible over the public internet via Cloudflare Tunnel (`status.chetanthapliyal.com`) and privately over the Tailscale mesh (`http://aether-gcp-dmz:3000`). The edge observer environment runs on a Google Cloud Platform (GCP) Always-Free `e2-micro` instance (`aether-gcp-dmz`), strictly constrained to 1 GB of physical memory and 2 shared vCPUs. The initial implementation utilized Homepage (`gethomepage/homepage:v2.5.0`), which had a Node.js runtime footprint of 150–250 MiB RSS and relied on direct outbound API calls to backend platform services.
@@ -73,3 +73,11 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
   - [ADR-014](014-infrastructure-environment-isolation-strategy.md) (Infrastructure Environment Isolation Strategy)
   - [ADR-019](019-centralized-logging-architecture.md) (Centralized Logging Architecture)
 - **Review Conditions:** Re-evaluate if GCP DMZ instance is upgraded to a dedicated tier, or if custom real-time websocket status streaming is required.
+
+---
+
+### Addendum: Implementation Status (2026-11-12, HARD-17)
+- **Glance replacing Homepage:** delivered on 2026-11-02 (Glance v0.8.7, pinned by digest). Homepage's files and the Docker socket proxy it needed were removed on 2026-11-12 (FND-08).
+- **Push data diode (OCI → `summary.json` → DMZ):** not built yet. Until it exists, the public page shows no live numbers. The earlier hard-coded gauges and the "LIVE TELEMETRY" badge were removed because they presented static values as live. The page now shows dated design facts and says that live vitals are pending.
+- **Sanitised public contract:** enforced from 2026-11-12. The page carries no tailnet hostnames or links, and no LAN or cluster addresses. Operator consoles are named, never linked. `glance.yml` opens with these rules, and DR scenario 05 checks them.
+- **Public hostname:** the decision is to go public (FND-10). `status.chetanthapliyal.com` in the Context above never existed. The public name will be on the `chetan-thapliyal.cloud` zone, recorded here when the tunnel goes live.
