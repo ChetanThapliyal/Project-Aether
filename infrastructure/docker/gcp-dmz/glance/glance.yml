@@ -45,6 +45,20 @@ pages:
               - timezone: UTC
                 label: UTC
 
+          - type: monitor
+            title: Public sites
+            cache: 1m
+            sites:
+              - title: Portfolio and blog
+                url: https://chetan-thapliyal.cloud/
+                icon: si:hugo
+              - title: Lexicon notes
+                url: https://base.chetan-thapliyal.cloud/
+                icon: si:astro
+              - title: This status page
+                url: https://status.chetan-thapliyal.cloud/
+                icon: si:cloudflare
+
           - type: html
             source: |
               <div class="vitals-card">
@@ -75,14 +89,6 @@ pages:
                   - title: GitHub monorepo
                     url: https://github.com/ChetanThapliyal/Project-Aether
                     icon: si:github
-              - title: Elsewhere
-                links:
-                  - title: Portfolio and blog
-                    url: https://chetan-thapliyal.cloud/
-                    icon: si:hugo
-                  - title: Lexicon knowledge base
-                    url: https://base.chetan-thapliyal.cloud/
-                    icon: si:astro
                   - title: Architecture decisions (20 ADRs)
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
                     icon: si:markdown
@@ -95,6 +101,59 @@ pages:
                   - title: Runbooks
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/runbooks
                     icon: si:markdown
+              - title: Elsewhere
+                links:
+                  - title: Portfolio and blog
+                    url: https://chetan-thapliyal.cloud/
+                    icon: si:hugo
+                  - title: Lexicon knowledge base
+                    url: https://base.chetan-thapliyal.cloud/
+                    icon: si:astro
+                  - title: Public status page
+                    url: https://status.chetan-thapliyal.cloud/
+                    icon: si:cloudflare
+
+          - type: custom-api
+            title: Live status
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 2m
+            template: |
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Live status</span>
+                  {{ if .JSON.Bool "fresh" }}
+                  <span class="vitals-badge ae-live">LIVE · UPDATED <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> AGO</span>
+                  {{ else }}
+                  <span class="vitals-badge ae-stale">DATA DELAYED SINCE <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span></span>
+                  {{ end }}
+                </div>
+                <div class="top-grid">
+                  <div class="top-item"><div class="top-label">Nodes ready</div><div class="top-value {{ if eq (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.nodes_ready" }} / {{ .JSON.Int "cluster.nodes_total" }}</div></div>
+                  <div class="top-item"><div class="top-label">GitOps apps healthy</div><div class="top-value {{ if eq (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.apps_ok" }} / {{ .JSON.Int "cluster.apps_total" }}</div></div>
+                  <div class="top-item"><div class="top-label">Pods running</div><div class="top-value">{{ .JSON.Int "cluster.pods_running" }} / {{ .JSON.Int "cluster.pods_total" }}</div></div>
+                  <div class="top-item"><div class="top-label">Alerts firing</div><div class="top-value {{ if eq (.JSON.Int "monitoring.alerts_firing") 0 }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.alerts_firing" }}</div></div>
+                  <div class="top-item"><div class="top-label">Scrape targets up</div><div class="top-value">{{ .JSON.Int "monitoring.targets_up" }} / {{ .JSON.Int "monitoring.targets_total" }}</div></div>
+                  <div class="top-item"><div class="top-label">Kubernetes</div><div class="top-value">K3s {{ .JSON.String "cluster.k3s_version" }}</div></div>
+                  <div class="top-item"><div class="top-label">Host CPU temp</div><div class="top-value">{{ .JSON.Float "host.temp_c" }} °C</div></div>
+                  <div class="top-item"><div class="top-label">Host uptime</div><div class="top-value">{{ .JSON.Float "host.uptime_days" }} days</div></div>
+                </div>
+                <div class="section-title">Capacity</div>
+                <div class="ae-gauges">
+                  {{ range .JSON.Array "gauges" }}
+                  <div class="ae-gauge">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="{{ .String "label" }} {{ .Float "pct" }} percent">
+                      <circle class="ae-gauge-track" cx="32" cy="32" r="26"></circle>
+                      <circle class="ae-gauge-fill ae-{{ .String "level" }}" cx="32" cy="32" r="26" stroke-dasharray="{{ .Float "dash" }} {{ .Float "gap" }}" transform="rotate(-90 32 32)"></circle>
+                      <text x="32" y="36" text-anchor="middle" class="ae-gauge-val">{{ .Float "pct" | toInt }}%</text>
+                    </svg>
+                    <div class="ae-gauge-label">{{ .String "label" }}</div>
+                    <div class="ae-gauge-group">{{ .String "group" }}</div>
+                  </div>
+                  {{ end }}
+                </div>
+              </div>
 
           - type: html
             source: |
@@ -117,23 +176,103 @@ pages:
                 <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots to ZFS, restic, then an Object-Locked offsite bucket; cold restore drilled</span></div>
               </div>
 
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Live status</span>
-                  <span class="vitals-badge">IN PROGRESS</span>
-                </div>
-                <p class="ae-note">Live vitals aren't public yet. They will come from a sanitised summary that the monitoring core pushes to this host, so this page never queries the private network (ADR-020). Until then, the page shows only facts that stay true.</p>
-              </div>
-
   # ---------------------------------------------------------------------------
-  # Page 2: Observability (how it is monitored; no live numbers, no links in)
+  # Page 2: Observability (live trends from the FND-20 feed; no links in)
   # ---------------------------------------------------------------------------
   - name: Observability
     columns:
       - size: full
         widgets:
+          # FND-20: 6-hour trends, drawn here from the feed's pre-scaled points.
+          - type: custom-api
+            title: Trends
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 2m
+            template: |
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Last 6 hours</span>
+                  {{ if .JSON.Bool "fresh" }}<span class="vitals-badge ae-live">5-MIN STEPS</span>{{ else }}<span class="vitals-badge ae-stale">DATA DELAYED</span>{{ end }}
+                </div>
+                <div class="ae-charts">
+                <div class="ae-chart">
+                  <div class="ae-chart-head"><span class="ae-chart-title">Cluster CPU</span><span class="ae-chart-now">{{ .JSON.Float "charts.cluster_cpu.last" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</span></div>
+                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster CPU, last 6 hours">
+                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                    <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_cpu.area" }}"></polygon>
+                    <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_cpu.line" }}"></polyline>
+                  </svg>
+                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.cluster_cpu.min" }}–{{ .JSON.Float "charts.cluster_cpu.max" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</span><span>now</span></div>
+                </div>
+                <div class="ae-chart">
+                  <div class="ae-chart-head"><span class="ae-chart-title">Cluster memory</span><span class="ae-chart-now">{{ .JSON.Float "charts.cluster_mem.last" }}{{ .JSON.String "charts.cluster_mem.unit" }}</span></div>
+                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster memory, last 6 hours">
+                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                    <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_mem.area" }}"></polygon>
+                    <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_mem.line" }}"></polyline>
+                  </svg>
+                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.cluster_mem.min" }}–{{ .JSON.Float "charts.cluster_mem.max" }}{{ .JSON.String "charts.cluster_mem.unit" }}</span><span>now</span></div>
+                </div>
+                <div class="ae-chart">
+                  <div class="ae-chart-head"><span class="ae-chart-title">Cloud host CPU</span><span class="ae-chart-now">{{ .JSON.Float "charts.oci_cpu.last" }}{{ .JSON.String "charts.oci_cpu.unit" }}</span></div>
+                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cloud host CPU, last 6 hours">
+                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                    <polygon class="ae-area" points="{{ .JSON.String "charts.oci_cpu.area" }}"></polygon>
+                    <polyline class="ae-line" points="{{ .JSON.String "charts.oci_cpu.line" }}"></polyline>
+                  </svg>
+                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100% · range {{ .JSON.Float "charts.oci_cpu.min" }}–{{ .JSON.Float "charts.oci_cpu.max" }}{{ .JSON.String "charts.oci_cpu.unit" }}</span><span>now</span></div>
+                </div>
+                <div class="ae-chart">
+                  <div class="ae-chart-head"><span class="ae-chart-title">Hypervisor CPU temperature</span><span class="ae-chart-now">{{ .JSON.Float "charts.hyp_temp.last" }}{{ .JSON.String "charts.hyp_temp.unit" }}</span></div>
+                  <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Hypervisor CPU temperature, last 6 hours">
+                    <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                    <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                    <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                    <polygon class="ae-area" points="{{ .JSON.String "charts.hyp_temp.area" }}"></polygon>
+                    <polyline class="ae-line" points="{{ .JSON.String "charts.hyp_temp.line" }}"></polyline>
+                  </svg>
+                  <div class="ae-chart-foot"><span>6 h ago</span><span>scale 20–100 °C · range {{ .JSON.Float "charts.hyp_temp.min" }}–{{ .JSON.Float "charts.hyp_temp.max" }}{{ .JSON.String "charts.hyp_temp.unit" }}</span><span>now</span></div>
+                </div>
+                </div>
+              </div>
+
+          # FND-20: backup and alerting heartbeats, from the DMZ's own Uptime Kuma
+          # (a public-safe status page; read over the local Docker network).
+          - type: custom-api
+            title: Backups and alerting
+            frameless: true
+            hide-header: true
+            url: http://uptime-kuma:3001/api/status-page/public
+            cache: 2m
+            template: |
+              {{ $hb := newRequest "http://uptime-kuma:3001/api/status-page/heartbeat/public" | getResponse }}
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Backups and alerting</span>
+                  <span class="vitals-badge">CHECKED FROM OUTSIDE</span>
+                </div>
+                <ul class="ae-status">
+                  {{ range .JSON.Array "publicGroupList.0.monitorList" }}
+                  {{ $id := .Int "id" }}
+                  {{ $st := $hb.JSON.Int (printf "heartbeatList.%d.@reverse.0.status" $id) }}
+                  {{ $tm := $hb.JSON.String (printf "heartbeatList.%d.@reverse.0.time" $id) }}
+                  <li>
+                    <span class="ae-dot {{ if eq $st 1 }}ae-ok{{ else if eq $st 2 }}ae-warn{{ else }}ae-bad{{ end }}"></span>
+                    <span class="ae-status-name">{{ .String "name" }}</span>
+                    <span class="ae-status-meta">{{ if $tm }}last <span {{ $tm | parseTime "2006-01-02 15:04:05.000" | toRelativeTime }}></span> ago · {{ end }}24 h {{ $hb.JSON.Float (printf "uptimeList.%d_24" $id) | mul 100 | toInt }}%</span>
+                  </li>
+                  {{ end }}
+                </ul>
+              </div>
+
           - type: html
             source: |
               <div class="vitals-card">
@@ -147,6 +286,20 @@ pages:
                 <div class="bar-row"><span class="bar-name">Outside-in</span><span class="ae-fact">Uptime Kuma here probes the public services and receives push heartbeats from every backup stage</span></div>
                 <div class="bar-row"><span class="bar-name">Reviews</span><span class="ae-fact">Every real failure gets a written incident review with root cause and guardrails</span></div>
               </div>
+
+      - size: small
+        widgets:
+          # FND-20: what the cluster is running (image and tag only).
+          - type: custom-api
+            title: Running versions
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 5m
+            template: |
+              <ul class="ae-versions">
+                {{ range .JSON.Array "versions" }}
+                <li><code>{{ .String "image" }}</code><span>{{ .String "tag" }}</span></li>
+                {{ end }}
+              </ul>
 
           - type: bookmarks
             title: Further reading

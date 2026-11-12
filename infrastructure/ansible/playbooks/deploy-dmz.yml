@@ -332,6 +332,40 @@
       no_log: true
       tags: [hard-06, notifications]
 
+    # ─── FND-20: public feed freshness monitor + public-safe status page ───
+    # Only monitors whose names are safe to show publicly go on the page. The
+    # host monitor ("… (bookorbit-net)") is deliberately left off.
+    - name: FND-20 | Provision the feed freshness monitor and the public status page
+      command: >
+        python3 "{{ playbook_dir }}/../templates/provision_uk_public_feed.py"
+        --url http://aether-gcp-dmz:3001
+        --username che01tan
+        --password {{ uptime_kuma_admin_password | quote }}
+        --notification "Telegram — Aether Alerts"
+        --feed-url https://public-feed.tail7067ab.ts.net/summary.json
+        --public-monitors {{ public_monitors | to_json | quote }}
+      vars:
+        public_monitors:
+          - "OCI Nightly Restic Backup"
+          - "Watchdog — OCI Alertmanager"
+          - "DR-02 etcd sync (Proxmox)"
+          - "DR-03 etcd restic (Proxmox)"
+          - "DR-04 etcd → B2 (Proxmox)"
+          - "OCI — Bookorbit"
+      register: uk_public_feed
+      changed_when: "'OK:' in uk_public_feed.stdout"
+      delegate_to: localhost
+      become: false
+      when: telegram_configured
+      no_log: true
+      tags: [fnd-20, notifications]
+
+    - name: FND-20 | Show public feed provisioning result
+      debug:
+        msg: "{{ uk_public_feed.stdout_lines }}"
+      when: telegram_configured and uk_public_feed is defined
+      tags: [fnd-20, notifications]
+
     - name: HARD-06 | Show push monitor provisioning result (monitor names only, no tokens)
       debug:
         msg: "{{ uk_push_provision.stdout_lines }}"

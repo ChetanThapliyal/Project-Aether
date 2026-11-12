@@ -3,7 +3,7 @@
 ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diode
 ================================================================================
 ```
-- **Status:** Accepted (diode not built yet; see the 2026-11-12 addendum)
+- **Status:** Accepted (diode built as a pull of one sanitised file; see the addenda)
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Project Aether requires a unified, public-facing platform dashboard and operational status view accessible over the public internet via Cloudflare Tunnel (`status.chetanthapliyal.com`) and privately over the Tailscale mesh (`http://aether-gcp-dmz:3000`). The edge observer environment runs on a Google Cloud Platform (GCP) Always-Free `e2-micro` instance (`aether-gcp-dmz`), strictly constrained to 1 GB of physical memory and 2 shared vCPUs. The initial implementation utilized Homepage (`gethomepage/homepage:v2.5.0`), which had a Node.js runtime footprint of 150–250 MiB RSS and relied on direct outbound API calls to backend platform services.
@@ -78,6 +78,17 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
 
 ### Addendum: Implementation Status (2026-11-12, HARD-17)
 - **Glance replacing Homepage:** delivered on 2026-11-02 (Glance v0.8.7, pinned by digest). Homepage's files and the Docker socket proxy it needed were removed on 2026-11-12 (FND-08).
-- **Push data diode (OCI → `summary.json` → DMZ):** not built yet. Until it exists, the public page shows no live numbers. The earlier hard-coded gauges and the "LIVE TELEMETRY" badge were removed because they presented static values as live. The page now shows dated design facts and says that live vitals are pending.
+- **Data diode:** built on 2026-11-12 (FND-20) as a *pull of a single sanitised file*, not the SSH push described above. See the second addendum.
 - **Sanitised public contract:** enforced from 2026-11-12. The page carries no tailnet hostnames or links, and no LAN or cluster addresses. Operator consoles are named, never linked. `glance.yml` opens with these rules, and DR scenario 05 checks them.
 - **Public hostname:** live on 2026-11-12 at `https://status.chetan-thapliyal.cloud` (FND-10). `status.chetanthapliyal.com` in the Context above never existed. Path: Cloudflare edge (Universal SSL, `*.chetan-thapliyal.cloud`) → Cloudflare Tunnel → `cloudflared` on the DMZ (outbound only, QUIC over IPv6, no inbound port) → `http://glance:8080` on `dmz-net`. The tunnel publishes only Glance.
+
+---
+
+### Addendum: The Feed as Built (2026-11-12, FND-20)
+- **Generator.** A container `public-feed` in the OCI monitoring stack (`legacy-docker/oci-services/public-feed/feed.py`, standard-library Python, non-root, read-only filesystem, 64 MiB) queries Prometheus every 5 minutes. It builds an allow-listed summary: node, app, pod, target and alert counts; six capacity gauges; four 6-hour series (cluster CPU and memory, cloud host CPU, hypervisor temperature); and container image names and tags from kube-state-metrics.
+- **Allow-list.** Before publishing, the whole summary is checked against a deny pattern (tailnet names, `192.168.`, cluster and tailnet address ranges, node and host names, `:9100`). A summary that fails is never served. The last good one stays up and goes stale.
+- **Numbers only.** Charts are sent as pre-scaled coordinates, and gauges as arc lengths. Every SVG element is drawn by the template in `glance.yml`, and Glance's HTML escaping applies to every value, so a compromised feed can't inject markup into the public page.
+- **Transport: pull instead of push.** tsdproxy publishes the feed on the tailnet under the `probe` role. The DMZ already had exactly one path into OCI, `tag:gcp-dmz → tag:oci-probe:443`, covered by a policy test, and Glance fetches the file over it server-side. This replaced the SSH push: Tailscale SSH can't restrict a key to one file, and a push would have needed a new OCI → DMZ:22 grant. Compromising the DMZ yields the same public summary it already displays. Grafana, Prometheus and the other admin nodes don't even resolve from the DMZ.
+- **Freshness.** The feed reports `age_seconds` and `fresh` (under 15 minutes old). The page shows "Live · updated N ago" or "Data delayed since …". A JSON-query monitor in the DMZ's Uptime Kuma goes DOWN and alerts on Telegram when `fresh` isn't true.
+- **Backups and alerting list.** It comes from the DMZ's own Uptime Kuma, through a status page (`public`) that holds only monitors whose names are safe to publish, read over the DMZ's Docker network.
+- **Not done:** Grafana panels as images and live Grafana. The option of Grafana shared dashboards behind a second tunnel connector on OCI is deferred until after Phase 04.

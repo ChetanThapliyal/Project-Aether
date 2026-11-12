@@ -31,6 +31,17 @@
   --ae-glow: rgba(234, 88, 12, 0.10);
   --ae-orange-wash: rgba(234, 88, 12, 0.12);
   --ae-orange-edge: rgba(234, 88, 12, 0.45);
+  --ae-area-top: rgba(234, 88, 12, 0.32);
+  --ae-area-bottom: rgba(234, 88, 12, 0.02);
+
+  /* Status (semantic, separate from the accent) */
+  --ae-ok: #84CC16;
+  --ae-warn: var(--ae-amber-light);
+  --ae-bad: var(--ae-rose-light);
+  --ae-ok-wash: rgba(132, 204, 22, 0.12);
+  --ae-ok-edge: rgba(132, 204, 22, 0.45);
+  --ae-bad-wash: rgba(251, 113, 133, 0.12);
+  --ae-bad-edge: rgba(251, 113, 133, 0.45);
 
   --ae-font-head: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --ae-font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -273,6 +284,107 @@ code,
 }
 
 .ae-table tr:last-child td { border-bottom: none; }
+
+/* ─── FND-20: live widgets ──────────────────────────────────────────────── */
+
+.vitals-badge.ae-live { color: var(--ae-ok); background: var(--ae-ok-wash); border-color: var(--ae-ok-edge); }
+.vitals-badge.ae-stale { color: var(--ae-bad); background: var(--ae-bad-wash); border-color: var(--ae-bad-edge); }
+
+.top-value.ae-ok { color: var(--ae-ok); }
+.top-value.ae-bad { color: var(--ae-bad); }
+
+/* Gauges */
+.ae-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.ae-gauge {
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--ae-stone-900);
+  border: 1px solid var(--ae-stone-700);
+  border-radius: 8px;
+}
+
+.ae-gauge svg { width: 72px; height: 72px; display: block; margin: 0 auto; }
+.ae-gauge-track { fill: none; stroke: var(--ae-stone-700); stroke-width: 7; }
+.ae-gauge-fill { fill: none; stroke: var(--ae-orange); stroke-width: 7; stroke-linecap: round; }
+.ae-gauge-fill.ae-warn { stroke: var(--ae-warn); }
+.ae-gauge-fill.ae-high { stroke: var(--ae-bad); }
+.ae-gauge-val { fill: var(--ae-stone-100); font-family: var(--ae-font-head); font-weight: 800; font-size: 13px; }
+
+.ae-gauge-label {
+  margin-top: 4px;
+  font-family: var(--ae-font-head);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--ae-stone-100);
+}
+
+.ae-gauge-group { font-size: 1.05rem; color: var(--ae-stone-400); }
+
+/* Trend charts */
+.ae-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.ae-chart {
+  padding: 10px 12px;
+  background: var(--ae-stone-900);
+  border: 1px solid var(--ae-stone-700);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.ae-chart svg { display: block; width: 100%; height: 90px; overflow: visible; }
+
+.ae-chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.ae-chart-title { font-family: var(--ae-font-head); font-weight: 700; font-size: 1.2rem; color: var(--ae-stone-100); }
+.ae-chart-now { font-family: var(--ae-font-head); font-weight: 800; font-size: 1.5rem; color: var(--ae-orange-light); font-variant-numeric: tabular-nums; }
+
+.ae-grid { stroke: var(--ae-stone-700); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ae-area { fill: var(--ae-area-top); stroke: none; }
+.ae-line { fill: none; stroke: var(--ae-orange); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+.ae-chart-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 1.05rem;
+  color: var(--ae-stone-400);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Heartbeat list */
+.ae-status { list-style: none; margin: 0; padding: 0; }
+
+.ae-status li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ae-stone-700);
+}
+
+.ae-status li:last-child { border-bottom: none; }
+.ae-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ae-stone-600); }
+.ae-dot.ae-ok { background: var(--ae-ok); }
+.ae-dot.ae-warn { background: var(--ae-warn); }
+.ae-dot.ae-bad { background: var(--ae-bad); }
+.ae-status-name { font-size: 1.3rem; color: var(--ae-stone-100); min-width: 0; }
+.ae-status-meta { font-size: 1.1rem; color: var(--ae-stone-400); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.ae-versions { list-style: none; margin: 0; padding: 0; }
+.ae-versions li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--ae-stone-700); font-size: 1.2rem; }
+.ae-versions li:last-child { border-bottom: none; }
+.ae-versions code { overflow-wrap: anywhere; min-width: 0; }
+.ae-versions span { color: var(--ae-stone-300); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* ─── Narrow screens (recruiters open links on phones) ─────────────────── */
 

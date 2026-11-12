@@ -104,6 +104,37 @@ services:
       tsdproxy.container_port: "9093"
       tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
+  # FND-20 / ADR-020: sanitised summary for the public Glance page. Reads
+  # Prometheus, serves only /summary.json. Published on the tailnet by tsdproxy
+  # under the "probe" role, the only OCI role the DMZ may reach (policy-tested).
+  public-feed:
+    image: python:3.13.18-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
+    container_name: public-feed
+    restart: unless-stopped
+    command: ["python", "/app/feed.py"]
+    environment:
+      - PROM_URL=http://prometheus:9090
+      - INTERVAL=300
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./public-feed:/app:ro
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 64m
+    cpus: 0.25
+    depends_on:
+      - prometheus
+    networks:
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "public-feed"
+      tsdproxy.container_port: "8080"
+      tsdproxy.proxyprovider: "probe"   # FND-03: the DMZ may reach tag:oci-probe:443 only
+
 networks:
   proxied-net:
     external: true
