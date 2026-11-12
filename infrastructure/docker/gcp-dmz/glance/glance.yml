@@ -45,42 +45,6 @@ pages:
               - timezone: UTC
                 label: UTC
 
-          - type: monitor
-            title: Public sites
-            cache: 1m
-            sites:
-              - title: Portfolio and blog
-                url: https://chetan-thapliyal.cloud/
-                icon: si:hugo
-              - title: Lexicon notes
-                url: https://base.chetan-thapliyal.cloud/
-                icon: si:astro
-              - title: This status page
-                url: https://status.chetan-thapliyal.cloud/
-                icon: si:cloudflare
-
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Operator consoles</span>
-                  <span class="vitals-badge">PRIVATE</span>
-                </div>
-                <p class="ae-note">Grafana, Prometheus, ArgoCD, Proxmox and the Uptime Kuma admin are reachable only over the private Tailscale network, behind tested access rules. This page doesn't link into it.</p>
-              </div>
-
-      - size: full
-        widgets:
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Project <span class="ae-grad">Aether</span></span>
-                  <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
-                </div>
-                <p class="ae-note">A three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets.</p>
-              </div>
-
           - type: bookmarks
             title: Evidence
             groups:
@@ -113,6 +77,34 @@ pages:
                     url: https://status.chetan-thapliyal.cloud/
                     icon: si:cloudflare
 
+          - type: monitor
+            title: Public sites
+            cache: 1m
+            sites:
+              - title: Portfolio and blog
+                url: https://chetan-thapliyal.cloud/
+                icon: si:hugo
+              - title: Lexicon notes
+                url: https://base.chetan-thapliyal.cloud/
+                icon: si:astro
+              - title: This status page
+                url: https://status.chetan-thapliyal.cloud/
+                icon: si:cloudflare
+
+          - type: html
+            source: |
+              <div class="vitals-card ae-gap-top">
+                <div class="vitals-header">
+                  <span class="vitals-title">Operator consoles</span>
+                  <span class="vitals-badge">PRIVATE</span>
+                </div>
+                <p class="ae-note">Grafana, Prometheus, ArgoCD, Proxmox and the Uptime Kuma admin are reachable only over the private Tailscale network, behind tested access rules. This page doesn't link into it.</p>
+              </div>
+
+      - size: full
+        widgets:
+          # FND-20: live numbers from the sanitised feed on OCI (ADR-020). Numbers and
+          # plain strings only; Glance escapes them, and this template draws everything.
           - type: custom-api
             title: Live status
             frameless: true
@@ -120,25 +112,25 @@ pages:
             url: https://public-feed.tail7067ab.ts.net/summary.json
             cache: 2m
             template: |
+              <div class="ae-live-head">
+                <span class="ae-live-title">Live status</span>
+                {{ if .JSON.Bool "fresh" }}
+                <span class="vitals-badge ae-live">LIVE · UPDATED <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> AGO</span>
+                {{ else }}
+                <span class="vitals-badge ae-stale">DATA DELAYED SINCE <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span></span>
+                {{ end }}
+              </div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Nodes ready</div><div class="ae-stat-num {{ if eq (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.nodes_ready" }}<span>/{{ .JSON.Int "cluster.nodes_total" }}</span></div><div class="ae-stat-sub">K3s cluster on Proxmox</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">GitOps apps healthy</div><div class="ae-stat-num {{ if eq (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.apps_ok" }}<span>/{{ .JSON.Int "cluster.apps_total" }}</span></div><div class="ae-stat-sub">synced and healthy in ArgoCD</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Pods running</div><div class="ae-stat-num">{{ .JSON.Int "cluster.pods_running" }}<span>/{{ .JSON.Int "cluster.pods_total" }}</span></div><div class="ae-stat-sub">across all namespaces</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Alerts firing</div><div class="ae-stat-num {{ if eq (.JSON.Int "monitoring.alerts_firing") 0 }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.alerts_firing" }}</div><div class="ae-stat-sub">excluding the watchdog heartbeat</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Scrape targets up</div><div class="ae-stat-num">{{ .JSON.Int "monitoring.targets_up" }}<span>/{{ .JSON.Int "monitoring.targets_total" }}</span></div><div class="ae-stat-sub">Prometheus on Oracle Cloud</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Kubernetes</div><div class="ae-stat-num">{{ .JSON.String "cluster.k3s_version" }}</div><div class="ae-stat-sub">K3s, upgraded via Ansible</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Host CPU temp</div><div class="ae-stat-num">{{ .JSON.Float "host.temp_c" | toInt }}<span>°C</span></div><div class="ae-stat-sub">the 2015 laptop under it all</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Host uptime</div><div class="ae-stat-num">{{ .JSON.Float "host.uptime_days" }}<span>days</span></div><div class="ae-stat-sub">since the last reboot</div></div>
+              </div>
               <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Live status</span>
-                  {{ if .JSON.Bool "fresh" }}
-                  <span class="vitals-badge ae-live">LIVE · UPDATED <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> AGO</span>
-                  {{ else }}
-                  <span class="vitals-badge ae-stale">DATA DELAYED SINCE <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span></span>
-                  {{ end }}
-                </div>
-                <div class="top-grid">
-                  <div class="top-item"><div class="top-label">Nodes ready</div><div class="top-value {{ if eq (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.nodes_ready" }} / {{ .JSON.Int "cluster.nodes_total" }}</div></div>
-                  <div class="top-item"><div class="top-label">GitOps apps healthy</div><div class="top-value {{ if eq (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.apps_ok" }} / {{ .JSON.Int "cluster.apps_total" }}</div></div>
-                  <div class="top-item"><div class="top-label">Pods running</div><div class="top-value">{{ .JSON.Int "cluster.pods_running" }} / {{ .JSON.Int "cluster.pods_total" }}</div></div>
-                  <div class="top-item"><div class="top-label">Alerts firing</div><div class="top-value {{ if eq (.JSON.Int "monitoring.alerts_firing") 0 }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.alerts_firing" }}</div></div>
-                  <div class="top-item"><div class="top-label">Scrape targets up</div><div class="top-value">{{ .JSON.Int "monitoring.targets_up" }} / {{ .JSON.Int "monitoring.targets_total" }}</div></div>
-                  <div class="top-item"><div class="top-label">Kubernetes</div><div class="top-value">K3s {{ .JSON.String "cluster.k3s_version" }}</div></div>
-                  <div class="top-item"><div class="top-label">Host CPU temp</div><div class="top-value">{{ .JSON.Float "host.temp_c" }} °C</div></div>
-                  <div class="top-item"><div class="top-label">Host uptime</div><div class="top-value">{{ .JSON.Float "host.uptime_days" }} days</div></div>
-                </div>
                 <div class="section-title">Capacity</div>
                 <div class="ae-gauges">
                   {{ range .JSON.Array "gauges" }}
@@ -146,13 +138,23 @@ pages:
                     <svg viewBox="0 0 64 64" role="img" aria-label="{{ .String "label" }} {{ .Float "pct" }} percent">
                       <circle class="ae-gauge-track" cx="32" cy="32" r="26"></circle>
                       <circle class="ae-gauge-fill ae-{{ .String "level" }}" cx="32" cy="32" r="26" stroke-dasharray="{{ .Float "dash" }} {{ .Float "gap" }}" transform="rotate(-90 32 32)"></circle>
-                      <text x="32" y="36" text-anchor="middle" class="ae-gauge-val">{{ .Float "pct" | toInt }}%</text>
+                      <text x="32" y="37" text-anchor="middle" class="ae-gauge-val">{{ .Float "pct" | toInt }}%</text>
                     </svg>
                     <div class="ae-gauge-label">{{ .String "label" }}</div>
                     <div class="ae-gauge-group">{{ .String "group" }}</div>
                   </div>
                   {{ end }}
                 </div>
+              </div>
+
+          - type: html
+            source: |
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Project <span class="ae-grad">Aether</span></span>
+                  <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
+                </div>
+                <p class="ae-note">A three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets.</p>
               </div>
 
           - type: html

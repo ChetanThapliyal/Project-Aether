@@ -296,27 +296,27 @@ code,
 /* Gauges */
 .ae-gauges {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
 }
 
 .ae-gauge {
   text-align: center;
-  padding: 8px 4px;
+  padding: 14px 8px 12px;
   background: var(--ae-stone-900);
   border: 1px solid var(--ae-stone-700);
   border-radius: 8px;
 }
 
-.ae-gauge svg { width: 72px; height: 72px; display: block; margin: 0 auto; }
+.ae-gauge svg { width: 104px; height: 104px; display: block; margin: 0 auto; }
 .ae-gauge-track { fill: none; stroke: var(--ae-stone-700); stroke-width: 7; }
 .ae-gauge-fill { fill: none; stroke: var(--ae-orange); stroke-width: 7; stroke-linecap: round; }
 .ae-gauge-fill.ae-warn { stroke: var(--ae-warn); }
 .ae-gauge-fill.ae-high { stroke: var(--ae-bad); }
-.ae-gauge-val { fill: var(--ae-stone-100); font-family: var(--ae-font-head); font-weight: 800; font-size: 13px; }
+.ae-gauge-val { fill: var(--ae-stone-100); font-family: var(--ae-font-head); font-weight: 800; font-size: 14px; letter-spacing: -0.02em; }
 
 .ae-gauge-label {
-  margin-top: 4px;
+  margin-top: 8px;
   font-family: var(--ae-font-head);
   font-weight: 700;
   font-size: 1.15rem;
@@ -422,6 +422,27 @@ code,
   letter-spacing: -0.03em;
   color: var(--ae-stone-100);
   font-variant-numeric: tabular-nums;
+}
+
+.ae-stat-num.ae-ok { color: var(--ae-ok); }
+.ae-stat-num.ae-bad { color: var(--ae-bad); }
+.ae-gap-top { margin-top: var(--widget-gap); }
+
+.ae-live-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ae-live-title {
+  font-family: var(--ae-font-head);
+  font-weight: 800;
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+  color: var(--ae-stone-100);
 }
 
 .ae-stat-num span { font-size: 0.45em; margin-left: 4px; color: var(--ae-orange-light); letter-spacing: 0; }
