@@ -17,7 +17,7 @@ server:
 branding:
   app-name: "Project Aether"
   logo-text: "Aether"                 # styled in user.css (brand gradient)
-  favicon-url: "/assets/favicon.svg"   # the portfolio's "C" icon (brand guide: favicons)
+  favicon-url: "/assets/favicon.svg"   # rose "A" on stone, same style as the portfolio's "C" icon
 
 # FND-19: portfolio brand (blowfish-ct-folio/docs/brand). HSL of stone #1C1917,
 # orange #EA580C and rose #E11D48; user.css maps the rest onto brand tokens.
@@ -26,6 +26,7 @@ theme:
   primary-color: 21 90 48
   negative-color: 347 77 50
   contrast-multiplier: 1.0
+  disable-picker: true                # visitors always see the brand theme
   custom-css-file: /assets/user.css
 
 pages:
@@ -74,6 +75,14 @@ pages:
                   - title: GitHub monorepo
                     url: https://github.com/ChetanThapliyal/Project-Aether
                     icon: si:github
+              - title: Elsewhere
+                links:
+                  - title: Portfolio and blog
+                    url: https://chetan-thapliyal.cloud/
+                    icon: si:hugo
+                  - title: Lexicon knowledge base
+                    url: https://base.chetan-thapliyal.cloud/
+                    icon: si:astro
                   - title: Architecture decisions (20 ADRs)
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
                     icon: si:markdown
@@ -200,21 +209,34 @@ pages:
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md
 
   # ---------------------------------------------------------------------------
-  # Page 4: Feeds & Upstream
+  # Page 4: Writing. Feeds are fetched by Glance on the DMZ, which has IPv6 only:
+  # a feed host without an AAAA record (GitHub, for one) can't load here.
   # ---------------------------------------------------------------------------
-  - name: Feeds & Upstream
+  - name: Writing
     slug: feeds
     columns:
       - size: full
         widgets:
           - type: rss
-            limit: 6
+            title: Latest from the blog
+            style: vertical-list   # the blog feed carries no cover images
+            limit: 8
+            collapse-after: 4
+            cache: 1h
             feeds:
-              - url: https://github.com/glanceapp/glance/releases.atom
-                title: Glance Releases
-              - url: https://github.com/k3s-io/k3s/releases.atom
-                title: K3s Releases
-              - url: https://github.com/argoproj/argo-cd/releases.atom
-                title: ArgoCD Releases
-              - url: https://github.com/envoyproxy/gateway/releases.atom
-                title: Envoy Gateway Releases
+              - url: https://chetan-thapliyal.cloud/index.xml
+                title: chetan-thapliyal.cloud
+
+      - size: small
+        widgets:
+          - type: bookmarks
+            title: Notes
+            groups:
+              - title: Lexicon
+                links:
+                  - title: Lexicon knowledge base
+                    url: https://base.chetan-thapliyal.cloud/
+                    icon: si:astro
+                  - title: Blog index
+                    url: https://chetan-thapliyal.cloud/posts/
+                    icon: si:hugo

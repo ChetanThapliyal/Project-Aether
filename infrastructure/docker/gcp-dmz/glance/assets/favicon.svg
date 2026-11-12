@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Project Aether favicon (FND-19): a rose "A" on a stone tile, drawn in the
+       same style as the portfolio's orange "C" icon. Rose #E11D48 / #FB7185. -->
   <defs>
-    <linearGradient id="c" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#fdba74"/>
-      <stop offset="0.45" stop-color="#f97316"/>
-      <stop offset="1" stop-color="#ea580c"/>
+    <linearGradient id="a" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#fda4af"/>
+      <stop offset="0.45" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#e11d48"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="#1c1917"/>
-  <path d="M348.1 173.0 A124 124 0 1 0 348.1 339.0" fill="none" stroke="url(#c)" stroke-width="84" stroke-linecap="round"/>
+  <path d="M150 392 L256 120 L362 392 M190 300 H322" fill="none" stroke="url(#a)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
