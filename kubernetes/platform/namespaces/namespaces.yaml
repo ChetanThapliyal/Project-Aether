@@ -4,6 +4,8 @@ metadata:
   name: platform
   labels:
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
 ---
@@ -13,6 +15,8 @@ metadata:
   name: apps
   labels:
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
 ---
@@ -31,6 +35,8 @@ metadata:
   name: gateway-system
   labels:
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
 ---
@@ -40,6 +46,8 @@ metadata:
   name: cert-manager
   labels:
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
 ---
