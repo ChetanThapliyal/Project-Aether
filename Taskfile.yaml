@@ -230,9 +230,15 @@ tasks:
         --wait --timeout 5m --rollback-on-failure
 
   argocd:password:
-    desc: "Get ArgoCD initial admin password"
+    desc: "Print the initial admin password after a fresh install; otherwise it lives in the password manager (HARD-18)"
     cmds:
-      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
+      - |
+        if kubectl -n argocd get secret argocd-initial-admin-secret >/dev/null 2>&1; then
+          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
+          echo "Fresh install: rotate this password, store it in the password manager, then delete the secret (HARD-18)." >&2
+        else
+          echo "argocd-initial-admin-secret was deleted after rotation (HARD-18). Use the password manager entry 'ArgoCD admin'."
+        fi
     silent: true
 
   argocd:port-forward:
