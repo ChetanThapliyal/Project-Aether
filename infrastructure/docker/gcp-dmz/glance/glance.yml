@@ -16,14 +16,16 @@ server:
 
 branding:
   app-name: "Project Aether"
-  logo-text: "AETHER"
-  logo-url: "/assets/aether-logo.svg"
-  favicon-url: "/assets/aether-logo.svg"
+  logo-text: "Aether"                 # styled in user.css (brand gradient)
+  favicon-url: "/assets/favicon.svg"   # the portfolio's "C" icon (brand guide: favicons)
 
+# FND-19: portfolio brand (blowfish-ct-folio/docs/brand). HSL of stone #1C1917,
+# orange #EA580C and rose #E11D48; user.css maps the rest onto brand tokens.
 theme:
-  background-color: 222 47 11
-  primary-color: 189 94 43
-  contrast-multiplier: 1.1
+  background-color: 24 10 10
+  primary-color: 21 90 48
+  negative-color: 347 77 50
+  contrast-multiplier: 1.0
   custom-css-file: /assets/user.css
 
 pages:
@@ -42,26 +44,6 @@ pages:
               - timezone: UTC
                 label: UTC
 
-          - type: bookmarks
-            groups:
-              - title: Evidence
-                links:
-                  - title: GitHub monorepo
-                    url: https://github.com/ChetanThapliyal/Project-Aether
-                    icon: si:github
-                  - title: Architecture decisions (20 ADRs)
-                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
-                    icon: si:markdown
-                  - title: Incident reviews
-                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents
-                    icon: si:markdown
-                  - title: Disaster recovery scenarios
-                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/disaster-recovery
-                    icon: si:markdown
-                  - title: Runbooks
-                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/runbooks
-                    icon: si:markdown
-
           - type: html
             source: |
               <div class="vitals-card">
@@ -78,11 +60,32 @@ pages:
             source: |
               <div class="vitals-card">
                 <div class="vitals-header">
-                  <span class="vitals-title">Project Aether</span>
+                  <span class="vitals-title">Project <span class="ae-grad">Aether</span></span>
                   <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
                 </div>
                 <p class="ae-note">A three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets.</p>
               </div>
+
+          - type: bookmarks
+            title: Evidence
+            groups:
+              - title: In the repository
+                links:
+                  - title: GitHub monorepo
+                    url: https://github.com/ChetanThapliyal/Project-Aether
+                    icon: si:github
+                  - title: Architecture decisions (20 ADRs)
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
+                    icon: si:markdown
+                  - title: Incident reviews
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents
+                    icon: si:markdown
+                  - title: Disaster recovery scenarios
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/disaster-recovery
+                    icon: si:markdown
+                  - title: Runbooks
+                    url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/runbooks
+                    icon: si:markdown
 
           - type: html
             source: |
@@ -137,8 +140,9 @@ pages:
               </div>
 
           - type: bookmarks
+            title: Further reading
             groups:
-              - title: Read more
+              - title: Decisions and reviews
                 links:
                   - title: "ADR-019: Centralized logging"
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md
@@ -156,43 +160,29 @@ pages:
         widgets:
           - type: html
             source: |
-              <div style="padding: 12px;">
-                <h3 style="margin: 0 0 12px 0;">Where it runs</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.88em; text-align: left;">
-                  <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
-                      <th style="padding: 6px 8px;">Environment</th>
-                      <th style="padding: 6px 8px;">Location</th>
-                      <th style="padding: 6px 8px;">Specs</th>
-                      <th style="padding: 6px 8px;">Primary Role</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-                      <td style="padding: 6px 8px;"><strong>GCP DMZ</strong></td>
-                      <td style="padding: 6px 8px;"><code>us-central1-a</code></td>
-                      <td style="padding: 6px 8px;">2 vCPU / 1 GB RAM</td>
-                      <td style="padding: 6px 8px;">Outside-in observer and this public page</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-                      <td style="padding: 6px 8px;"><strong>OCI Core</strong></td>
-                      <td style="padding: 6px 8px;"><code>ap-mumbai-1</code></td>
-                      <td style="padding: 6px 8px;">2 OCPU / 12 GB RAM</td>
-                      <td style="padding: 6px 8px;">Metrics, logs, alerting and automation</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 6px 8px;"><strong>Homelab</strong></td>
-                      <td style="padding: 6px 8px;">Local Proxmox</td>
-                      <td style="padding: 6px 8px;">2 cores (4 threads) / 12 GB RAM</td>
-                      <td style="padding: 6px 8px;">3-Node K3s Cluster (control-01, worker-01, worker-02)</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">Where it runs</span>
+                  <span class="vitals-badge">THREE ENVIRONMENTS</span>
+                </div>
+                <div class="ae-table-wrap">
+                  <table class="ae-table">
+                    <thead>
+                      <tr><th>Environment</th><th>Location</th><th>Specs</th><th>Role</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>GCP DMZ</strong></td><td><code>us-central1-a</code></td><td>2 vCPU / 1 GB RAM</td><td>Outside-in observer and this public page</td></tr>
+                      <tr><td><strong>OCI Core</strong></td><td><code>ap-mumbai-1</code></td><td>2 OCPU / 12 GB RAM</td><td>Metrics, logs, alerting and automation</td></tr>
+                      <tr><td><strong>Homelab</strong></td><td>Proxmox host</td><td>2 cores (4 threads) / 12 GB RAM</td><td>3-node K3s cluster: one control plane, two workers</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
           - type: bookmarks
+            title: Decisions
             groups:
-              - title: Key Architecture Records
+              - title: Key architecture records
                 links:
                   - title: "ADR-004: Network Access (Tailscale)"
                     url: https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/004-network-access.md
@@ -213,6 +203,7 @@ pages:
   # Page 4: Feeds & Upstream
   # ---------------------------------------------------------------------------
   - name: Feeds & Upstream
+    slug: feeds
     columns:
       - size: full
         widgets:
