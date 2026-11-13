@@ -15,7 +15,7 @@
 
 **Contents:** [Why](#why-this-exists) · [Today](#what-runs-today) · [Architecture](#architecture) · [How it works](#how-it-works) · [IaC](#infrastructure-as-code) · [Operations](#operations) · [Reliability](#reliability-and-recovery) · [Roadmap](#roadmap) · [Docs](#documentation)
 
-> **Status, 2026-10-25.** Phases 01 and 02 are complete. Phase 03 is in progress: the seven namespaces and MetalLB are live, while Envoy Gateway, cert-manager, Tailscale ingress, in-cluster monitoring, and the etcd backup chain are still open. Phase 04 has Kestra running on OCI with three flows; the seven applications have not moved to K3s yet. Phase 05 is about 55% complete.
+> **Status, 2026-11-13.** Phases 01, 02 and 03 are complete: the cluster, GitOps, ingress, certificates, private ArgoCD access, monitoring, NetworkPolicies and the four-stage etcd backup chain are live and were re-verified on 13 Nov after a hardening pass. Phase 04 has Kestra running on OCI; none of the seven applications has moved to K3s yet, and app-data backups come first. Phase 05 is about 65% complete.
 
 ## Why this exists
 
@@ -29,19 +29,21 @@ The obvious answer is to rent a cluster. That also removes the constraints that 
 
 A laptop is not a production data center. The point is to practice the parts of platform engineering that survive a hardware change: declarative infrastructure, GitOps, least-privilege networking, secret handling, observability, and recovery.
 
-It started as a way to run a few Docker containers. It is now a three-environment platform with a GitOps control plane. The remaining work is the part that turns a cluster into a platform: ingress, TLS, monitoring, storage, backups, and the application migration.
+It started as a way to run a few Docker containers. It is now a three-environment platform with a GitOps control plane, ingress and certificates, out-of-band monitoring, and tested disaster recovery. The remaining work is the application migration and the CI and documentation polish around it.
 
 ## What runs today
 
 | Layer | Live now | Where |
 |---|---|---|
 | Cluster | K3s v1.36.4, one control plane and two workers, Ubuntu 24.04, embedded etcd | Homelab |
-| GitOps | ArgoCD + KSOPS, App-of-Apps, five Applications Synced/Healthy | Homelab |
-| Load balancing | MetalLB 0.14.8, L2 pool `192.168.1.100-105`, `.100` reserved for Envoy Gateway | Homelab |
-| Applications | 21 containers across 14 compose projects | OCI |
-| Ops automation | Kestra with three Git-synced flows, n8n, Restic, Prometheus/Grafana | OCI |
-| External observer | Uptime Kuma, Homepage, Hawser, cloudflared | GCP |
-| IaC | Three Terraform roots, GCS state, Ansible, Taskfile | Git |
+| GitOps | ArgoCD v3.5.7 + KSOPS, App-of-Apps, 17 Applications Synced/Healthy | Homelab |
+| Ingress and TLS | MetalLB 0.14.8 (L2 pool `192.168.1.100-105`, `.100` for the gateway), Envoy Gateway v1.9.2, cert-manager with an internal CA | Homelab |
+| Cluster networking | Default-deny NetworkPolicies in four namespaces, Tailscale operator publishing ArgoCD on the tailnet | Homelab |
+| Applications | 34 containers across 15 compose projects | OCI |
+| Ops automation and monitoring | Kestra with Git-synced flows, n8n, Restic, Prometheus, Loki, Alertmanager, Grafana | OCI |
+| Logs | Grafana Alloy on every cluster node, shipping to Loki on OCI | Homelab to OCI |
+| External observer and public page | Uptime Kuma, Glance (the public status page), Hawser, cloudflared | GCP |
+| IaC | Four Terraform roots, GCS state, Ansible, Taskfile, nightly keyless drift checks | Git |
 | Secrets | SOPS + Age + GCP KMS, KSOPS in ArgoCD | Git and cluster |
 | CI | Validation on every push and PR; nightly keyless Terraform drift for the OCI, GCP DMZ and Backblaze roots | GitHub Actions + GCP Workload Identity Federation |
 
@@ -77,7 +79,7 @@ flowchart TB
 
     subgraph GCP [GCP - us-central1 - e2-micro - IPv6-only - zero-cost]
         direction TB
-        DMZ["Uptime Kuma - Homepage<br/>Hawser - cloudflared"]
+        DMZ["Uptime Kuma - Glance<br/>Hawser - cloudflared"]
     end
 
     OP ==>|"Tailscale SSH / HTTPS"| K3S
@@ -119,7 +121,7 @@ Storage is `local-path`. Longhorn's minimum footprint is about 1.2-1.5 GB of RAM
 
 ### OCI carries the workloads
 
-`bookorbit` is an OCI Always Free `VM.Standard.A1.Flex` instance in AP-Mumbai-1: 2 ARM vCPU, 12 GB RAM, and a 200 GB boot volume. It runs 21 containers across 14 compose projects, including Affine, Blinko, Bookorbit, Navidrome, CouchDB, IT-Tools, NextExplorer, Kestra, n8n, Prometheus/Grafana, Uptime Kuma, and the host tooling (tsdproxy, Dockhand, Dozzle).
+`bookorbit` is an OCI Always Free `VM.Standard.A1.Flex` instance in AP-Mumbai-1: 2 ARM vCPU, 12 GB RAM, and a 200 GB boot volume. It runs 34 containers across 15 compose projects, including Affine, Blinko, Bookorbit, Navidrome, CouchDB, IT-Tools, NextExplorer, Kestra, n8n, Prometheus/Grafana, Uptime Kuma, and the host tooling (tsdproxy, Dockhand, Dozzle).
 
 The split is driven by memory. The homelab host has 12 GB, split across three VMs and Proxmox; OCI has 12 GB of its own. The applications that need more than the homelab can spare stay on OCI until the migration budget is proven.
 
@@ -131,11 +133,13 @@ OCI apps are published on the tailnet through tsdproxy. The K3s ingress path wil
 
 ### GCP is the external witness
 
-`aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and accepts SSH only from Tailscale's CGNAT range (`fd7a:115c:a1e0::/48`).
+`aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH).
 
-It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: it is stateless, and its target rebuild time is 15 minutes.
+It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data (not backed up yet), and its target rebuild time is 15 minutes.
 
-Homepage talks to the Docker API through a socket proxy with mutations disabled, so a compromised dashboard container cannot POST to the daemon. A systemd drop-in starts Docker after `tailscaled`, which prevents the observer from coming up before its network.
+`cloudflared` publishes one thing to the internet: the Glance status page at `https://status.chetan-thapliyal.cloud`. The tunnel is outbound-only, so no port is open. The page's live numbers come from a sanitised summary that the DMZ pulls from the monitoring core over the tailnet, so the public host never queries the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
+
+A systemd drop-in starts Docker after `tailscaled`, which prevents the observer from coming up before its network. The Docker socket proxy that fronted Homepage was removed with it, and the stack's images are pinned by tag and digest.
 
 ### The tailnet is the network
 
@@ -154,7 +158,7 @@ Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI 
 
 `tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
 
-The tailnet is the perimeter. Inside the cluster, pod-to-pod traffic is still default-allow; default-deny NetworkPolicies are Phase 03 task 3.10.
+The tailnet is the perimeter. Inside the cluster, every namespace the platform owns (`platform`, `apps`, `monitoring`, `argocd`) is default-deny, with explicit allow rules for DNS, the Prometheus scrape ports, log shipping and ArgoCD; only the Envoy proxy may reach application pods.
 
 ### GitOps is the delivery path
 
@@ -220,17 +224,17 @@ task argocd:port-forward
 task encrypt FILE=path/to/secret.yaml
 ```
 
-These are operator commands, not a one-command demo. They assume the tailnet, cloud credentials, and SOPS keys are already in place. ArgoCD is currently reached through `kubectl port-forward` on `localhost:8090`; the Tailscale Operator will replace that in Phase 03.
+These are operator commands, not a one-command demo. They assume the tailnet, cloud credentials, and SOPS keys are already in place. ArgoCD is reached on the tailnet through the Tailscale Operator; `task argocd:port-forward` remains as a fallback.
 
 ## Reliability and recovery
 
-The recovery targets are documented, but not all of them are achieved yet. The K3s etcd snapshot schedule and offsite copy are still Phase 03 work; until they land, the cluster RPO is whatever the last manual snapshot captured.
+The recovery targets are documented and, for the cluster, measured: the K3s etcd snapshot chain runs nightly through the hypervisor, a local encrypted restic repository and two Backblaze B2 copies (one immutable for 30 days), and a cold restore from B2 has been drilled. The remaining gaps are listed in the [DR README](docs/disaster-recovery/README.md#5-known-gaps): the OCI backups share a tenancy with the instance, nothing backs up Kubernetes volumes yet, and the DMZ's Uptime Kuma data isn't backed up.
 
 | Component | RTO | RPO | Mechanism | State |
 |---|---|---|---|---|
-| K3s control plane | 30 min | 0-24 h | etcd snapshots and rebuild | Schedule pending |
-| OCI apps and databases | 45 min | 24 h | Restic to S3 | Live; offsite copy pending |
-| GCP DMZ | 15 min | 0 | Terraform and Compose | Live |
+| K3s control plane | 30 min (18 min measured in place) | up to 24 h | Nightly etcd snapshots, local restic, immutable B2 copy | Live; cold restore drilled |
+| OCI apps and databases | 45 min | 24 h | Restic to OCI Object Storage | Live; offsite copy on a second provider pending |
+| GCP DMZ | 15 min | 0 | Terraform and Compose (Uptime Kuma data not backed up) | Live |
 | Secrets and network access | 15 min | 0 | SOPS dual-key and break-glass SSH | Live |
 | Terraform state | 10 min | 0 | GCS versions | Live |
 
@@ -244,15 +248,15 @@ The design assumption is that the VMs are disposable. Git, Terraform, and SOPS a
 |---|---|---|
 | 01 | Multi-cloud foundation: Proxmox, K3s, Tailscale, SOPS, Ansible, OCI, GCP DMZ | Complete |
 | 02 | GitOps foundation: ArgoCD, App-of-Apps, KSOPS, namespaces, smoke test | Complete |
-| 03 | Core platform: Envoy Gateway, cert-manager, Tailscale Operator, monitoring, storage, etcd backups | In progress: namespaces and MetalLB live |
-| 04 | Applications and migration: Kestra ops, 4A sensitive apps, then 4B | In progress: Kestra live, migration not started |
-| 05 | CI/CD and polish: PR CI, branch protection, docs, ADRs, runbooks | In progress: about 55% |
+| 03 | Core platform: Envoy Gateway, cert-manager, Tailscale Operator, monitoring, storage, etcd backups, NetworkPolicies | Complete (13 Nov 2026) |
+| 04 | Applications and migration: Kestra ops, 4A sensitive apps, then 4B | In progress: Kestra live, migration not started; app-data backups first |
+| 05 | CI/CD and polish: PR CI, branch protection, docs, ADRs, runbooks | In progress: about 65% (CI validation and drift detection live) |
 
-Phase 03 is the critical path. Envoy Gateway and cert-manager unlock TLS; the Tailscale Operator removes the ArgoCD port-forward; kube-prometheus-stack replaces the OCI Prometheus; the etcd snapshot chain closes the biggest DR gap. NetworkPolicies and the storage ADR follow.
+Phase 03 delivered the platform the applications need: Envoy Gateway and cert-manager for TLS, the Tailscale Operator for private access, the etcd backup chain, default-deny networking and a storage decision (ADR-016). Monitoring stays on OCI by design, so it survives a homelab outage. Phase 04 is now the critical path.
 
 Phase 04 starts with the four sensitive apps: Affine, Blinko, Bookorbit, and CouchDB. Navidrome, IT-Tools, and NextExplorer are deferred until the 4A set is stable and the worker memory budget is measured. Migration is a parallel run, not a cutover: each OCI service stays up until its K3s replacement is proven.
 
-Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch protection, and the remaining ADRs and runbooks. None of it blocks the platform work.
+Phase 05 runs in parallel. Validation and the SOPS check run in CI on every push and pull request; what remains is branch protection (a deliberate choice, off while working solo), diagrams, and the remaining runbooks. None of it blocks the platform work.
 
 ## Documentation
 
