@@ -3,7 +3,7 @@
 ADR-015: CI Validation and Terraform Drift Pipeline
 ================================================================================
 ```
-- **Status:** Proposed (drift detection delivered 2026-11-13; see addendum)
+- **Status:** Accepted (2026-11-13: validation and drift detection both delivered; see addenda)
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Project Aether currently enforces code quality only at commit time through pre-commit (ADR-008), and that gate is local and bypassable with `git commit --no-verify`. GitHub Actions runs a single scheduled workflow, `.github/workflows/terraform-drift.yml`, which plans only `02-gcp-dmz` and is not triggered on pull requests. Meanwhile, ADR-005 sets a fitness function requiring one workflow that validates Terraform, Ansible, and Kubernetes manifests, and ADR-014 states that pre-commit runs `tflint` and that pull requests execute dry-run plans (IaC-09). Neither is implemented. The nightly drift workflow is also described in the README as covering all root modules, while its matrix contains one.
@@ -111,3 +111,13 @@ ADR-015: CI Validation and Terraform Drift Pipeline
 - **Drift alerts:** a failed scheduled run notifies through GitHub's own email. The open question on Telegram or Kuma alerts stays open.
 - **Proven:** a deliberate firewall-description change failed the next run on exactly that resource; the run after the revert was green.
 - Runbook: [gcp-ci-drift-detector-setup.md](../runbooks/gcp-ci-drift-detector-setup.md).
+
+---
+
+### Addendum: Validation on Every Push and PR (2026-11-13, GOP-05)
+- **Delivered:** `.github/workflows/validate.yml` runs on every push to `main`, every pull request and on demand. It runs the workstation's pre-commit hooks over the whole tree (YAML, merge markers, private keys, `terraform fmt`, the SOPS encryption check, kubeconform, gitleaks, tracked refs), the Helm values lint, and `promtool check rules` with the same Prometheus image OCI runs. A commit made with `--no-verify`, from another machine, or in the web editor no longer reaches `main` unchecked.
+- **Not in it:** `terraform validate`, which needs per-root provider downloads and credentials; the nightly read-only plans (FND-05 addendum above) cover the cloud roots. Terraform plans on pull requests remain open (#58).
+- **Tool versions** come from `mise.toml` via `jdx/mise-action`, the same file the workstation uses (FND-07), so CI and local runs can't drift apart. Every action is pinned to a full commit SHA, and Dependabot's `github-actions` ecosystem bumps them.
+- **Safety:** no secrets, `contents: read`, so pull requests from forks are safe to validate.
+- **Proven (2026-11-13):** the first run on `main` was green. A PR adding an unknown Helm values key failed at "Helm values lint" (`unknown key: foo`). An unencrypted `*.sops.yaml` committed with `--no-verify` failed at the SOPS encryption check. Both test branches were deleted.
+- **Branch protection** (requiring this check before merge) is still open (#134). It only binds pull requests, so it's a choice about working through PRs rather than pushing to `main`.
