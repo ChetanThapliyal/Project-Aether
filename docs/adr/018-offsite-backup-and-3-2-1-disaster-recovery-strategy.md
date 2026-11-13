@@ -95,3 +95,21 @@ Until now the homelab key could delete anything in the offsite bucket, and hidde
 - An attacker on the hypervisor can stop new backups. The DR heartbeat (HARD-06) pages after one missed night.
 - An attacker can hide objects and wait out the window. Hidden versions stay recoverable for the rest of their 30 days, and the same heartbeat fires long before that.
 - Lifecycle keeps deleting objects as their locks expire, even if backups have stopped, so 30 days without a working upload leaves nothing offsite. The heartbeat is what stands between a stopped job and an empty bucket.
+
+---
+
+## Addendum (2026-11-13): encryption at rest, token escrow and what each copy holds (HARD-10, HARD-13, HARD-21)
+
+- **Kubernetes Secrets are encrypted in every snapshot** since 2026-11-10 (HARD-13, `aescbc`). Before that, every snapshot, including the plaintext copy on the hypervisor, held every Secret in clear text, among them the Age key that decrypts the repository. After the key rotation and an etcd compaction, a search of a fresh snapshot for the Age key found nothing.
+- **No second key to escrow.** K3s keeps the encryption config inside its token-encrypted bootstrap data, so the escrowed server token (`k3s_server_token` in SOPS, HARD-10) is enough. A cold restore into an isolated container with only the token and a snapshot recovered the encrypted Secrets, with the Age key readable (HARD-11 re-run).
+- **Schedule.** One clock, IST, end to end (02:00 snapshot, 02:30 pull, 03:00 restic, 03:30 offsite), serialised by a shared `flock` (HARD-04). The staggering described above is not a UTC/IST mix any more.
+- **Retention, by copy.**
+
+  | Copy | Retention |
+  |------|-----------|
+  | K3s local snapshots | 14 |
+  | Hypervisor mirror and local restic repository | 14 daily, 4 weekly, 6 monthly (restic) |
+  | B2 `aether-etcd-offsite-lock` (immutable) | the last 30 nights, each locked for 30 days in governance mode, purged a day after the lock ends |
+  | B2 `aether-restic-etcd-offsite` (transitional) | restic's policy; retired after a cold-restore drill from the locked bucket |
+
+  The locked bucket's 30-night window is the offsite RPO ceiling and the reason the DR heartbeat matters: 30 nights without a working upload leaves nothing offsite.

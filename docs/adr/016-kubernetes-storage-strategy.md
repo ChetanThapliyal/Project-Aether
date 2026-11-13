@@ -45,3 +45,9 @@ ADR-016: Kubernetes Storage Strategy & In-Cluster Storage Engine Ruling
 - **Dependencies:** Rancher `local-path-provisioner`, Proxmox ZFS, Tailscale Grants, OCI Compute instance.
 - **Related ADRs:** ADR-001 (Hypervisor Selection), ADR-002 (Dual-Tier Storage Topology), ADR-003 (Kubernetes Distribution), ADR-010 (Orchestration Migration), ADR-013 (Tailnet Micro-segmentation).
 - **Review Conditions:** Re-evaluate if worker hardware is upgraded beyond 32 GB RAM or if a multi-node Ceph cluster is introduced.
+
+---
+
+### Addendum: Two Facts Stated Once (2026-11-13, HARD-21)
+- **Where `local-path` volumes live.** The provisioner's default path on every K3s node is `/var/lib/rancher/k3s/storage` (checked in the `local-path-config` ConfigMap and on a node, 2026-11-13). Earlier notes said `/opt/local-path-provisioner`; that is the upstream default, not what K3s uses. Persistent data sits on each VM's boot disk, so it is lost with the node: the Phase 04 app-data backup design has to cover it.
+- **The OCI host's shape.** `bookorbit` is an Always Free `VM.Standard.A1.Flex` instance with **2 OCPU, 12 GB RAM and a 200 GB boot volume** (Terraform `01-oci-compute` and the live host agree, 2026-11-13). Other documents refer here instead of repeating the numbers; earlier copies that said 100 GB or 24 GB were wrong.

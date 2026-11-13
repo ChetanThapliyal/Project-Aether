@@ -95,7 +95,7 @@ flowchart TB
 
 | | Homelab | OCI | GCP DMZ |
 |---|---|---|---|
-| Hardware | HP notebook: i3-5005U, 12 GB DDR3, 250 GB SSD and 500 GB HDD | `VM.Standard.A1.Flex`: 2 ARM vCPU, 12 GB RAM, 100 GB boot | `e2-micro`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, 30 GB |
+| Hardware | HP notebook: i3-5005U, 12 GB DDR3, 250 GB SSD and 500 GB HDD | `VM.Standard.A1.Flex`: 2 ARM vCPU, 12 GB RAM, 200 GB boot | `e2-micro`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, 30 GB |
 | Platform | Proxmox VE 9.2, Ubuntu 24.04 VMs | Ubuntu 24.04, Docker Compose | Ubuntu 24.04, Docker Compose |
 | Role | K3s control plane and GitOps | Applications and ops automation | External observer |
 | Network | CGNAT, tailnet only | SSH 22 public, apps tailnet-only | IPv6-only, no public IPv4 |
@@ -119,7 +119,7 @@ Storage is `local-path`. Longhorn's minimum footprint is about 1.2-1.5 GB of RAM
 
 ### OCI carries the workloads
 
-`bookorbit` is an OCI Always Free `VM.Standard.A1.Flex` instance in AP-Mumbai-1: 2 ARM vCPU, 12 GB RAM, and a 100 GB boot volume. It runs 21 containers across 14 compose projects, including Affine, Blinko, Bookorbit, Navidrome, CouchDB, IT-Tools, NextExplorer, Kestra, n8n, Prometheus/Grafana, Uptime Kuma, and the host tooling (tsdproxy, Dockhand, Dozzle).
+`bookorbit` is an OCI Always Free `VM.Standard.A1.Flex` instance in AP-Mumbai-1: 2 ARM vCPU, 12 GB RAM, and a 200 GB boot volume. It runs 21 containers across 14 compose projects, including Affine, Blinko, Bookorbit, Navidrome, CouchDB, IT-Tools, NextExplorer, Kestra, n8n, Prometheus/Grafana, Uptime Kuma, and the host tooling (tsdproxy, Dockhand, Dozzle).
 
 The split is driven by memory. The homelab host has 12 GB, split across three VMs and Proxmox; OCI has 12 GB of its own. The applications that need more than the homelab can spare stay on OCI until the migration budget is proven.
 
@@ -275,7 +275,7 @@ Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch p
 | [020](docs/adr/020-public-observability-data-diode.md) | Public observability: Glance dashboard (<50 MiB RAM) & push-based data diode |
 | [021](docs/adr/021-internal-dns-and-pki.md) | Internal DNS & PKI: 10-year root CA with a stable key; `lab.` subdomain with DNS-01 certificates (Phase 04) |
 
-ADR-017 (Kestra platform automation) is pending formalization.
+ADR-017 is reserved for the Kestra automation decision (Kestra on Oracle Cloud is the ops orchestrator; n8n stays on OCI for webhook glue and isn't migrated) and isn't written yet.
 
 Also in the repo:
 

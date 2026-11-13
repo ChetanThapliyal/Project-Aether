@@ -376,7 +376,7 @@ pages:
                     <span class="vitals-badge">A1.FLEX · ARM</span>
                   </div>
                   <p class="ae-note">The monitoring and automation core: Prometheus, Loki, Grafana, Alertmanager and Kestra, plus a few small apps, all in Docker.</p>
-                  <div class="ae-chips"><span>2 OCPU</span><span>12 GB RAM</span><span>100 GB disk</span></div>
+                  <div class="ae-chips"><span>2 OCPU</span><span>12 GB RAM</span><span>200 GB disk</span></div>
                   <div class="section-title">Live usage</div>
                       <div class="ae-bar-row">
                         <div class="ae-bar-label"><span>Memory</span><small>whole host</small></div>
