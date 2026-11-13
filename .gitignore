@@ -52,7 +52,9 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-.terraform.lock.hcl
+# .terraform.lock.hcl is committed (FND-07): it pins provider versions and checksums.
+# Child modules don't use lock files; only each root's is committed.
+infrastructure/terraform/*/modules/**/.terraform.lock.hcl
 # Terraform plan output (may contain secrets in plaintext)
 *.tfplan
 

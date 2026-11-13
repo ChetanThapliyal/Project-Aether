@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = "~> 1.15.0" # FND-07: matches CI and mise.toml (1.15.9)
 
   backend "gcs" {
     bucket = "tf-backend-oci-hlab-gcs"

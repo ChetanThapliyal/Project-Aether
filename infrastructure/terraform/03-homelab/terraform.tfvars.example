@@ -7,7 +7,7 @@
 # =============================================================================
 
 # Proxmox API endpoint (your Proxmox host IP + port)
-proxmox_api_url = "https://192.168.1.200:8006/api2/json"
+proxmox_api_url = "https://proxmox.chetan-thapliyal.cloud:8006" # valid Lets Encrypt cert (OPS-04); the provider runs with insecure = false
 
 # Proxmox API token — create via Datacenter → Permissions → API Tokens
 # Format: <user>@<realm>!<token-name>
