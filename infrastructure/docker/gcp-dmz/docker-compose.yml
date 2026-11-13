@@ -75,7 +75,7 @@ services:
   # (i.e. when CLOUDFLARE_TUNNEL_TOKEN is provisioned).
   # ---------------------------------------------------------------------------
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.0  # Pinned 2026-10 (IaC-05)
+    image: cloudflare/cloudflared:2026.10.7  # Pinned 2026-10 (IaC-05)
     container_name: cloudflared
     restart: unless-stopped
     profiles:
