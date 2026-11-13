@@ -560,12 +560,11 @@ pages:
     columns:
       - size: full
         widgets:
-          # Cover images come from media:thumbnail, added to the portfolio's RSS
-          # template (Glance ignores media:content).
+          # Title + summary list. Cover images (media:thumbnail) are in the feed
+          # but hidden in user.css (.rss-detailed-thumbnail).
           - type: rss
             title: Latest from the blog
             style: detailed-list
-            thumbnail-height: 10
             limit: 8
             collapse-after: 4
             cache: 1h

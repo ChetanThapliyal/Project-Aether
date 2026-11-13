@@ -635,6 +635,9 @@ code,
   .ae-path > .ae-flow-arrow { display: none; }
 }
 
+/* Writing page: blog posts as title + summary, no cover images (operator choice). */
+.rss-detailed-thumbnail { display: none; }
+
 /* ─── Narrow screens (recruiters open links on phones) ─────────────────── */
 
 @media (max-width: 700px) {
