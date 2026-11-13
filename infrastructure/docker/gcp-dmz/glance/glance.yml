@@ -65,17 +65,6 @@ pages:
                   - title: Runbooks
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/runbooks
                     icon: si:markdown
-              - title: Elsewhere
-                links:
-                  - title: Portfolio and blog
-                    url: https://chetan-thapliyal.cloud/
-                    icon: si:hugo
-                  - title: Lexicon knowledge base
-                    url: https://base.chetan-thapliyal.cloud/
-                    icon: si:astro
-                  - title: Public status page
-                    url: https://status.chetan-thapliyal.cloud/
-                    icon: si:cloudflare
 
           - type: monitor
             title: Public sites
