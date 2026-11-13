@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud (keyless)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/776522028840/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
           service_account: terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
