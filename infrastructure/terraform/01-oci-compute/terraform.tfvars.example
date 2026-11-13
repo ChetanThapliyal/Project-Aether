@@ -14,7 +14,11 @@
 tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxx"
 user_ocid        = "ocid1.user.oc1..xxxxxxx"
 fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
-private_key_path = "~/.oci/oci_api_key.pem"
+# The PEM itself, not a path, so CI can plan without key files (FND-05).
+# Paste only the BEGIN...END block; drop the "OCI_API_KEY" label line OCI appends.
+private_key = <<-EOT
+  <paste the PEM block here, from its BEGIN line to its END line>
+  EOT
 region           = "ap-mumbai-1"
 compartment_ocid = "ocid1.compartment.oc1..xxxxxxx"
 

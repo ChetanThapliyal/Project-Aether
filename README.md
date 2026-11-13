@@ -43,7 +43,7 @@ It started as a way to run a few Docker containers. It is now a three-environmen
 | External observer | Uptime Kuma, Homepage, Hawser, cloudflared | GCP |
 | IaC | Three Terraform roots, GCS state, Ansible, Taskfile | Git |
 | Secrets | SOPS + Age + GCP KMS, KSOPS in ArgoCD | Git and cluster |
-| CI | Nightly Terraform drift for the GCP DMZ | GitHub Actions |
+| CI | Nightly keyless Terraform drift for the OCI, GCP DMZ and Backblaze roots | GitHub Actions + GCP Workload Identity Federation |
 
 **Next:** Envoy Gateway, cert-manager, the Tailscale Operator, kube-prometheus-stack/Loki, the etcd snapshot chain, and the first 4A migration. None of these are deployed yet.
 
@@ -195,13 +195,13 @@ State lives in `gs://tf-backend-oci-hlab-gcs/` under separate prefixes, with GCS
 
 Playbooks are split so a change does not re-run the whole estate: `common.yml`, `control.yml`, `workers.yml`, `kubeconfig.yml`, `bootstrap-oci.yml` (with `oci-base`, `oci-apps`, `oci-monitoring`, `oci-ops`), and `deploy-dmz.yml`.
 
-OCI app deploys are tagged per service: `task ansible:oci:apps -- --tags n8n`. The GCP DMZ playbook adds the Docker-after-tailscaled drop-in and the socket proxy. Inventory host-key checking is `accept-new`, so the first bootstrap works and later key changes fail.
+OCI app deploys are tagged per service: `task ansible:oci:apps -- --tags n8n`. The GCP DMZ playbook adds the Docker-after-tailscaled drop-in. Inventory host-key checking is `accept-new`, so the first bootstrap works and later key changes fail.
 
 ### CI and guardrails
 
-The only workflow is a nightly Terraform drift check at 02:00 UTC. It authenticates to GCP with a service-account key from GitHub secrets, runs `terraform plan -detailed-exitcode` for `02-gcp-dmz`, and fails on drift. Dependabot checks the DMZ Docker images monthly.
+The only workflow is a nightly Terraform drift check at 02:00 UTC. It signs in to GCP with GitHub's OIDC token through Workload Identity Federation, so no key is stored, and only runs on `main` can get a credential. It plans `01-oci-compute`, `02-gcp-dmz` and `04-backblaze-b2` read-only (`-lock=false`) and fails on drift. Because the repository is public, the log lists only the action and address of each drifted resource, never values. `03-homelab` is planned by hand monthly: the Proxmox provider needs a disk-write privilege just to plan. See the [drift runbook](docs/runbooks/gcp-ci-drift-detector-setup.md). Dependabot checks the Compose images and GitHub Actions monthly.
 
-The workflow covers one of the three roots. There is no pull-request validation, no SOPS check in CI, and branch protection is not enabled yet. Phase 05 closes those gaps.
+There is no pull-request validation, no SOPS check in CI, and branch protection is not enabled yet. Phase 05 closes those gaps.
 
 ## Operations
 
@@ -268,7 +268,7 @@ Phase 05 runs in parallel: pull-request validation, a SOPS check in CI, branch p
 | [011](docs/adr/011-terraform-remote-backend.md) | GCS remote state |
 | [013](docs/adr/013-tailnet-microsegmentation.md) | Tailscale Grants instead of flat ACLs |
 | [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | Single environment, namespace isolation, VM rollback |
-| [015](docs/adr/015-ci-validation-pipeline.md) | PR validation and a phased drift pipeline (proposed) |
+| [015](docs/adr/015-ci-validation-pipeline.md) | PR validation (proposed) and keyless nightly drift detection (delivered) |
 | [016](docs/adr/016-kubernetes-storage-strategy.md) | Kubernetes storage strategy: local-path default, Longhorn rejected, NFS for media |
 | [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | Offsite backup & 3-2-1 DR: Backblaze B2 S3 API, write-isolated keys, restic copy |
 | [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, Grafana Alloy agent on K3s, Tailscale mesh transit |

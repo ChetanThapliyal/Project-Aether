@@ -1,228 +1,127 @@
-# GCP CI identity and Terraform drift detector runbook
+# Terraform drift detection runbook (keyless CI)
 
-> **Scope:** Setup and credential rotation for the least-privilege GCP service account used by GitHub Actions for nightly Terraform drift detection.
-> **Target repository:** `Project Aether`
-> **Identity source:** `GCS-CP` bootstrap repository (`/home/owl/Projects/GCS-CP/gcp/iam_ci.tf`)
-> **Related issue / chore:** OPS-05 · ADR-012
+> **Scope:** How the nightly Terraform drift check works, how its GCP identity is set up, and how to run, test, extend and troubleshoot it.
+> **Workflow:** `.github/workflows/terraform-drift.yml`
+> **Identity source:** `GCS-CP` repository (`gcp/iam_ci.tf`), applied by the operator
+> **History:** OPS-05 (first version, JSON key, one root) → FND-05, 2026-11-13 (keyless, three roots, public-safe output)
 
-## 1. Context and architecture
+## 1. What it does
 
-To prevent configuration drift across clouds without crossing the Day-0 bootstrap boundary ([ADR-012](../adr/012-oci-monorepo-consolidation.md)), the CI identity is provisioned in the `GCS-CP` repository.
+Every night at 02:00 UTC (07:30 IST), GitHub Actions runs a read-only `terraform plan` for each cloud root:
 
-The state backend bucket (`tf-backend-oci-hlab-gcs`) and Cloud KMS keyring (`sops-key`) are Day-0 assets managed by `GCS-CP`. Placing CI IAM roles in `Project Aether` would create circular dependencies and grant GitHub Actions broader IAM permissions over GCP than necessary.
+| Root | Provider | Credentials in CI |
+|------|----------|-------------------|
+| `01-oci-compute` | oracle/oci | API key (PEM) from `terraform.sops.tfvars`, decrypted via KMS |
+| `02-gcp-dmz` | hashicorp/google | the drift service account itself (OIDC) |
+| `04-backblaze-b2` | Backblaze/b2 | application key from `terraform.sops.tfvars` |
 
-The service account follows least privilege:
-- Viewer access (`roles/compute.viewer`) to inspect compute instances and firewall rules.
-- Storage object admin (`roles/storage.objectAdmin`) to read and lock remote state during `terraform plan`.
-- Cloud KMS decryption (`roles/cloudkms.cryptoKeyDecrypter`) to decrypt `.sops.tfvars`.
+A job passes when the plan finds no changes, fails when it finds drift, and fails when the plan errors. GitHub emails the repository owner about failed scheduled runs.
 
-It cannot create, modify, or destroy compute resources.
+`03-homelab` is **not** checked in CI. See §6.
 
-### Architecture and execution flow
+## 2. Identity: GitHub OIDC → Workload Identity Federation
+
+No key is stored anywhere. Each run exchanges GitHub's OIDC token for a short-lived GCP credential.
 
 ```mermaid
----
-title: "Terraform Drift Detection: Architecture and Execution Flow"
-config:
-  theme: "base"
-  themeVariables:
-    darkMode: true
-    background: "#0d1117"
-    mainBkg: "#161b22"
-    clusterBkg: "#0d1117"
-    clusterBorder: "#30363d"
-    primaryColor: "#161b22"
-    primaryTextColor: "#f0f6fc"
-    primaryBorderColor: "#388bfd"
-    secondaryColor: "#161b22"
-    secondaryBorderColor: "#30363d"
-    secondaryTextColor: "#f0f6fc"
-    tertiaryColor: "#0d1117"
-    tertiaryBorderColor: "#30363d"
-    tertiaryTextColor: "#8b949e"
-    lineColor: "#8b949e"
-    textColor: "#c9d1d9"
-    nodeTextColor: "#f0f6fc"
-    titleColor: "#58a6ff"
-    edgeLabelBackground: "#161b22"
----
-flowchart TB
-    %% Nodes & Subgraphs
-
-    subgraph Day0 ["Day-0 Bootstrap Plane (GCS-CP)"]
-        direction TB
-        TF_APPLY["terraform apply<br/><code>gcp/iam_ci.tf</code>"]
-        SA_ID[/"GCP Service Account<br/><code>terraform-drift-detector</code>"/]
-        SA_KEY{{"Service Account JSON Key<br/><code>drift_detector_key</code>"}}
-
-        TF_APPLY -->|"Provisions Identity"| SA_ID
-        SA_ID -->|"Generates Private Key"| SA_KEY
-    end
-
-    subgraph SecretsManagement ["GitHub Secrets & Configuration"]
-        GH_SECRET{{"Repository Secret<br/><code>GCP_SA_KEY</code>"}}
-        WORKFLOW_FILE["Workflow Definition<br/><code>.github/workflows/terraform-drift.yml</code>"]
-    end
-
-    SA_KEY -.->|"Pipe via gh secret set"| GH_SECRET
-
-    subgraph ActionsRunner ["GitHub Actions Runner (ubuntu-latest)"]
-        direction TB
-        TRIGGER(["Trigger Event<br/>Nightly 02:00 UTC / manual"])
-
-        subgraph Pipeline ["Runner Pipeline Steps"]
-            direction TB
-            STEP_AUTH["1. Authenticate to GCP<br/><code>google-github-actions/auth@v2</code>"]
-            STEP_DECRYPT["2. Decrypt SOPS tfvars<br/><code>sops -d terraform.sops.tfvars</code>"]
-            STEP_INIT["3. Terraform Init<br/><code>remote state config</code>"]
-            STEP_PLAN["4. Terraform Plan<br/><code>terraform plan -detailed-exitcode</code>"]
-
-            STEP_AUTH --> STEP_DECRYPT --> STEP_INIT --> STEP_PLAN
-        end
-
-        TRIGGER --> STEP_AUTH
-    end
-
-    GH_SECRET ==>|"Injects JSON Credential"| STEP_AUTH
-    WORKFLOW_FILE -.->|"Defines Execution"| TRIGGER
-
-    subgraph GCP ["Target GCP Environment (gcs-oci-homelab-controlplane)"]
-        direction TB
-        KMS["Cloud KMS Key<br/><code>sops-key</code>"]
-        GCS[("GCS State Bucket<br/><code>tf-backend-oci-hlab-gcs</code>")]
-        COMPUTE["Compute Engine<br/><code>aether-gcp-dmz</code>"]
-    end
-
-    STEP_DECRYPT <-->|"roles/cloudkms.cryptoKeyDecrypter"| KMS
-    STEP_INIT <-->|"roles/storage.objectAdmin (State & Lock)"| GCS
-    STEP_PLAN <-->|"roles/compute.viewer (Read-Only Inspection)"| COMPUTE
-
-    subgraph Outcome ["Drift Evaluation & Reporting"]
-        direction TB
-        EVAL{"Evaluate Plan<br/>Exit Code"}
-        RES_CLEAN(["Exit 0: In-Sync<br/>Zero drift detected"]):::success
-        RES_DRIFT(["Exit 2: Drift Detected<br/>Workflow failed, alert posted"]):::danger
-        RES_ERROR(["Exit 1: Error<br/>Plan execution failed"]):::warning
-
-        EVAL -->|"Code 0"| RES_CLEAN
-        EVAL -->|"Code 2"| RES_DRIFT
-        EVAL -->|"Code 1"| RES_ERROR
-    end
-
-    STEP_PLAN --> EVAL
-
-    %% Class Definitions for Clean Dark Visuals
-    classDef success fill:#0d2818,stroke:#2ea043,stroke-width:2px,color:#3fb950;
-    classDef danger fill:#311016,stroke:#f85149,stroke-width:2px,color:#ff7b72;
-    classDef warning fill:#2d2206,stroke:#d29922,stroke-width:2px,color:#e3b341;
-    classDef default font-family:sans-serif;
+flowchart LR
+    GH["GitHub Actions run<br/>(Project-Aether, refs/heads/main)"] -->|OIDC token| WIF["Workload Identity Pool<br/>github-actions / github-oidc"]
+    WIF -->|"condition: repository + main branch"| SA["terraform-drift-detector<br/>service account"]
+    SA -->|objectViewer| STATE[("GCS state bucket<br/>tf-backend-oci-hlab-gcs")]
+    SA -->|cryptoKeyDecrypter| KMS["Cloud KMS sops-key"]
+    SA -->|compute.viewer| GCP["GCP DMZ resources"]
+    KMS -->|decrypts| TFV["terraform.sops.tfvars<br/>(OCI, B2 credentials)"]
 ```
 
-## 2. Service account specification
+Defined in GCS-CP `gcp/iam_ci.tf`:
 
-- Service account ID: `terraform-drift-detector`
-- Email: `terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com`
-- Assigned roles:
-  - `roles/compute.viewer` on project `gcs-oci-homelab-controlplane` (inspects compute instance metadata and firewall rules)
-  - `roles/storage.objectAdmin` on bucket `tf-backend-oci-hlab-gcs` (reads remote state and manages lock objects during `terraform plan`)
-  - `roles/cloudkms.cryptoKeyDecrypter` on key `projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key` (decrypts `terraform.sops.tfvars`)
+| Resource | Purpose |
+|----------|---------|
+| `google_iam_workload_identity_pool.github` (`github-actions`) | Trust boundary for GitHub tokens |
+| `google_iam_workload_identity_pool_provider.github` (`github-oidc`) | Issuer `https://token.actions.githubusercontent.com`; `attribute_condition` allows only `ChetanThapliyal/Project-Aether` on `refs/heads/main` |
+| `google_service_account_iam_member.drift_detector_wif` | `roles/iam.workloadIdentityUser` for that repository's principal set |
+| `google_storage_bucket_iam_member.state_backend` | `roles/storage.objectViewer`: read state only. Plans run with `-lock=false`, so nothing writes |
+| `google_kms_crypto_key_iam_member.sops_decrypter` | `roles/cloudkms.cryptoKeyDecrypter` on `sops-key` |
+| `google_project_iam_member.compute_viewer` | `roles/compute.viewer` for the DMZ's resources |
+| `google_project_service.iamcredentials`, `.sts` | APIs that federation needs |
 
-## 3. Terraform definition in GCS-CP (`gcp/iam_ci.tf`)
+Values the workflow uses (from `terraform output` in GCS-CP):
 
-```hcl
-# Service Account for GitHub Actions Drift Detection
-resource "google_service_account" "drift_detector" {
-  account_id   = "terraform-drift-detector"
-  display_name = "CI Drift Detector Service Account"
-  description  = "Least-privilege identity used by GitHub Actions for nightly terraform plan drift detection"
-}
-
-# 1. Compute Viewer (Inspection only)
-resource "google_project_iam_member" "compute_viewer" {
-  project = var.project_id
-  role    = "roles/compute.viewer"
-  member  = "serviceAccount:${google_service_account.drift_detector.email}"
-}
-
-# 2. GCS State Bucket Access & State Locking
-resource "google_storage_bucket_iam_member" "state_object_admin" {
-  bucket = var.state_bucket_name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.drift_detector.email}"
-}
-
-# 3. KMS Decryption for SOPS tfvars
-resource "google_kms_crypto_key_iam_member" "sops_decrypter" {
-  crypto_key_id = google_kms_crypto_key.sops_key.id
-  role          = "roles/cloudkms.cryptoKeyDecrypter"
-  member        = "serviceAccount:${google_service_account.drift_detector.email}"
-}
-
-# 4. Service Account Key Generation
-resource "google_service_account_key" "drift_detector_key" {
-  service_account_id = google_service_account.drift_detector.name
-}
-
-# Sensitive Output for GitHub Actions Secret Injection
-output "github_secret_gcp_sa_key" {
-  description = "Base64-decoded JSON credentials for GitHub Secret GCP_SA_KEY"
-  value       = base64decode(google_service_account_key.drift_detector_key.private_key)
-  sensitive   = true
-}
+```text
+workload_identity_provider: projects/776522028840/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
+service_account:            terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
 ```
 
-## 4. Operational procedures
+Forks and pull-request runs can't get a credential: their `ref` isn't `refs/heads/main`. The workflow runs only on `schedule` and `workflow_dispatch`.
 
-### Setting or rotating the GitHub secret
+**Blast radius.** The account can decrypt every SOPS file encrypted to `sops-key`, not just the tfvars. That's why it's limited to `main` and to short-lived tokens, and why it must never run on pull requests.
 
-From the `GCS-CP/gcp/` directory, apply the configuration and pipe the secret directly to GitHub using the CLI:
+## 3. What the workflow publishes
+
+The repository is public, and so are its Actions logs. The workflow never prints a plan body:
+
+- No drift: `✅ <root>: no drift.`
+- Drift: `⚠️ <root>: drift detected.` followed by one line per resource, action and address only, for example ``- `update` google_compute_firewall.allow_icmp_ipv6``. Attribute values never appear.
+- Plan error: `❌ <root>: plan failed.` plus Terraform's `Error` lines only.
+
+Decrypted tfvars are written with `umask 077` and deleted before any output is produced.
+
+## 4. Running it
 
 ```bash
-cd /home/owl/Projects/GCS-CP/gcp
-
-# 1. Validate and apply changes
-terraform plan
-terraform apply
-
-# 2. Pipe key directly to GitHub Secret (avoid writing unencrypted key to disk)
-terraform output -raw github_secret_gcp_sa_key | \
-  gh secret set GCP_SA_KEY --repo ChetanThapliyal/Project-Aether
-
-# 3. Verify secret presence
-gh secret list --repo ChetanThapliyal/Project-Aether
+R=ChetanThapliyal/Project-Aether
+gh workflow run terraform-drift.yml -R $R
+gh run watch -R $R
+gh run view <run-id> -R $R --log | grep -E "no drift\.|drift detected|plan failed"
 ```
 
-### Verifying service account permissions locally
-
-To smoke-test the credentials without waiting for CI:
+Local equivalent (operator credentials, same flags):
 
 ```bash
-# Export key to temporary file
-TMP_KEY=$(mktemp)
-terraform -chdir=/home/owl/Projects/GCS-CP/gcp output -raw github_secret_gcp_sa_key > "$TMP_KEY"
-
-# Authenticate as SA
-gcloud auth activate-service-account --key-file="$TMP_KEY"
-
-# Test Compute Viewer
-gcloud compute instances list --project=gcs-oci-homelab-controlplane
-
-# Test State Storage Access
-gcloud storage ls gs://tf-backend-oci-hlab-gcs/gcp-dmz/
-
-# Test SOPS Decryption
-sops -d infrastructure/terraform/02-gcp-dmz/terraform.sops.tfvars > /dev/null && echo "SOPS Decrypt SUCCESSFUL!"
-
-# Clean up
-rm -f "$TMP_KEY"
-gcloud config set account thapliyal.chetan93@gmail.com
+task tf:plan DIR=01-oci-compute   # or 02-gcp-dmz, 03-homelab, 04-backblaze-b2
 ```
 
-### Triggering a manual drift check
+## 5. Testing that drift is caught
 
-Once `.github/workflows/terraform-drift.yml` is pushed to GitHub `main`:
+Use something Terraform fully manages. Labels are a bad test: google provider v5+ manages only the labels declared in config, and the DMZ declares none, so a console label never shows as drift.
 
 ```bash
-gh workflow run "Terraform Drift Detection" --repo ChetanThapliyal/Project-Aether
-gh run watch --repo ChetanThapliyal/Project-Aether
+P=gcs-oci-homelab-controlplane
+gcloud compute firewall-rules update aether-gcp-dmz-allow-icmp-ipv6 --project $P --description "drift test (temporary)"
+gh workflow run terraform-drift.yml -R $R   # expect 02-gcp-dmz to fail, listing `update` google_compute_firewall.allow_icmp_ipv6
+gcloud compute firewall-rules update aether-gcp-dmz-allow-icmp-ipv6 --project $P \
+  --description "Permit ICMPv6 echo requests (ping) for latency & diagnostic checks"
+gh workflow run terraform-drift.yml -R $R   # expect all green
 ```
+
+Last run on 2026-11-13: the drift run failed exactly on that resource, and the run after the revert was all green.
+
+## 6. Why `03-homelab` is checked by hand
+
+The bpg/proxmox provider reads each VM's disk volume during `plan`. Proxmox allows that only with `VM.Config.Disk` on `/vms/<id>`, a privilege that also attaches, detaches and resizes disks. A `PVEAuditor` token reads the API (200), is refused writes (403), and fails the plan (403). Giving CI that privilege, plus a tailnet path to the Proxmox API, wasn't worth it for VMs that rarely change outside Terraform.
+
+So once a month, from a machine on the LAN or tailnet:
+
+```bash
+task tf:plan DIR=03-homelab    # expect "No changes"
+```
+
+Running drift checks from Kestra on the OCI host was also rejected: it would put a long-lived, KMS-capable GCP key on an internet-facing host.
+
+## 7. Adding a root
+
+1. The provider's credentials must be usable without files on a workstation. Put them in the root's `terraform.sops.tfvars`, as `01-oci-compute` does with `private_key`.
+2. If the root needs GCP read access beyond `compute.viewer`, add the narrowest role in GCS-CP `gcp/iam_ci.tf`.
+3. Add the directory to the workflow's `matrix.dir`.
+4. Run the workflow and check that the new job is green.
+
+## 8. Troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| `gh secret delete …` returns 404 | `gh` uses the repository of the current folder. Pass `-R ChetanThapliyal/Project-Aether`. |
+| Auth step: `unable to generate access token` / `Permission denied` on `iam.serviceAccounts.getAccessToken` | The run isn't on `main`, the repository name changed, or the WIF binding was removed. Check `attribute_condition` and `drift_detector_wif` in GCS-CP. |
+| `Error acquiring the state lock` | A plan ran without `-lock=false`. The account is read-only by design. |
+| SOPS: `failed to decrypt` | KMS binding missing, or the file wasn't encrypted to `sops-key`. Check `.sops.yaml` and `sops_decrypter`. |
+| OCI: `can not create client, bad configuration` | `private_key` missing or malformed in `01-oci-compute/terraform.sops.tfvars`. It must be the PEM block only. The OCI-generated file ends with an extra `OCI_API_KEY` label line, which must be dropped. |
+| Annotation about Node.js 20 | An action is on an old major version. The workflow uses `checkout@v7`, `auth@v3`, `setup-terraform@v4`. |

@@ -3,7 +3,7 @@
 ADR-015: CI Validation and Terraform Drift Pipeline
 ================================================================================
 ```
-- **Status:** Proposed
+- **Status:** Proposed (drift detection delivered 2026-11-13; see addendum)
 - **Date:** October 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Project Aether currently enforces code quality only at commit time through pre-commit (ADR-008), and that gate is local and bypassable with `git commit --no-verify`. GitHub Actions runs a single scheduled workflow, `.github/workflows/terraform-drift.yml`, which plans only `02-gcp-dmz` and is not triggered on pull requests. Meanwhile, ADR-005 sets a fitness function requiring one workflow that validates Terraform, Ansible, and Kubernetes manifests, and ADR-014 states that pre-commit runs `tflint` and that pull requests execute dry-run plans (IaC-09). Neither is implemented. The nightly drift workflow is also described in the README as covering all root modules, while its matrix contains one.
@@ -99,3 +99,15 @@ ADR-015: CI Validation and Terraform Drift Pipeline
   - Which notification channel should receive drift alerts: Telegram, Uptime Kuma push, or both?
 - **Related ADRs:** ADR-005 (Monorepo Structure), ADR-007 (Secrets Management), ADR-008 (Operational Toolchain), ADR-011 (Terraform Remote Backend), ADR-014 (Infrastructure Environment Isolation).
 - **Review Conditions:** Review when a second operator joins, when Kubernetes manifests enter the repository, or when read-only OCI and Proxmox CI identities are provisioned.
+
+---
+
+### Addendum: Drift Detection Delivered, Keyless (2026-11-13, FND-05)
+- **Delivered:** the nightly drift job now plans `01-oci-compute`, `02-gcp-dmz` and `04-backblaze-b2`. Not yet delivered: PR validation, the CI SOPS check and branch protection (02.05 GOP-05).
+- **Open question answered: Workload Identity Federation, now.** `GCP_SA_KEY` and the service account key are deleted. GitHub's OIDC token is exchanged through a pool and provider in GCS-CP, restricted to this repository on `refs/heads/main`. The state bucket role dropped from `objectAdmin` to `objectViewer`, and plans run with `-lock=false`.
+- **Open question answered: a read-only Proxmox token isn't enough.** bpg/proxmox needs `VM.Config.Disk` (attach, detach and resize disks) to plan `03-homelab`. Tested 2026-11-13: a `PVEAuditor` token read 200 and wrote 403, and the plan failed with 403. `03-homelab` is planned by hand monthly instead. CI gets neither that privilege nor a path into the home network.
+- **OCI credentials:** the provider takes `private_key` (the PEM, from SOPS) instead of `private_key_path`, so CI needs no key file.
+- **Public logs:** the job prints only `action address` per drifted resource. Plan bodies, which can contain attribute values, are never written to the log or the summary.
+- **Drift alerts:** a failed scheduled run notifies through GitHub's own email. The open question on Telegram or Kuma alerts stays open.
+- **Proven:** a deliberate firewall-description change failed the next run on exactly that resource; the run after the revert was green.
+- Runbook: [gcp-ci-drift-detector-setup.md](../runbooks/gcp-ci-drift-detector-setup.md).
