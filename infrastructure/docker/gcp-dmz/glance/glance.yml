@@ -427,7 +427,7 @@ pages:
   # ---------------------------------------------------------------------------
   # Page 4: Networking. Role-level only (public-repo detail policy): no IPs,
   # hostnames or port numbers. Static design facts dated below; update this page
-  # when a networking chore lands (FND-03/11/12/14/18, GOP-04, HARD-20, Phase 04).
+  # when a networking chore lands (FND-03/11/12/14/18, GOP-04, Phase 04).
   # ---------------------------------------------------------------------------
   - name: Networking
     columns:
@@ -440,7 +440,7 @@ pages:
             source: |
               <div class="ae-live-head">
                 <span class="ae-live-title">Networking</span>
-                <span class="vitals-badge">DESIGN · 12 NOV 2026</span>
+                <span class="vitals-badge">DESIGN · 13 NOV 2026</span>
               </div>
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
@@ -473,7 +473,7 @@ pages:
                   <p class="ae-note">The hypervisor and the three cluster VMs sit on the home LAN behind carrier-grade NAT, so nothing at home can be reached from outside.</p>
                   <div class="ae-chips"><span>no port forwards</span><span>MetalLB layer 2</span><span>Envoy Gateway</span></div>
                   <div class="bar-row"><span class="bar-name">Ingress</span><span class="ae-fact">Envoy Gateway on a MetalLB address, certificates from an internal CA</span></div>
-                  <div class="bar-row"><span class="bar-name">In-cluster</span><span class="ae-fact">default-deny NetworkPolicies in the platform, apps, monitoring and ArgoCD namespaces</span></div>
+                  <div class="bar-row"><span class="bar-name">In-cluster</span><span class="ae-fact">default-deny NetworkPolicies in the platform, apps, monitoring and ArgoCD namespaces; only the Envoy proxy may reach app pods</span></div>
                   <div class="bar-row"><span class="bar-name">Admin</span><span class="ae-fact">the ArgoCD UI is published on the mesh by the Tailscale operator, not on the LAN</span></div>
                 </div>
                 <div class="vitals-card ae-env">
@@ -516,7 +516,7 @@ pages:
                 <div class="ae-backups-head">
                   <div>
                     <div class="ae-stat-label">Still changing</div>
-                    <div class="ae-stat-num">7<span>queued changes</span></div>
+                    <div class="ae-stat-num">6<span>queued changes</span></div>
                     <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
                   </div>
                   <span class="vitals-badge">ROADMAP</span>
@@ -527,7 +527,6 @@ pages:
                   <li><span class="ae-change-id">FND-18</span><div><div class="ae-change-title">Cloud host joins the mesh by code</div><div class="ae-change-text">Ansible enrols the cloud host with a single role tag instead of a hand-made login.</div></div></li>
                   <li><span class="ae-change-id">FND-11</span><div><div class="ae-change-title">Cluster API names</div><div class="ae-change-text">Optional certificate names so the Kubernetes API answers by its mesh name.</div></div></li>
                   <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
-                  <li><span class="ae-change-id">HARD-20</span><div><div class="ae-change-title">Gateway to apps</div><div class="ae-change-text">A NetworkPolicy that lets Envoy reach application pods, needed before the first app route.</div></div></li>
                   <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
                 </ul>
               </div>
