@@ -1,0 +1,62 @@
+name: "Validate"
+
+# GOP-05 / ADR-015: the same gates as the workstation's pre-commit hooks, run on
+# every push to main and every pull request, so --no-verify, another machine or
+# the GitHub web editor can't get unchecked changes to main (ArgoCD applies main
+# within minutes).
+# - Tool versions come from mise.toml (FND-07), the same file the workstation uses.
+# - Actions are pinned to full commit SHAs; Dependabot (github-actions) bumps them.
+# - No secrets and read-only permissions, so PRs from forks are safe to validate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned tools from mise.toml
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: "terraform helm kubeconform sops"
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pre-commit and script dependencies
+        run: pip install "pre-commit==4.6.2" "pyyaml>=6"
+
+      # Same hooks as the workstation (GITOPS-08), now unskippable.
+      # terraform_validate needs per-root provider downloads and credentials; the
+      # nightly drift plans (FND-05) cover the cloud roots.
+      - name: pre-commit (whole tree)
+        run: pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: terraform_validate
+
+      - name: Helm values lint (Bugs G/N/X class)
+        run: python3 scripts/check-helm-values.py
+
+      - name: Ansible-referenced files are tracked
+        run: bash scripts/check-tracked-refs.sh
+
+      - name: Prometheus alert rules (promtool)
+        run: |
+          docker run --rm -v "$PWD/legacy-docker/oci-services:/w:ro" --entrypoint promtool \
+            prom/prometheus:v3.16.0 check rules /w/alert-rules.yml
