@@ -1,0 +1,25 @@
+# HARD-20: Envoy (the data plane in gateway-system) → backend pods in apps.
+# Without this, the first HTTPRoute is Accepted/Programmed but every request
+# times out against default-deny-all. Pre-positioned for Phase 04; harmless
+# while apps has no pods.
+#
+# Least privilege: only the Envoy proxy pods may connect, not everything in
+# gateway-system (the Envoy Gateway controller never needs to reach apps).
+# namespaceSelector and podSelector sit in ONE `from` entry, so both must match.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-gateway
+  namespace: apps
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: envoy
+              app.kubernetes.io/component: proxy
