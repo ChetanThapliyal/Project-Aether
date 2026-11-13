@@ -51,7 +51,7 @@ jobs:
           service_account: terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
