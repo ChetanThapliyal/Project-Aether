@@ -52,6 +52,8 @@ workload_identity_provider: projects/776522028840/locations/global/workloadIdent
 service_account:            terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
 ```
 
+**Prerequisite:** all of this lives in GCS-CP (see the [ADR-011 addendum](../adr/011-terraform-remote-backend.md)). If GCS-CP's `gcp/` root is lost or the KMS key is gone, CI can neither authenticate nor decrypt, and recovery starts there.
+
 Forks and pull-request runs can't get a credential: their `ref` isn't `refs/heads/main`. The workflow runs only on `schedule` and `workflow_dispatch`.
 
 **Blast radius.** The account can decrypt every SOPS file encrypted to `sops-key`, not just the tfvars. That's why it's limited to `main` and to short-lived tokens, and why it must never run on pull requests.

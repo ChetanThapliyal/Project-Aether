@@ -44,3 +44,14 @@ ADR-011: Terraform Remote State Backend (GCS)
 - **Open Questions:** None.
 - **Related ADRs:** ADR-007 (Secrets Management), ADR-014 (Single-Environment Infrastructure Strategy).
 - **Review Conditions:** Resolved by ADR-014 (confirms single-environment default workspace per module without bucket or workspace partitioning).
+
+---
+
+### Addendum: The External Foundation, GCS-CP (2026-11-13, FND-06)
+- **Ownership.** The state bucket `tf-backend-oci-hlab-gcs`, the SOPS KMS key ring and key (`sops/sops-key`), the Cloud KMS, STS and IAM Credentials APIs, and CI's identity (service account `terraform-drift-detector` with its Workload Identity pool and provider) are owned by a separate repository, **GCS-CP**. Its `bootstrap/` root creates the bucket and keeps its own state locally, because it can't store state in a bucket it creates. Its `gcp/` root stores state in the bucket under prefix **`gcp`**.
+- **Rule.** Never run Terraform against prefix `gcp` from this repository, and never add these resources here. Doing so would give two roots ownership of the foundation every other root depends on.
+- **Protections (verified 2026-11-13).**
+  - `prevent_destroy` on the bucket, the key ring and the key.
+  - KMS key: 30-day scheduled destruction, 90-day automatic rotation (next 2026-12-31). Old key versions keep decrypting, so rotation doesn't break existing SOPS files.
+  - Bucket: versioning (5 noncurrent versions kept), 7-day soft delete, uniform bucket-level access, and **public access prevention `enforced`** (was `inherited` until FND-06).
+- **Recovery.** GCS-CP is a prerequisite for every DR scenario. Without the KMS key only the Age recipient remains ([DR Scenario 04](../disaster-recovery/scenarios/04-age-key-loss.md)); without the bucket there's no state. If the bootstrap state file is lost, `terraform import` the existing bucket: it's the only resource in that root.

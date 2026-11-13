@@ -22,11 +22,12 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 
 | Asset | Primary Location | Backup / Replica | How I Decrypt / Access It |
 |---|---|---|---|
-| Terraform state | `gs://tf-backend-oci-hlab-gcs/` (prefixes `oci`, `gcp-dmz`, `homelab`, `backblaze-b2`) | GCS object versions | `gcloud auth application-default login` |
+| Terraform state | `gs://tf-backend-oci-hlab-gcs/` (prefixes `oci`, `gcp-dmz`, `homelab`, `backblaze-b2`; `gcp` belongs to GCS-CP) | GCS object versions (5 kept) + 7-day soft delete; public access prevention enforced (FND-06) | `gcloud auth application-default login` |
+| **Control-plane foundation (GCS-CP)**: the state bucket, the SOPS KMS key `sops-key`, CI's drift identity (WIF) | Separate repo `GCS-CP` (local clone + GitHub). `gcp/` state in the bucket under prefix `gcp`; the **bootstrap root's state (the bucket itself) is a local file on my workstation only** | `prevent_destroy` on the bucket, key ring and key; KMS 30-day scheduled destruction, 90-day rotation (old versions still decrypt) | **Recovery prerequisite** for every other scenario: without the KMS key only the Age recipient remains (Scenario 04); without the bucket there's no Terraform state. Lost bootstrap state → `terraform import` the existing bucket |
 | Repository secrets | Git: `*.sops.yaml`, `terraform.sops.tfvars`, `group_vars/proxmox/vault.yaml` | Git history, GitHub, local clones | Age key `~/.config/sops/age/keys.txt` or GCP KMS `sops-key` |
 | SOPS Age private key | My workstation | GCP KMS (decrypts everything without it); a copy in the cluster secret `argocd/argocd-sops-age-key`; **offline copy: not documented yet** | — |
 | K3s etcd snapshots | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots` → restic `/mnt/aether-pool/restic-k3s-etcd` → B2 `aether-etcd-offsite-lock` (age, locked 30 days) and `aether-restic-etcd-offsite` (transitional) | Locked bucket: read-only restore key in `group_vars/proxmox/vault.yaml`, age identity `dr_offsite_age_identity` in `ansible-secrets.sops.yaml`. Local repo: `/etc/restic/etcd-password.txt` on Proxmox (**randomly generated, not in SOPS**). B2 repo: `restic_b2_password` + B2 key in `group_vars/proxmox/vault.yaml` |
-| K3s server token | `/var/lib/rancher/k3s/server/token` on the control VM | **None yet.** HARD-10 escrows it in SOPS as `k3s_server_token` | Without it I can't restore a snapshot onto a new VM |
+| K3s server token | `/var/lib/rancher/k3s/server/token` on the control VM | Escrowed in SOPS as `k3s_server_token` (HARD-10, 10 Nov); fresh installs are seeded from it | Without it I can't restore a snapshot onto a new VM |
 | Kubernetes persistent volumes | `local-path` on each node's SSD | **None** | — |
 | OCI app volumes & databases | `/home/ubuntu/` on `bookorbit` | Restic repo `s3:<oci endpoint>/dr-backups` (same OCI tenancy) | `/opt/backup/restic.env`, rendered from `oci_backup_*` keys in `ansible-secrets.sops.yaml` |
 | OCI database dumps | Written nightly before the restic run: `blinko/db.sql`, `bookorbit/db.sql`, `affine/db.sql`, `kestra/db.sql`, `anytype/mongo.archive` | Inside the restic snapshot | — |
@@ -79,4 +80,5 @@ These are the gaps I know about and have accepted for now:
 - **Nothing backs up the Kubernetes PVs** (`local-path`).
 - **Nothing backs up DMZ Uptime Kuma.** If I lose it, I rebuild every monitor by hand and change the OCI backup push URL. FND-17 fixes this.
 - **No playbook installs Tailscale on the OCI host.** A rebuild joins it by hand (Scenario 02 §3.3). FND-18 fixes this.
+- **GCS-CP's bootstrap state lives only on my workstation.** It describes one resource (the state bucket), so losing it means re-importing the bucket, not losing data.
 - **No runbooks yet** for: losing the GCP project (Terraform state, KMS and DMZ all live there), losing the OCI tenancy, losing my workstation (toolchain and keys), or losing the GitHub repository.
