@@ -33,7 +33,7 @@ spec:
         configReloader:
           resources:
             requests: { cpu: 5m, memory: 16Mi }
-            limits:   { cpu: 20m, memory: 48Mi }
+            limits:   { cpu: 20m, memory: 64Mi }   # grew 6 -> 39 Mi in the first day; 48 Mi left too little headroom
         alloy:
           enableReporting: false   # no usage reports to Grafana Labs (egress is denied anyway)
           # Read positions live on the node, so a restart doesn't re-send every log.
