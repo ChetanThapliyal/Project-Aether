@@ -166,51 +166,60 @@
         mode: "0640"
 
     # ─── Workaround for GHCR IPv4-only limitation on GCP VM ───
-    - name: Check if Hawser image exists on GCP DMZ host
-      command: docker image inspect ghcr.io/finsys/hawser:0.2.50
+    # ghcr.io has no IPv6, so the DMZ can't pull Hawser itself. Copy exactly the
+    # image the compose file pins (Dependabot bumps it there), via this machine.
+    - name: Read the Hawser image reference from the compose file
+      ansible.builtin.set_fact:
+        hawser_image: "{{ lookup('file', '../../docker/gcp-dmz/docker-compose.yml') | regex_search('ghcr\\.io/finsys/hawser:[^\\s#]+') }}"
+
+    - name: Fail if the Hawser image reference wasn't found
+      ansible.builtin.assert:
+        that: hawser_image | length > 0
+        fail_msg: "No ghcr.io/finsys/hawser:<tag> line in docker-compose.yml"
+        quiet: true
+
+    - name: Check if the pinned Hawser image exists on the DMZ host
+      ansible.builtin.command: docker image inspect {{ hawser_image }}
       register: hawser_img_check
       failed_when: false
       changed_when: false
 
-    - name: Pull Hawser image locally (IPv4 available)
+    - name: Pull the pinned Hawser image locally (IPv4 available)
       delegate_to: localhost
       become: false
-      command: docker pull ghcr.io/finsys/hawser:latest
+      ansible.builtin.command: docker pull --platform linux/amd64 {{ hawser_image }}
       when: hawser_img_check.rc != 0
 
-    - name: Save Hawser image to tar archive locally
+    - name: Save the Hawser image to a tar archive locally
       delegate_to: localhost
       become: false
-      command: docker save -o /tmp/hawser-latest.tar ghcr.io/finsys/hawser:latest
+      ansible.builtin.command: docker save -o /tmp/hawser-image.tar {{ hawser_image }}
       when: hawser_img_check.rc != 0
 
-    - name: Copy Hawser image to GCP DMZ host
-      copy:
-        src: /tmp/hawser-latest.tar
-        dest: /tmp/hawser-latest.tar
+    - name: Copy the Hawser image to the DMZ host
+      ansible.builtin.copy:
+        src: /tmp/hawser-image.tar
+        dest: /tmp/hawser-image.tar
+        mode: "0600"
       when: hawser_img_check.rc != 0
 
-    - name: Load Hawser image into Docker on GCP DMZ host
-      command: docker load -i /tmp/hawser-latest.tar
+    - name: Load the Hawser image on the DMZ host
+      ansible.builtin.command: docker load -i /tmp/hawser-image.tar
       when: hawser_img_check.rc != 0
 
-    - name: Clean up remote tar archive
-      file:
-        path: /tmp/hawser-latest.tar
+    - name: Clean up the remote tar archive
+      ansible.builtin.file:
+        path: /tmp/hawser-image.tar
         state: absent
       when: hawser_img_check.rc != 0
 
-    - name: Clean up local tar archive
+    - name: Clean up the local tar archive
       delegate_to: localhost
       become: false
-      file:
-        path: /tmp/hawser-latest.tar
+      ansible.builtin.file:
+        path: /tmp/hawser-image.tar
         state: absent
       when: hawser_img_check.rc != 0
-
-    - name: Ensure Hawser image is tagged correctly
-      command: docker tag ghcr.io/finsys/hawser:latest ghcr.io/finsys/hawser:0.2.50
-      ignore_errors: true
 
     # ─── Start Docker Compose Stack ───────────────────────
     - name: Remove the retired cyan Aether logo (FND-19)
