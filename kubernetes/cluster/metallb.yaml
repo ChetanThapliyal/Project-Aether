@@ -15,6 +15,7 @@ spec:
     targetRevision: 0.14.8
     helm:
       valuesObject:
+        foo: bar   # GOP-05 negative test: unknown key
         controller:
           nodeSelector:
             kubernetes.io/hostname: k3s-worker-02
