@@ -13,9 +13,10 @@ variable "fingerprint" {
   type        = string
 }
 
-variable "private_key_path" {
-  description = "Path to the private key file"
+variable "private_key" {
+  description = "OCI API signing key (PEM), stored in terraform.sops.tfvars (FND-05)"
   type        = string
+  sensitive   = true
 }
 
 variable "region" {

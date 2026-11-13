@@ -1,76 +1,101 @@
 name: "Terraform Drift Detection"
 
+# FND-05: nightly read-only plans of every cloud root, keyless.
+# - Auth: GitHub OIDC -> GCP Workload Identity Federation (GCS-CP gcp/iam_ci.tf).
+#   Only this repository's main branch can exchange a token; there is no stored key.
+# - The service account reads the state bucket and decrypts SOPS via KMS; plans
+#   run with -lock=false, so CI never writes state.
+# - This repository is public: the log and summary list only WHAT drifted
+#   (action + resource address), never attribute values.
+# - 03-homelab is not here: the Proxmox provider needs VM.Config.Disk (a write
+#   permission) just to plan, so it is checked by hand (`task tf:plan DIR=03-homelab`).
+
 on:
   schedule:
-    # Run nightly at 02:00 UTC (07:30 IST)
-    - cron: "0 2 * * *"
+    - cron: "0 2 * * *" # 02:00 UTC (07:30 IST)
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write # OIDC token for Workload Identity Federation
+
+concurrency:
+  group: terraform-drift
+  cancel-in-progress: false
+
+env:
+  TERRAFORM_VERSION: "1.15.9"
+  SOPS_VERSION: "v3.13.3"
 
 jobs:
   drift-detection:
-    name: "Drift Check - ${{ matrix.dir }}"
+    name: "Drift check - ${{ matrix.dir }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         dir:
+          - "01-oci-compute"
           - "02-gcp-dmz"
+          - "04-backblaze-b2"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (keyless)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: projects/776522028840/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
+          service_account: terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.8"
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
       - name: Install SOPS
         run: |
-          SOPS_VERSION="v3.9.4"
           curl -fsSL -o /usr/local/bin/sops \
             "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
           chmod +x /usr/local/bin/sops
           sops --version
 
-      - name: Run Drift Check (Terraform Plan)
+      - name: Drift check (read-only plan)
         working-directory: infrastructure/terraform/${{ matrix.dir }}
         run: |
-          echo "Initializing Terraform..."
-          terraform init
+          set -euo pipefail
+          terraform init -input=false -no-color > /dev/null
 
           if [ -f terraform.sops.tfvars ]; then
-            echo "Decrypting SOPS variables for plan..."
+            umask 077
             sops -d terraform.sops.tfvars > terraform.auto.tfvars
           fi
 
-          echo "Running terraform plan with -detailed-exitcode..."
           set +e
-          terraform plan -detailed-exitcode -no-color | tee plan_output.txt
-          PLAN_EXIT_CODE=$?
+          terraform plan -lock=false -input=false -no-color -detailed-exitcode -out=tfplan > plan.log 2>&1
+          rc=$?
           set -e
-
-          # Securely wipe decrypted variables
           rm -f terraform.auto.tfvars
 
-          if [ $PLAN_EXIT_CODE -eq 0 ]; then
-            echo "✅ No drift detected. Infrastructure matches configuration." >> $GITHUB_STEP_SUMMARY
-          elif [ $PLAN_EXIT_CODE -eq 2 ]; then
-            echo "⚠️ DRIFT DETECTED: Infrastructure has changed outside of Terraform!" >> $GITHUB_STEP_SUMMARY
-            echo '```hcl' >> $GITHUB_STEP_SUMMARY
-            cat plan_output.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 2
-          else
-            echo "❌ Terraform plan failed with an error." >> $GITHUB_STEP_SUMMARY
-            exit $PLAN_EXIT_CODE
-          fi
+          case "$rc" in
+            0)
+              echo "✅ ${{ matrix.dir }}: no drift." | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            2)
+              echo "⚠️ ${{ matrix.dir }}: drift detected. Resources that would change:" | tee -a "$GITHUB_STEP_SUMMARY"
+              # Addresses and actions only; values stay out of this public log.
+              terraform show -json tfplan \
+                | jq -r '.resource_changes[] | select(.change.actions != ["no-op"]) | "- `\(.change.actions | join(","))` \(.address)"' \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            *)
+              # Show only Terraform's error lines, not the plan body.
+              echo "❌ ${{ matrix.dir }}: plan failed." | tee -a "$GITHUB_STEP_SUMMARY"
+              grep -E '^(Error|│ Error)' plan.log | head -20 || true
+              ;;
+          esac
+          rm -f tfplan plan.log
+          exit "$rc"
