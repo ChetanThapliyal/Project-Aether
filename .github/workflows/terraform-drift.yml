@@ -30,7 +30,7 @@ env:
 jobs:
   drift-detection:
     name: "Drift check - ${{ matrix.dir }}"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to Ubuntu 26 from Oct 2026
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -42,16 +42,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Authenticate to Google Cloud (keyless)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/776522028840/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
           service_account: terraform-drift-detector@gcs-oci-homelab-controlplane.iam.gserviceaccount.com
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
