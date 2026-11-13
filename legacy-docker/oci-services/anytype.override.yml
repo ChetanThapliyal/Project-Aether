@@ -46,3 +46,9 @@ services:
       - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_CONSENSUSNODE_PORT}:${ANY_SYNC_CONSENSUSNODE_PORT}"
       - "${ANYTYPE_LISTEN_IP}:${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}:${ANY_SYNC_CONSENSUSNODE_QUIC_PORT}/udp"
       - "${ANY_SYNC_CONSENSUSNODE_METRIC_ADDR}:8000"
+
+  # FND-09: upstream runs this tool container on :latest. Everything else in the
+  # stack is pinned to the upstream release's version tags (anytype_release in
+  # oci-apps.yml), so only this one needs an override.
+  netcheck:
+    image: ghcr.io/anyproto/any-sync-tools:v0.7.0@sha256:ee6cf65958ee4e9b558c3973802b7fbd64b3a66c7cf78d64d1a08fb9de0af510

@@ -79,7 +79,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/bookorbit"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [bookorbit, apps]
 
     # ─── vikunja (Task Management) ──────────────────────
@@ -143,7 +143,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/uptimekuma"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [uptimekuma, apps]
 
     # ─── Dockhand (Docker Management) ───────────────────
@@ -170,7 +170,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/dockhand"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [dockhand, apps]
 
     # ─── Navidrome (Music Server) ───────────────────────
@@ -198,7 +198,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/navidrome"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [navidrome, apps]
 
     # # ─── Homepage (Dashboard) ───────────────────────────────
@@ -285,7 +285,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/it-tools"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [it-tools, apps]
 
     # ─── Dozzle (Log Viewer) ────────────────────────────────
@@ -309,7 +309,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/dozzle"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [dozzle, apps]
 
     # ─── NextExplorer ───────────────────────────────────────
@@ -337,7 +337,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/nextexplorer"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [nextexplorer, apps]
 
     # ─── Memos ──────────────────────────────────────────────
@@ -395,7 +395,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/n8n"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [n8n, apps]
 
     # ─── Blinko ─────────────────────────────────────────────
@@ -449,7 +449,7 @@
         project_src: "{{ app_base_dir }}/blinko"
         state: present
         recreate: auto
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [blinko, apps]
 
     # ─── SiYuan Notes (DISABLED — replaced by AFFiNE) ───────
@@ -586,7 +586,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/couchdb"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [couchdb, apps]
 
     # ─── AFFiNE (Knowledge Management) ─────────────────────
@@ -622,7 +622,7 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/affine"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [affine, apps]
 
     # ─── Anytype (Notes, self-hosted sync network) ──────
@@ -747,5 +747,5 @@
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/kestra"
         state: present
-        pull: always
+        pull: missing   # images are pinned by digest (FND-09)
       tags: [kestra, apps]

@@ -1,6 +1,6 @@
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: nxzai/explorer:v4.0.1@sha256:3b3f441d3ea3c0b2ee3094c292dbc59a1fbf54b70a492f6d96513f99caf4facc
     container_name: nextexplorer
     restart: unless-stopped
     volumes:

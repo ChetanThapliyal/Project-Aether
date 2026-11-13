@@ -1,6 +1,6 @@
 services:
   blinko-website:
-    image: blinkospace/blinko:latest
+    image: blinkospace/blinko:1.8.9@sha256:ebbdcc375451570fad37319dea443c062d2a451a45d4f2ee0d98189d4b7615a5
     container_name: blinko
     restart: unless-stopped
     env_file:
@@ -19,7 +19,7 @@ services:
       tsdproxy.container_port: "1111"
 
   postgres:
-    image: postgres:14
+    image: postgres:14.24@sha256:834a046089d76edd1d2e81c4741f3ad5d1853646ededc86c2708936aad31c1ed
     container_name: blinko-postgres
     restart: unless-stopped
     env_file:
