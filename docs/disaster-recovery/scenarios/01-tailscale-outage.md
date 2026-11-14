@@ -61,10 +61,10 @@ ssh -i ~/.ssh/oci_bookorbit -L 5678:localhost:5678 ubuntu@"$IP"   # n8n → http
 ### Step 3.3: GCP DMZ
 
 ```bash
-gcloud compute ssh aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap
+gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab
 ```
 
-This only works after FND-12 adds the IAP firewall rule. Until then I have no way into the DMZ without the tailnet. That's acceptable, because the DMZ holds no data I need during a tailnet outage.
+This works since FND-12 (14 Nov, tested: the connection arrives from Google's IAP range). Use `owl@` and `--ssh-key-file`: the instance blocks project SSH keys, so a bare `gcloud compute ssh` writes a new key into the instance metadata, which Terraform removes and the drift check flags. The DMZ holds no data I need during a tailnet outage, so this is for repair, not urgency.
 
 ---
 
@@ -92,6 +92,6 @@ During a maintenance window, from my workstation on the home LAN:
 1. `sudo tailscale down`
 2. SSH to `192.168.1.200` and `192.168.1.51` over the LAN.
 3. SSH to OCI over its public IPv4, and open one service through an SSH tunnel.
-4. *(After FND-12)* `gcloud compute ssh aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --command hostname`
+4. `gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab --command hostname` prints `aether-gcp-dmz`
 5. `sudo tailscale up && tailscale status`
 6. Record the date in the [DR README](../README.md#4-scenarios--drills).

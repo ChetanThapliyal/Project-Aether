@@ -31,7 +31,7 @@
 `/opt/dmz/uptime-kuma/` holds every DMZ monitor, its history, and the push token for "OCI Nightly Restic Backup". `/opt/dmz/.env` holds the Hawser and Cloudflare tunnel tokens. I can recreate the `.env` from SOPS and Cloudflare. **The Kuma database I can't recreate.** If the disk still works, I copy it off first:
 
 ```bash
-gcloud compute ssh aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap \
+gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab \
   --command "sudo tar -C /opt/dmz -czf - uptime-kuma" > dmz-kuma-$(date +%F).tgz   # or over the tailnet: ssh owl@aether-gcp-dmz
 ```
 

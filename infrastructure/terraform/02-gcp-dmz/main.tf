@@ -3,7 +3,7 @@
 # =============================================================================
 # Provisions:
 #   1. Dedicated VPC & Dual-Stack Subnet (External IPv6 enabled, strictly $0.00)
-#   2. Restricted Firewall Rules (inbound SSH & ICMPv6 only)
+#   2. Restricted Firewall Rules (break-glass SSH via IAP, ICMPv6 only)
 #   3. e2-micro Compute Instance (Always Free Tier) with Tailscale Bootstrap
 # =============================================================================
 
@@ -32,17 +32,24 @@ resource "google_compute_subnetwork" "dmz_subnet" {
 # In GCP, all inbound traffic not explicitly permitted by an ingress firewall
 # rule is implicitly denied by the default priority-65535 drop rule.
 
-resource "google_compute_firewall" "allow_ssh_ipv6" {
-  name        = "${var.instance_name}-allow-ssh-ipv6"
+# Break-glass SSH (FND-12). Everyday access is Tailscale SSH, which arrives inside
+# WireGuard and needs no VPC rule (the old rule for the fd7a: tailnet range could
+# never match: those addresses never appear on the VPC interface). This rule is
+# for when the tailnet is down: Google IAP TCP forwarding reaches the VM's
+# internal IPv4 from Google's own range, gated by IAM (the project owner, or
+# roles/iap.tunnelResourceAccessor), not by network position. Nothing here is
+# reachable from the internet.
+resource "google_compute_firewall" "allow_ssh_iap" {
+  name        = "${var.instance_name}-allow-ssh-iap"
   network     = google_compute_network.dmz_vpc.name
-  description = "Permit inbound SSH connections over IPv6"
+  description = "Break-glass SSH through Google IAP TCP forwarding (tailnet-down access)"
 
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
 
-  source_ranges = ["fd7a:115c:a1e0::/48"] # Tailscale CGNAT IPv6 block
+  source_ranges = ["35.235.240.0/20"] # Google IAP TCP forwarding
   target_tags   = ["ssh-allowed"]
 }
 
@@ -116,7 +123,7 @@ resource "google_compute_instance" "dmz" {
 
   # Ensure networking & firewall rules are established before VM creation
   depends_on = [
-    google_compute_firewall.allow_ssh_ipv6,
+    google_compute_firewall.allow_ssh_iap,
     google_compute_firewall.allow_icmp_ipv6,
     google_compute_subnetwork.dmz_subnet
   ]

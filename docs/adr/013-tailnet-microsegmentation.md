@@ -95,3 +95,13 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
   - `tailscale status --json` shows every OCI service node with exactly its role tags, and none untagged.
   - After `docker compose up -d --force-recreate` of a service, the same node keeps the same address and tags (verified 2026-11-07 on the Uptime Kuma node).
   - Every policy change is verified from the source (what answers from the DMZ) and at the destination (the packet filter on the target node).
+
+---
+
+### Addendum: Cloud Firewalls and Break-Glass Access (2026-11-14, FND-12)
+The guidance above, to allow inbound management connections from the Tailscale IPv6 range (`fd7a:115c:a1e0::/48`) in a cloud firewall, **can't work**. Tailnet traffic is WireGuard: it arrives encrypted from a public address and is decrypted on the node, so tailnet addresses never appear on the VPC interface, and a rule that names them never matches. The GCP DMZ had such a rule from the start; it never admitted anything.
+
+- **Everyday management needs no cloud firewall rule at all.** Tailscale SSH arrives inside WireGuard (outbound-initiated, NAT-traversed).
+- **Break-glass, for when the tailnet is down:** one rule admits Google's IAP TCP-forwarding range (`35.235.240.0/20`) to port 22 on the instance tagged `ssh-allowed`. IAP forwards to the VM's internal address, and who may use it is decided by Google IAM, not by network position. The DMZ has no public IPv4 and still has no inbound path from the internet.
+- **Method:** `gcloud compute ssh owl@<instance> --tunnel-through-iap --ssh-key-file <the Terraform-managed key>`. The instance blocks project SSH keys and Terraform owns its `ssh-keys`; a bare `gcloud compute ssh` would write a new key into the instance metadata, which Terraform removes and the nightly drift check flags. Verified 2026-11-14: the connection came from the IAP range and the instance's metadata fingerprint was unchanged.
+- The same reasoning applies to any other cloud host: close the public port, rely on the mesh, and keep one IAM-gated path in.

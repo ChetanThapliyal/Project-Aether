@@ -49,7 +49,7 @@ My normal path to every host is the tailnet (`ssh homelab`, `ssh k3s-control-01`
 | **Proxmox host** | `ssh root@192.168.1.200` (web UI `https://192.168.1.200:8006`) | To be on the home LAN; `~/.ssh/homelab` |
 | **K3s nodes** | `ssh owl@192.168.1.51` / `.52` / `.53` | To be on the home LAN; `~/.ssh/homelab` |
 | **OCI `bookorbit`** | `ssh -i ~/.ssh/oci_bookorbit ubuntu@<public IPv4>` (`terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookorbit_public_ip`) | Port 22 open in the OCI security list. If I close it (FND-04 option A), I first re-add the rule in the OCI console |
-| **GCP `aether-gcp-dmz`** | `gcloud compute ssh aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap` | **Doesn't work until FND-12 adds the IAP firewall rule** (`35.235.240.0/20` on port 22). Until then I have no break-glass into the DMZ, and I rebuild it instead (Scenario 05) |
+| **GCP `aether-gcp-dmz`** | `gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab` | Works since FND-12 (14 Nov): a firewall rule admits Google's IAP range (`35.235.240.0/20`) on port 22, gated by my Google IAM identity. Keep `owl@` and `--ssh-key-file`: this instance blocks project SSH keys, so a bare `gcloud compute ssh` writes a new key into the *instance* metadata, which Terraform would then remove and the nightly drift check would flag |
 
 ---
 
