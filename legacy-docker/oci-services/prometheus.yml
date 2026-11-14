@@ -40,6 +40,14 @@ scrape_configs:
         labels:
           environment: 'homelab-proxmox'
 
+  # ─── GCP DMZ Node Exporter (via Tailscale, FND-14) ────────────
+  - job_name: 'gcp-dmz-node'
+    static_configs:
+      - targets:
+          - 'aether-gcp-dmz:9100'
+        labels:
+          environment: 'gcp-dmz'
+
   # ─── K3s Kube-State-Metrics (via Tailscale) ───────────────────
   - job_name: 'k3s-kube-state-metrics'
     scrape_interval: 30s

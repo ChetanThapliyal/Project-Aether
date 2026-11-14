@@ -128,3 +128,16 @@ groups:
           tier: kubernetes
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted >5 times in 1h"
+
+  # FND-14
+  - name: edge-alerts
+    rules:
+      - alert: DMZNodeDown
+        expr: up{job="gcp-dmz-node"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          tier: edge
+        annotations:
+          summary: "GCP DMZ node exporter is unreachable"
+          description: "OCI Prometheus can't scrape aether-gcp-dmz:9100 for 5m. Check the node-exporter container on the DMZ and the tailnet grant tag:oci -> tag:gcp-dmz:9100."

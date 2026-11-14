@@ -5,7 +5,8 @@
 #   1. Uptime Kuma  : Independent external synthetic monitoring & status pages
 #   2. Glance       : Public platform page (HARD-17: no tailnet names, no fake vitals)
 #   3. Hawser       : Dockhand agent
-#   4. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+#   4. Node exporter: host metrics scraped by OCI Prometheus (FND-14)
+#   5. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
 #
 # Images are pinned as tag@digest (FND-08), so Dependabot can propose a bump and
 # nothing changes without a commit. The deploy pulls only images that are missing.
@@ -67,6 +68,26 @@ services:
     command: standard --port 2376
     networks:
       - dmz-net
+
+  # ---------------------------------------------------------------------------
+  # Node exporter — host metrics for OCI Prometheus (FND-14)
+  # ---------------------------------------------------------------------------
+  # Host network, so it reports the VM's own interfaces and listens on :9100.
+  # Nothing public reaches it: the VPC has no ingress rule for 9100 (implied
+  # deny), and the tailnet policy lets only tag:oci in. Read-only view of the root
+  # filesystem; the cap keeps it from competing with Kuma on a ~1 GB VM.
+  node-exporter:
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    container_name: node-exporter
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    mem_limit: 64m
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /:/host:ro,rslave
 
   # ---------------------------------------------------------------------------
   # Cloudflared — Zero-Trust Ingress Tunnel

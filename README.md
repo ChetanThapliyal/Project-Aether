@@ -154,7 +154,7 @@ Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI 
 | `tag:gcp-dmz` | `tag:oci` | 80 / 443 | Synthetic health checks |
 | `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100, 8080, 30082–30084 | Prometheus telemetry scrapes (node_exporter, KSM, ArgoCD) |
 | `tag:k3s` | `tag:oci` | 3100 | Alloy log shipping to OCI Loki (ADR-019) |
-| `tag:oci` | `tag:gcp-dmz` | 2376 | Hawser / Dockhand |
+| `tag:oci` | `tag:gcp-dmz` | 2376, 9100 | Hawser / Dockhand; node_exporter scrape |
 
 `tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
 
