@@ -48,7 +48,7 @@ My normal path to every host is the tailnet (`ssh homelab`, `ssh k3s-control-01`
 |---|---|---|
 | **Proxmox host** | `ssh root@192.168.1.200` (web UI `https://192.168.1.200:8006`) | To be on the home LAN; `~/.ssh/homelab` |
 | **K3s nodes** | `ssh owl@192.168.1.51` / `.52` / `.53` | To be on the home LAN; `~/.ssh/homelab` |
-| **OCI `bookorbit`** | `ssh -i ~/.ssh/oci_bookorbit ubuntu@<public IPv4>` (`terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookorbit_public_ip`) | Port 22 open in the OCI security list. If I close it (FND-04 option A), I first re-add the rule in the OCI console |
+| **OCI `bookorbit`** | `ssh -i ~/.ssh/oci_bookorbit ubuntu@<public IPv4>` (`terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookorbit_public_ip`) | Public port 22 is closed (FND-04). First set `TF_VAR_bootstrap_ssh_cidr="<my IPv4>/32"` and run `task tf:apply DIR=01-oci-compute`, which adds the rule; clear it and apply again afterwards ([Scenario 01 §3.2](scenarios/01-tailscale-outage.md)) |
 | **GCP `aether-gcp-dmz`** | `gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab` | Works since FND-12 (14 Nov): a firewall rule admits Google's IAP range (`35.235.240.0/20`) on port 22, gated by my Google IAM identity. Keep `owl@` and `--ssh-key-file`: this instance blocks project SSH keys, so a bare `gcloud compute ssh` writes a new key into the *instance* metadata, which Terraform would then remove and the nightly drift check would flag |
 
 ---
@@ -79,6 +79,6 @@ These are the gaps I know about and have accepted for now:
 - **The OCI backups aren't offsite.** The `dr-backups` bucket is in the same OCI tenancy as the instance. If I lose the tenancy, I lose the backups too. A second-provider copy is deferred to the Phase 04 DR review.
 - **Nothing backs up the Kubernetes PVs** (`local-path`).
 - **Nothing backs up DMZ Uptime Kuma.** If I lose it, I rebuild every monitor by hand and change the OCI backup push URL. FND-17 fixes this.
-- **No playbook installs Tailscale on the OCI host.** A rebuild joins it by hand (Scenario 02 §3.3). FND-18 fixes this.
+- **A rebuilt OCI host needs a fresh Tailscale auth key.** The base playbook installs and joins Tailscale (FND-18), but the key is one-time and expires after 90 days, so I create a new one for each rebuild (Scenario 02 §3.3).
 - **GCS-CP's bootstrap state lives only on my workstation.** It describes one resource (the state bucket), so losing it means re-importing the bucket, not losing data.
 - **No runbooks yet** for: losing the GCP project (Terraform state, KMS and DMZ all live there), losing the OCI tenancy, losing my workstation (toolchain and keys), or losing the GitHub repository.

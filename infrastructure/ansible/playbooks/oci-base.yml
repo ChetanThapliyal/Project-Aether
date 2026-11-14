@@ -49,6 +49,86 @@
         comment: Tailscale direct paths
       tags: [base, firewall]
 
+    # ─── Tailscale on the host (FND-18) ─────────────────
+    # The host joins the tailnet as bookorbit-net. Installing and joining here
+    # means a rebuilt instance (DR Scenario 02) needs no hand-typed commands.
+    # The join runs only when the node isn't already connected: joining
+    # with other flags on a live node fails or re-authenticates it.
+    - name: FND-18 | Add Tailscale GPG key
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
+      tags: [base, tailscale]
+
+    - name: FND-18 | Add Tailscale APT repository
+      ansible.builtin.deb822_repository:
+        name: tailscale
+        uris: "https://pkgs.tailscale.com/stable/ubuntu"
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components:
+          - main
+        signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        state: present
+      tags: [base, tailscale]
+
+    # Tailscale's install script writes the one-line tailscale.list; with the
+    # deb822 file above, apt would warn about the same repository twice.
+    - name: FND-18 | Remove the one-line repository file the install script leaves
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/tailscale.list
+        state: absent
+      tags: [base, tailscale]
+
+    - name: FND-18 | Install Tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+      tags: [base, tailscale]
+
+    - name: FND-18 | Enable and start tailscaled
+      ansible.builtin.systemd:
+        name: tailscaled
+        enabled: true
+        state: started
+      tags: [base, tailscale]
+
+    - name: FND-18 | Read Tailscale state
+      ansible.builtin.command: tailscale status --json
+      register: ts_status
+      changed_when: false
+      failed_when: false
+      check_mode: false   # read-only, and the join guard below needs the result
+      tags: [base, tailscale]
+
+    - name: FND-18 | Decide whether this node must join
+      ansible.builtin.set_fact:
+        ts_needs_join: "{{ ts_status.rc != 0 or (ts_status.stdout | from_json).BackendState != 'Running' }}"
+      tags: [base, tailscale]
+
+    # no_log on the join below would hide an "undefined variable" error, so the
+    # missing key is caught here with a readable message.
+    - name: FND-18 | Require the auth key when a join is needed
+      ansible.builtin.assert:
+        that: oci_host_tailscale_auth_key is defined
+        fail_msg: >-
+          This node isn't on the tailnet and oci_host_tailscale_auth_key isn't in
+          infrastructure/secrets/ansible-secrets.sops.yaml. Create a pre-authorised,
+          tagged key in the Tailscale console and add it with `sops`.
+      when: ts_needs_join | bool
+      tags: [base, tailscale]
+
+    - name: FND-18 | Join the tailnet (only if not already running)
+      ansible.builtin.command: >
+        tailscale up
+        --auth-key={{ oci_host_tailscale_auth_key }}
+        --hostname=bookorbit-net
+        --advertise-tags={{ oci_host_tailscale_tags | default('tag:oci') }}
+      when: ts_needs_join | bool
+      no_log: true
+      tags: [base, tailscale]
+
     # FND-04: SSH is reached over the tailnet only (public 22 is closed in the
     # OCI security list). 10- sorts before 60-cloudimg-settings.conf, and sshd
     # takes the first value it reads, so these win.

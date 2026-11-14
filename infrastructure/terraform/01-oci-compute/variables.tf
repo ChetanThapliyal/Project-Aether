@@ -59,3 +59,14 @@ variable "sl_ocid" {
   type        = string
   description = "OCID of the existing Security List to import"
 }
+
+variable "bootstrap_ssh_cidr" {
+  description = "Source CIDR (for example 203.0.113.7/32) allowed to SSH to the instance while it is rebuilt and not yet on the tailnet (FND-18). Leave empty otherwise; set it with TF_VAR_bootstrap_ssh_cidr, never in a tfvars file."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.bootstrap_ssh_cidr == "" || can(cidrhost(var.bootstrap_ssh_cidr, 0))
+    error_message = "bootstrap_ssh_cidr must be empty or a CIDR such as 203.0.113.7/32."
+  }
+}

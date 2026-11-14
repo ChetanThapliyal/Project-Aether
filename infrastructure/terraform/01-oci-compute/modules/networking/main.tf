@@ -54,8 +54,23 @@ resource "oci_core_security_list" "main" {
   }
 
   # No public SSH (FND-04). Operators reach the host over the tailnet; sshd is
-  # hardened in oci-base.yml. Break-glass: re-add TCP 22 from your own IP in
-  # the OCI console (Networking > Security lists), or use the serial console.
+  # hardened in oci-base.yml. A rebuilt instance isn't on the tailnet yet, so DR
+  # sets bootstrap_ssh_cidr to the operator's own address for the first Ansible
+  # run (FND-18) and clears it again afterwards. Empty means no rule.
+  dynamic "ingress_security_rules" {
+    for_each = var.bootstrap_ssh_cidr == "" ? [] : [var.bootstrap_ssh_cidr]
+    content {
+      protocol    = "6"
+      source      = ingress_security_rules.value
+      source_type = "CIDR_BLOCK"
+      stateless   = false
+      description = "Temporary bootstrap SSH (FND-18); clear bootstrap_ssh_cidr after the host joins the tailnet"
+      tcp_options {
+        min = 22
+        max = 22
+      }
+    }
+  }
 
   # Tailscale direct paths. The homelab sits behind ISP carrier-grade NAT whose
   # mapping varies by destination, so hole-punching from home fails and

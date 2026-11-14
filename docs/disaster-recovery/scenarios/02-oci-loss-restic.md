@@ -41,27 +41,40 @@ If the boot volume backup `bookorbit-pre-upgrade` is recent enough to be useful,
 
 ### Step 3.2: Re-provision the Instance
 
+Public SSH is closed in the security list (FND-04), and a new instance isn't on the tailnet yet. So I open TCP 22 to my own address for this one run, with a variable that defaults to off:
+
 ```bash
 task tf:init  DIR=01-oci-compute
-task tf:plan  DIR=01-oci-compute     # expect the instance (and anything attached to it) to be created
+MYIP=$(curl -s4 https://api.ipify.org); echo "$MYIP"
+export TF_VAR_bootstrap_ssh_cidr="$MYIP/32"
+task tf:plan  DIR=01-oci-compute     # expect the instance (and anything attached to it) to be created, plus the SSH rule
 task tf:apply DIR=01-oci-compute
 IP=$(terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookorbit_public_ip); echo "$IP"
 ```
 
 ### Step 3.3: Rejoin the Tailnet
 
-Ansible's inventory reaches `bookorbit` through `~/.ssh/config`, which points at the tailnet name `bookorbit-net.tail7067ab.ts.net`. Until the new instance is on the tailnet, I use the public IP.
+Ansible's inventory reaches `bookorbit` through `~/.ssh/config`, which points at the tailnet name `bookorbit-net.tail7067ab.ts.net`. Until the new instance is on the tailnet, I use the public IP. The base playbook installs Tailscale and joins the node (FND-18), so nothing is typed on the host.
 
 1. In the Tailscale admin console I delete the old `bookorbit-net` machine, plus the old tsdproxy service nodes. That way the new nodes keep their names, rather than becoming `*-1`.
-2. **No playbook installs Tailscale on the host itself** (FND-18 will automate this), so I install it by hand:
+2. In the console I create a new auth key: **pre-authorised, not reusable, tag `tag:oci` only**. A key that was used once, or has passed its 90 days, can't be used again, so I make a fresh one for every rebuild. I store it, without pasting it anywhere else:
    ```bash
-   ssh -i ~/.ssh/oci_bookorbit -o StrictHostKeyChecking=accept-new ubuntu@"$IP"
-   curl -fsSL https://tailscale.com/install.sh | sh
-   sudo tailscale up --hostname=bookorbit-net --auth-key=<key>   # use a tagged key matching the current policy (FND-03)
+   sops infrastructure/secrets/ansible-secrets.sops.yaml     # set oci_host_tailscale_auth_key
    ```
-   If the auth key has expired, I follow [tailscale-auth-key-rotation.md](../../runbooks/tailscale-auth-key-rotation.md).
-3. The new node has a new tailnet IP. In `tailscale-policy.sops.yaml` I update every `hosts` entry pinned to the old OCI IPs (FND-01 §8), then paste the policy into the console. I check that the policy tests pass.
-4. Check: `ssh bookorbit true`.
+   If the key can't be created or has expired, I follow [tailscale-auth-key-rotation.md](../../runbooks/tailscale-auth-key-rotation.md).
+3. First run over the public IP. The play installs Tailscale, joins as `bookorbit-net` and then carries on with the base setup:
+   ```bash
+   task ansible:oci:base -- -e ansible_host="$IP" -e ansible_ssh_private_key_file=~/.ssh/oci_bookorbit
+   ```
+4. From now on the host answers on the tailnet. `ssh bookorbit true` confirms it. I close the temporary rule:
+   ```bash
+   unset TF_VAR_bootstrap_ssh_cidr
+   task tf:plan  DIR=01-oci-compute     # expect one in-place change: the SSH rule goes
+   task tf:apply DIR=01-oci-compute
+   ```
+5. The new node has a new tailnet IP. In `tailscale-policy.sops.yaml` I update every `hosts` entry pinned to the old OCI IPs (FND-01 §8), then paste the policy into the console. I check that the policy tests pass.
+
+The host joins with `tag:oci` only. A hand-joined host may carry extra tags, and the live one carries `tag:funnel` and `tag:oci-probe`. Neither is needed on the host: the DMZ's probes go to the tsdproxy service nodes, and Funnel is being closed.
 
 ### Step 3.4: Base System, Then Backup Credentials
 

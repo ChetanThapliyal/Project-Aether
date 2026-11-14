@@ -1,6 +1,7 @@
 module "networking" {
-  source           = "./modules/networking"
-  compartment_ocid = var.compartment_ocid
+  source             = "./modules/networking"
+  compartment_ocid   = var.compartment_ocid
+  bootstrap_ssh_cidr = var.bootstrap_ssh_cidr
 }
 
 module "compute" {

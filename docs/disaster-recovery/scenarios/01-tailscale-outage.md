@@ -44,13 +44,20 @@ My `~/.ssh/config` already maps `homelab` and `k3s-*` to these LAN addresses, so
 
 ### Step 3.2: OCI (`bookorbit`) over its public IPv4
 
+Public port 22 is closed (FND-04). I open it to my own address with Terraform, which also puts it back afterwards (FND-18):
+
 ```bash
+export TF_VAR_bootstrap_ssh_cidr="$(curl -s4 https://api.ipify.org)/32"
+task tf:apply DIR=01-oci-compute      # plan shows one in-place change: the SSH rule appears
 IP=$(terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookorbit_public_ip)
 ssh -i ~/.ssh/oci_bookorbit ubuntu@"$IP"
 docker ps --format "table {{.Names}}\t{{.Status}}"
+# when I'm done:
+unset TF_VAR_bootstrap_ssh_cidr
+task tf:apply DIR=01-oci-compute      # the rule goes again
 ```
 
-If I've closed public port 22 (FND-04 option A), I first re-add the ingress rule (TCP 22) in the OCI console under *Networking → VCN `dockerTailscale` → Security Lists*, and remove it again afterwards.
+If Terraform isn't usable, the same rule (TCP 22 from my address) can be added by hand in the OCI console under *Networking → VCN `dockerTailscale` → Security Lists*, and removed again afterwards.
 
 To reach a web UI, I use an SSH tunnel:
 
@@ -91,7 +98,7 @@ During a maintenance window, from my workstation on the home LAN:
 
 1. `sudo tailscale down`
 2. SSH to `192.168.1.200` and `192.168.1.51` over the LAN.
-3. SSH to OCI over its public IPv4, and open one service through an SSH tunnel.
+3. Open the temporary SSH rule (Step 3.2), SSH to OCI over its public IPv4, open one service through an SSH tunnel, then close the rule again.
 4. `gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab --command hostname` prints `aether-gcp-dmz`
 5. `sudo tailscale up && tailscale status`
 6. Record the date in the [DR README](../README.md#4-scenarios--drills).
