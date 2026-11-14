@@ -440,7 +440,7 @@ pages:
             source: |
               <div class="ae-live-head">
                 <span class="ae-live-title">Networking</span>
-                <span class="vitals-badge">DESIGN · 13 NOV 2026</span>
+                <span class="vitals-badge">DESIGN · 14 NOV 2026</span>
               </div>
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
@@ -481,7 +481,7 @@ pages:
                     <div><div class="ae-env-kicker">ap-mumbai-1</div><div class="ae-env-name">Oracle Cloud</div></div>
                     <span class="vitals-badge">NO INBOUND TCP</span>
                   </div>
-                  <p class="ae-note">Every service is its own node on the mesh, published by tsdproxy with a role tag: app, admin or probe. The cloud firewall only lets in the mesh's direct-path traffic.</p>
+                  <p class="ae-note">Every service is its own node on the mesh, published by tsdproxy with a role tag: app, admin or probe. The cloud firewall lets in the mesh's direct-path traffic and, for when the mesh is down, SSH through Google IAP, which Google IAM gates.</p>
                   <div class="ae-chips"><span>per-service nodes</span><span>3 roles</span><span>SSH over the mesh only</span></div>
                   <div class="bar-row"><span class="bar-name">Roles</span><span class="ae-fact">admins reach admin tools; the observer reaches probe services only</span></div>
                   <div class="bar-row"><span class="bar-name">Logs in</span><span class="ae-fact">cluster nodes may push logs to Loki and nothing else</span></div>
@@ -516,16 +516,14 @@ pages:
                 <div class="ae-backups-head">
                   <div>
                     <div class="ae-stat-label">Still changing</div>
-                    <div class="ae-stat-num">6<span>queued changes</span></div>
+                    <div class="ae-stat-num">4<span>queued changes</span></div>
                     <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
                   </div>
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">FND-12</span><div><div class="ae-change-title">Break-glass access to the edge host</div><div class="ae-change-text">Replace a firewall rule that can never match with SSH through Google IAP, gated by IAM, for when the mesh is down.</div></div></li>
                   <li><span class="ae-change-id">FND-14</span><div><div class="ae-change-title">Metrics from the edge host</div><div class="ae-change-text">Add a node exporter on the edge host and one metrics-only rule from the monitoring core.</div></div></li>
                   <li><span class="ae-change-id">FND-18</span><div><div class="ae-change-title">Cloud host joins the mesh by code</div><div class="ae-change-text">Ansible enrols the cloud host with a single role tag instead of a hand-made login.</div></div></li>
-                  <li><span class="ae-change-id">FND-11</span><div><div class="ae-change-title">Cluster API names</div><div class="ae-change-text">Optional certificate names so the Kubernetes API answers by its mesh name.</div></div></li>
                   <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
                   <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
                 </ul>
