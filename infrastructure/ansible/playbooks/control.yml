@@ -11,6 +11,7 @@
 
   vars:
     k3s_version: "v1.36.4+k3s1"
+    k3s_tailnet_name: "k3s-control-01.tail7067ab.ts.net"   # extra API certificate name (FND-11)
 
   tasks:
     # ----- Server token escrow (HARD-10) -----
@@ -42,8 +43,9 @@
             --cluster-init \
             --secrets-encryption \
             --token "{{ k3s_server_token.split('::server:') | last }}" \
-            --write-kubeconfig-mode "644" \
+            --write-kubeconfig-mode "600" \
             --tls-san "{{ ansible_host }}" \
+            --tls-san "{{ k3s_tailnet_name }}" \
             --node-taint "node-role.kubernetes.io/control-plane:NoSchedule" \
             --disable traefik \
             --disable servicelb
@@ -156,6 +158,77 @@
         group: root
         mode: "0644"
       notify: Restart K3s Control Plane
+
+    # ----- Admin kubeconfig 600 + tailnet SAN (FND-11) -----
+    # `--write-kubeconfig-mode` is hard-coded in the unit's ExecStart, and a CLI
+    # flag beats any config.yaml.d drop-in, so an existing node's unit has to be
+    # edited. Both edits are idempotent and tolerate the old unit's layout
+    # (one flag or value per line, tab-indented). A fresh install above already
+    # uses 600 and the SAN.
+    - name: FND-11 | Kubeconfig mode 600 in the K3s unit
+      ansible.builtin.replace:
+        path: /etc/systemd/system/k3s.service
+        regexp: |-
+          ('--write-kubeconfig-mode' \\\n\t)'644'
+        replace: |-
+          \1'600'
+      register: k3s_unit_mode
+
+    - name: FND-11 | Tailnet FQDN as an extra API certificate name
+      ansible.builtin.replace:
+        path: /etc/systemd/system/k3s.service
+        regexp: |-
+          ('--tls-san' \\\n\t'{{ ansible_host }}' \\\n)(?!\t'--tls-san' \\\n\t'{{ k3s_tailnet_name }}')
+        replace: |-
+          \1\t'--tls-san' \\\n\t'{{ k3s_tailnet_name }}' \\\n
+      register: k3s_unit_san
+
+    # Reload now, not via a handler: a later failure would skip a handler and
+    # leave an edited unit that systemd hasn't read (FND-08 lesson).
+    - name: FND-11 | Reload systemd so the edited unit is read
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: FND-11 | Apply other pending K3s restarts now
+      ansible.builtin.meta: flush_handlers
+
+    # Converge on the *running* state, not on whether this run edited the unit:
+    # daemon_reload never reports "changed", and a re-run after a half-applied
+    # change finds the unit already edited. K3s writes k3s.yaml from the flag it
+    # started with, so the file's mode shows which flag is live.
+    - name: FND-11 | Read the admin kubeconfig's mode
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+      register: k3s_kubeconfig_stat
+
+    - name: FND-11 | Restart K3s so the running service uses the edited unit
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
+      when: not ansible_check_mode and k3s_kubeconfig_stat.stat.mode != '0600'
+
+    - name: FND-11 | Wait for the API
+      ansible.builtin.command: k3s kubectl get nodes
+      register: k3s_api_after
+      until: k3s_api_after.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: FND-11 | Re-read the admin kubeconfig's mode
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+      register: k3s_kubeconfig_after
+
+    - name: FND-11 | Assert the admin kubeconfig is 0600, root only
+      ansible.builtin.assert:
+        that:
+          - k3s_kubeconfig_after.stat.mode == '0600'
+          - k3s_kubeconfig_after.stat.pw_name == 'root'
+        fail_msg: "/etc/rancher/k3s/k3s.yaml is {{ k3s_kubeconfig_after.stat.mode }}; K3s writes it from the unit's --write-kubeconfig-mode when it starts."
+        quiet: true
+      when: not ansible_check_mode   # nothing restarts in a dry run
 
   handlers:
     - name: Restart K3s Control Plane

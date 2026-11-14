@@ -37,7 +37,7 @@ Connections that are already up often keep working through a control-plane outag
 ```bash
 ssh -i ~/.ssh/homelab root@192.168.1.200     # Proxmox host (web UI: https://192.168.1.200:8006)
 ssh -i ~/.ssh/homelab owl@192.168.1.51       # k3s-control-01
-ssh -i ~/.ssh/homelab owl@192.168.1.51 "kubectl get nodes -o wide"
+ssh -i ~/.ssh/homelab owl@192.168.1.51 "sudo k3s kubectl get nodes -o wide"
 ```
 
 My `~/.ssh/config` already maps `homelab` and `k3s-*` to these LAN addresses, so the short names also work from home.

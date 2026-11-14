@@ -56,7 +56,7 @@
    sleep 90; ssh owl@192.168.1.51 "sudo systemctl is-active k3s"
    qm start 102; qm start 103                     # workers
    ```
-5. `ssh owl@192.168.1.51 "kubectl get nodes"`: all three are `Ready`.
+5. `ssh owl@192.168.1.51 "sudo k3s kubectl get nodes"`: all three are `Ready`.
 6. The DR timers use `Persistent=true`, so they run any job missed overnight. Check: `systemctl list-timers 'k3s-etcd*'` and `systemctl --failed`.
 
 ---
