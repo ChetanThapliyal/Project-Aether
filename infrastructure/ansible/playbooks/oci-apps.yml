@@ -82,43 +82,6 @@
         pull: missing   # images are pinned by digest (FND-09)
       tags: [bookorbit, apps]
 
-    # ─── vikunja (Task Management) ──────────────────────
-    # - name: Create vikunja directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/vikunja"
-    #     - "{{ app_base_dir }}/vikunja/files"
-    #     - "{{ app_base_dir }}/vikunja/db"
-
-    # - name: Copy vikunja compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/vikunja.yml
-    #     dest: "{{ app_base_dir }}/vikunja/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-
-    # - name: Copy vikunja env file
-    #   copy:
-    #     content: |
-    #       VIKUNJA_SERVICE_PUBLICURL={{ oci_vikunja_vikunja_service_publicurl }}
-    #       VIKUNJA_SERVICE_SECRET={{ oci_vikunja_vikunja_service_secret }}
-    #       VIKUNJA_DATABASE_PATH={{ oci_vikunja_vikunja_database_path }}
-    #     dest: "{{ app_base_dir }}/vikunja/.env"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #     mode: "0600"
-    #   no_log: true
-
-    # - name: Start vikunja
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/vikunja"
-    #     state: present
-    #     pull: always
-
     # ─── Uptime Kuma (Monitoring) ───────────────────────
     - name: Create uptimekuma directories
       file:
@@ -201,69 +164,6 @@
         pull: missing   # images are pinned by digest (FND-09)
       tags: [navidrome, apps]
 
-    # # ─── Homepage (Dashboard) ───────────────────────────────
-    # - name: Create homepage directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/homepage"
-    #     - "{{ app_base_dir }}/homepage/config"
-
-    # - name: Copy homepage compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/homepage.yml
-    #     dest: "{{ app_base_dir }}/homepage/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-
-    # - name: Start homepage
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/homepage"
-    #     state: present
-    #     pull: always
-
-    # ─── Planka (Kanban) ────────────────────────────────────
-    # - name: Create planka directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/planka"
-    #     - "{{ app_base_dir }}/planka/user_avatars"
-    #     - "{{ app_base_dir }}/planka/project_background_images"
-    #     - "{{ app_base_dir }}/planka/attachments"
-    #     - "{{ app_base_dir }}/planka/pgdata"
-
-    # - name: Copy planka compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/planka.yml
-    #     dest: "{{ app_base_dir }}/planka/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-
-    # - name: Copy planka env file
-    #   copy:
-    #     content: |
-    #       DATABASE_URL={{ oci_planka_database_url }}
-    #       SECRET_KEY={{ oci_planka_secret_key }}
-    #       DEFAULT_ADMIN_EMAIL={{ oci_planka_default_admin_email }}
-    #       DEFAULT_ADMIN_PASSWORD={{ oci_planka_default_admin_password }}
-    #     dest: "{{ app_base_dir }}/planka/.env"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #     mode: "0600"
-
-    # - name: Start planka
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/planka"
-    #     state: present
-    #     pull: always
-
     # ─── IT-Tools ───────────────────────────────────────────
     - name: Create it-tools directories
       file:
@@ -339,30 +239,6 @@
         state: present
         pull: missing   # images are pinned by digest (FND-09)
       tags: [nextexplorer, apps]
-
-    # ─── Memos ──────────────────────────────────────────────
-    # - name: Create memos directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/memos"
-    #     - "{{ app_base_dir }}/memos/data"
-
-    # - name: Copy memos compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/memos.yml
-    #     dest: "{{ app_base_dir }}/memos/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-
-    # - name: Start memos
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/memos"
-    #     state: present
-    #     pull: always
 
     # ─── n8n (Automation) ───────────────────────────────────
     - name: Create n8n config directory
@@ -451,80 +327,6 @@
         recreate: auto
         pull: missing   # images are pinned by digest (FND-09)
       tags: [blinko, apps]
-
-    # ─── SiYuan Notes (DISABLED — replaced by AFFiNE) ───────
-    # - name: Create siyuan directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/siyuan"
-    #     - "{{ app_base_dir }}/siyuan/workspace"
-    #
-    # - name: Copy siyuan compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/siyuan.yml
-    #     dest: "{{ app_base_dir }}/siyuan/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #
-    # - name: Copy siyuan env file
-    #   copy:
-    #     content: |
-    #       AuthCode={{ oci_siyuan_authcode }}
-    #       TZ={{ oci_siyuan_tz }}
-    #       PUID={{ oci_siyuan_puid }}
-    #       PGID={{ oci_siyuan_pgid }}
-    #     dest: "{{ app_base_dir }}/siyuan/.env"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #     mode: "0600"
-    #   no_log: true
-    #
-    # - name: Start siyuan
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/siyuan"
-    #     state: present
-    #     pull: always
-
-    # # ─── Silverbullet (Notes) ───────────────────────────────
-    # - name: Create silverbullet directories
-    #   file:
-    #     path: "{{ item }}"
-    #     state: directory
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #   loop:
-    #     - "{{ app_base_dir }}/silverbullet"
-    #     - "{{ app_base_dir }}/silverbullet/data/silverbullet"
-
-    # - name: Copy silverbullet compose file
-    #   copy:
-    #     src: ../../../legacy-docker/oci-services/silverbullet.yml
-    #     dest: "{{ app_base_dir }}/silverbullet/docker-compose.yml"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-
-    # - name: Copy silverbullet env file
-    #   copy:
-    #     content: |
-    #       SB_USER={{ oci_silverbullet_sb_user }}
-    #       PUID={{ oci_silverbullet_puid }}
-    #       PGID={{ oci_silverbullet_pgid }}
-    #       TZ={{ oci_silverbullet_tz }}
-    #     dest: "{{ app_base_dir }}/silverbullet/.env"
-    #     owner: "{{ app_user }}"
-    #     group: "{{ app_user }}"
-    #     mode: "0600"
-    #   no_log: true
-
-    # - name: Start silverbullet
-    #   community.docker.docker_compose_v2:
-    #     project_src: "{{ app_base_dir }}/silverbullet"
-    #     state: present
-    #     pull: always
 
     # ─── CouchDB (Obsidian LiveSync) ────────────────────────
     - name: Create couchdb directories
