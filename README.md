@@ -133,9 +133,9 @@ OCI apps are published on the tailnet through tsdproxy. The K3s ingress path wil
 
 ### GCP is the external witness
 
-`aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH).
+`aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH), and the only SSH rule admits Google's IAP range, for break-glass when the tailnet is down.
 
-It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data (not backed up yet), and its target rebuild time is 15 minutes.
+It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data (not backed up yet), and its target rebuild time is 15 minutes.
 
 `cloudflared` publishes one thing to the internet: the Glance status page at `https://status.chetan-thapliyal.cloud`. The tunnel is outbound-only, so no port is open. The page's live numbers come from a sanitised summary that the DMZ pulls from the monitoring core over the tailnet, so the public host never queries the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
 

@@ -506,7 +506,7 @@ pages:
                   <div class="ae-flow"><span class="ae-flow-from">Operator devices</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">every zone</span><span class="ae-flow-what">admin and SSH</span><span class="ae-flow-note">re-authenticated every 12 h on personal devices</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Edge observer</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">probe services, cluster ingress</span><span class="ae-flow-what">HTTPS</span><span class="ae-flow-note">nothing else on the cloud host; admin tools don't even resolve</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">cluster nodes, hypervisor</span><span class="ae-flow-what">metrics</span><span class="ae-flow-note">scrape only, no SSH or API access</span></div>
-                  <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats, Docker agent</span><span class="ae-flow-note">push monitors and the management agent</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats, Docker agent, host metrics</span><span class="ae-flow-note">push monitors, the management agent and one metrics port</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Cluster nodes</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">monitoring core</span><span class="ae-flow-what">logs</span><span class="ae-flow-note">Alloy to Loki; the only path out of the cluster</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Hypervisor</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats</span><span class="ae-flow-note">each backup stage reports in</span></div>
                 </div>
@@ -516,13 +516,12 @@ pages:
                 <div class="ae-backups-head">
                   <div>
                     <div class="ae-stat-label">Still changing</div>
-                    <div class="ae-stat-num">4<span>queued changes</span></div>
+                    <div class="ae-stat-num">3<span>queued changes</span></div>
                     <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
                   </div>
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">FND-14</span><div><div class="ae-change-title">Metrics from the edge host</div><div class="ae-change-text">Add a node exporter on the edge host and one metrics-only rule from the monitoring core.</div></div></li>
                   <li><span class="ae-change-id">FND-18</span><div><div class="ae-change-title">Cloud host joins the mesh by code</div><div class="ae-change-text">Ansible enrols the cloud host with a single role tag instead of a hand-made login.</div></div></li>
                   <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
                   <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
