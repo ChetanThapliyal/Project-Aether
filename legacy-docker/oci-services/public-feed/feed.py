@@ -48,6 +48,9 @@ SCALARS = {
     # FND-21: finished job pods (Succeeded) never run again, so counting them
     # made "running / total" look like a fault forever.
     "pods_total": 'sum(kube_pod_status_phase{phase!="Succeeded"})',
+    # FND-22: delivery over the last week (counts only; Prometheus keeps 30 days)
+    "syncs_7d": "sum(increase(argocd_app_sync_total[7d])) or vector(0)",
+    "syncs_failed_7d": 'sum(increase(argocd_app_sync_total{phase!="Succeeded"}[7d])) or vector(0)',
     "targets_up": "count(up == 1)",
     "targets_total": "count(up)",
     "alerts_firing": 'count(ALERTS{alertstate="firing",alertname!="Watchdog"}) or vector(0)',
@@ -170,6 +173,8 @@ def build():
             "targets_up": int(s["targets_up"] or 0), "targets_total": int(s["targets_total"] or 0),
             "alerts_firing": int(s["alerts_firing"] or 0),
         },
+        "delivery": {"syncs_7d": int(round(s["syncs_7d"] or 0)),
+                     "syncs_failed_7d": int(round(s["syncs_failed_7d"] or 0))},
         "host": {"temp_c": r(s["hyp_temp_c"], 0), "uptime_days": r(s["hyp_uptime_days"], 1),
                  "cpu_pct": r(s["hyp_cpu_pct"])},
         "gauges": [],

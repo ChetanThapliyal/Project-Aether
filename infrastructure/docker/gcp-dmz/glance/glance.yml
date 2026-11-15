@@ -251,6 +251,86 @@ pages:
                 </div>
               </div>
 
+          # FND-22: reliability over time. uptime.json is written on this host
+          # every 15 min from its own Kuma (kuma-uptime.py); track-record.json
+          # at deploy time from the repo. Both read over Glance's own localhost.
+          - type: custom-api
+            title: Availability
+            frameless: true
+            hide-header: true
+            url: http://127.0.0.1:8080/assets/uptime.json
+            cache: 5m
+            template: |
+              <div class="ae-section-head">Reliability over time</div>
+              <div class="vitals-card">
+                <div class="ae-backups-head">
+                  <div>
+                    <div class="ae-stat-label">Public sites, last {{ .JSON.Int "days" }} days</div>
+                    {{ if gt (.JSON.Int "slo.days_with_data") 0 }}
+                    <div class="ae-stat-num {{ if .JSON.Bool "slo.met" }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Float "slo.budget_left_pct" | toInt }}<span>% error budget left</span></div>
+                    <div class="ae-stat-sub">{{ .JSON.String "slo.label" }}: objective {{ .JSON.Float "slo.target" }}% available{{ if lt (.JSON.Int "slo.days_with_data") (.JSON.Int "days") }} · measured over {{ .JSON.Int "slo.days_with_data" }} of {{ .JSON.Int "days" }} days so far{{ end }}</div>
+                    {{ else }}
+                    <div class="ae-stat-sub">Measuring since 15 Nov 2026; the first day appears tomorrow.</div>
+                    {{ end }}
+                  </div>
+                  <span class="vitals-badge">CHECKED FROM GOOGLE CLOUD</span>
+                </div>
+                <ul class="ae-uptime">
+                  {{ range .JSON.Array "sites" }}
+                  <li>
+                    <div class="ae-uptime-head"><span class="ae-status-name">{{ .String "label" }}</span><span class="ae-status-meta">{{ if gt (.Int "days_with_data") 0 }}<b>{{ .Float "uptime_pct" }}%</b> · {{ .Int "down_minutes" }} min down{{ else }}no data yet{{ end }}</span></div>
+                    <div class="ae-bars" role="img" aria-label="{{ .String "label" }}: daily availability, oldest first">
+                      {{ range .Array "bars" }}<span class="ae-bar ae-{{ .String "level" }}" title="{{ .String "day" }}{{ if ne (.String "level") "none" }}: {{ .Float "pct" }}%{{ else }}: no data{{ end }}"></span>{{ end }}
+                    </div>
+                  </li>
+                  {{ end }}
+                </ul>
+                <p class="ae-muted">Probed every 2 minutes through the public internet by the observer on Google Cloud. Grey days are before measuring began.</p>
+              </div>
+
+          - type: custom-api
+            title: Track record
+            frameless: true
+            hide-header: true
+            url: http://127.0.0.1:8080/assets/track-record.json
+            cache: 5m
+            template: |
+              {{ $feed := newRequest "https://public-feed.tail7067ab.ts.net/summary.json" | getResponse }}
+              <div class="ae-record">
+                <div class="vitals-card">
+                  <div class="ae-stat-label">Incident reviews</div>
+                  <div class="ae-stat-num">{{ .JSON.Int "incidents.total" }}<span>written</span></div>
+                  <div class="ae-stat-sub">last one <span {{ .JSON.String "incidents.last_date" | parseTime "RFC3339" | toRelativeTime }}></span> ago · each with a root cause and a guardrail</div>
+                  <ul class="ae-incidents">
+                    {{ range .JSON.Array "incidents.latest" }}
+                    <li>
+                      <div><span class="ae-sev{{ if eq (.String "severity") "SEV1" }} ae-sev1{{ else if eq (.String "severity") "SEV2" }} ae-sev2{{ end }}">{{ .String "severity" }}</span> <a href="{{ .String "url" }}" target="_blank" rel="noreferrer">{{ .String "title" }}</a></div>
+                      <div class="ae-lesson">{{ .String "lesson" }}</div>
+                    </li>
+                    {{ end }}
+                  </ul>
+                </div>
+                <div class="vitals-card">
+                  <div class="ae-stat-label">Recovery, drilled</div>
+                  <div class="ae-stat-num">54<span>s</span></div>
+                  <div class="ae-stat-sub">from cluster reset to a ready API, restoring an offsite backup (drill, 10 Nov 2026)</div>
+                  <div class="bar-row"><span class="bar-name">Offsite fetch</span><span class="ae-fact">1.5 min from the Object-Locked bucket</span></div>
+                  <div class="bar-row"><span class="bar-name">In place</span><span class="ae-fact">about 18 min for a full cluster reset from a local snapshot</span></div>
+                  <div class="bar-row"><span class="bar-name">Keys</span><span class="ae-fact">secrets decrypt with a second, cloud-held key (checked 3 Nov 2026)</span></div>
+                  <div class="bar-row"><span class="bar-name">Runbooks</span><span class="ae-fact"><a href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/disaster-recovery" target="_blank" rel="noreferrer">five failure scenarios</a>, each with a safe drill</span></div>
+                </div>
+                <div class="vitals-card">
+                  <div class="ae-stat-label">Delivery</div>
+                  <div class="ae-stat-num">{{ .JSON.Int "delivery.commits_30d" }}<span>commits in 30 days</span></div>
+                  <div class="ae-stat-sub">every change goes through Git</div>
+                  {{ if $feed.JSON.Exists "delivery" }}
+                  <div class="bar-row"><span class="bar-name">GitOps</span><span class="ae-fact"><b>{{ $feed.JSON.Int "delivery.syncs_7d" }}</b> ArgoCD syncs in 7 days{{ if gt ($feed.JSON.Int "delivery.syncs_failed_7d") 0 }}, <b>{{ $feed.JSON.Int "delivery.syncs_failed_7d" }}</b> failed{{ else }}, none failed{{ end }}</span></div>
+                  {{ end }}
+                  <div class="bar-row"><span class="bar-name">This page</span><span class="ae-fact">deployed from <a href="https://github.com/ChetanThapliyal/Project-Aether/commit/${AETHER_COMMIT}" target="_blank" rel="noreferrer"><code>${AETHER_COMMIT}</code></a> by Ansible</span></div>
+                  <div class="bar-row"><span class="bar-name">Checks</span><span class="ae-fact">CI lints every push; a nightly job fails on cloud drift from Terraform</span></div>
+                </div>
+              </div>
+
           # Backup and alerting heartbeats from the DMZ's own Uptime Kuma (a
           # public-safe status page, read over the local Docker network).
           - type: custom-api

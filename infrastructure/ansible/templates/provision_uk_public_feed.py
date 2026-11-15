@@ -5,6 +5,9 @@
    stale (`fresh` != true) or unreachable, and alerts on Telegram.
 2. A status page (slug `public`) that lists only monitors whose names are safe
    to show publicly. Glance reads it over localhost on the DMZ.
+3. FND-22: HTTP monitors on the public sites, checked from outside the private
+   network. Their daily stats feed the 30-day availability on the Glance page
+   (kuma-uptime.py on the DMZ); they are not on the status page.
 
 Requires uptime-kuma-api>=1.2.1 (Kuma 2.x needs the `conditions` workaround).
 """
@@ -22,6 +25,7 @@ p.add_argument("--password", required=True)
 p.add_argument("--notification", default="Telegram — Aether Alerts")
 p.add_argument("--feed-url", required=True)
 p.add_argument("--public-monitors", required=True, help="JSON list of monitor names allowed on the public page")
+p.add_argument("--site-monitors", default="[]", help='JSON list of [name, url] HTTP monitors on public sites (FND-22)')
 a = p.parse_args()
 
 FEED_MONITOR = "Public feed — fresh (FND-20)"
@@ -58,6 +62,27 @@ else:
         print(f"OK: created {FEED_MONITOR} (id={mid})")
         # get_monitors() lags behind a fresh add; use the id the call returned.
         monitors[FEED_MONITOR] = {"id": mid, "name": FEED_MONITOR}
+
+# 3. Public site monitors (FND-22). Created before the status page step, which
+# re-reads nothing from them.
+for name, url in json.loads(a.site_monitors):
+    cur = monitors.get(name)
+    if cur and cur.get("url") == url and int(cur.get("interval", 0)) == 120:
+        print(f"SKIP: {name}")
+        continue
+    data = api._build_monitor_data(
+        type=MonitorType.HTTP, name=name, url=url, interval=120,
+        retryInterval=60, maxretries=2, notificationIDList=notif)
+    _convert_monitor_input(data)
+    _check_arguments_monitor(data)
+    data["conditions"] = []
+    if cur:
+        data["id"] = cur["id"]
+        api._call("editMonitor", data)
+        print(f"OK: updated {name}")
+    else:
+        mid = api._call("add", data)["monitorID"]
+        print(f"OK: created {name} (id={mid})")
 
 # 2. Public status page
 allowed = json.loads(a.public_monitors) + [FEED_MONITOR]

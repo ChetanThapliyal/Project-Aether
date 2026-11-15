@@ -356,6 +356,85 @@
         state: started
       tags: [fnd-17, backup]
 
+    # ─── FND-22: reliability over time on the public page ───
+    # Track record (incidents, commits) comes from the repo at deploy time;
+    # 30-day availability is computed on the DMZ from its own Kuma, every 15 min.
+    # Glance reads both files over its own localhost.
+    - name: FND-22 | Publish the track record (incidents, delivery) for Glance
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'python3 ' ~ ((playbook_dir ~ '/../templates/build_track_record.py') | quote) ~ ' ' ~ ((playbook_dir ~ '/../../..') | quote)) }}\n"
+        dest: "{{ dmz_dir }}/glance/assets/track-record.json"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0644"
+      tags: [fnd-22, reliability]
+
+    - name: FND-22 | Install the availability job
+      ansible.builtin.copy:
+        src: ../templates/kuma-uptime.py
+        dest: /usr/local/bin/kuma-uptime.py
+        owner: root
+        group: root
+        mode: "0755"
+      register: uptime_script
+      tags: [fnd-22, reliability]
+
+    - name: FND-22 | Deploy the availability service and timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: kuma-uptime.service
+          content: |
+            # Managed by Ansible (deploy-dmz.yml, FND-22)
+            [Unit]
+            Description=Public site availability from Uptime Kuma for Glance (FND-22)
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/bin/python3 /usr/local/bin/kuma-uptime.py
+            Nice=10
+        - name: kuma-uptime.timer
+          content: |
+            # Managed by Ansible (deploy-dmz.yml, FND-22)
+            [Unit]
+            Description=Refresh public site availability every 15 minutes (FND-22)
+
+            [Timer]
+            OnBootSec=2min
+            OnCalendar=*:0/15
+            Persistent=true
+
+            [Install]
+            WantedBy=timers.target
+      loop_control:
+        label: "{{ item.name }}"
+      register: uptime_units
+      tags: [fnd-22, reliability]
+
+    - name: FND-22 | Reload systemd when the units changed
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: uptime_units.changed
+      tags: [fnd-22, reliability]
+
+    - name: FND-22 | Enable the availability timer
+      ansible.builtin.systemd:
+        name: kuma-uptime.timer
+        enabled: true
+        state: started
+      tags: [fnd-22, reliability]
+
+    - name: FND-22 | Run the availability job now when it changed
+      ansible.builtin.systemd:
+        name: kuma-uptime.service
+        state: started
+      when: uptime_script.changed or uptime_units.changed
+      tags: [fnd-22, reliability]
+
     - name: Print deployment summary
       debug:
         msg:
@@ -457,7 +536,13 @@
         --notification "Telegram — Aether Alerts"
         --feed-url https://public-feed.tail7067ab.ts.net/summary.json
         --public-monitors {{ public_monitors | to_json | quote }}
+        --site-monitors {{ site_monitors | to_json | quote }}
       vars:
+        # FND-22: these names are matched by kuma-uptime.py; rename both together.
+        site_monitors:
+          - ["Public site — Portfolio", "https://chetan-thapliyal.cloud/"]
+          - ["Public site — Lexicon", "https://base.chetan-thapliyal.cloud/"]
+          - ["Public site — Status page", "https://status.chetan-thapliyal.cloud/"]
         public_monitors:
           - "OCI Nightly Restic Backup"
           - "Watchdog — OCI Alertmanager"
@@ -471,7 +556,7 @@
       become: false
       when: telegram_configured
       no_log: true
-      tags: [fnd-20, notifications]
+      tags: [fnd-20, fnd-22, notifications]
 
     - name: FND-20 | Show public feed provisioning result
       debug:
