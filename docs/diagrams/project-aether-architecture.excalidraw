@@ -35,12 +35,12 @@
 
     { "type": "rectangle", "id": "gcp_kuma", "x": 380, "y": 715, "width": 440, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#047857", "label": { "text": "Uptime Kuma · Synthetic Probes + Telegram Alerts", "fontSize": 13 } },
     { "type": "rectangle", "id": "gcp_dash", "x": 380, "y": 768, "width": 440, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#c3fae8", "fillStyle": "solid", "strokeColor": "#0f766e", "label": { "text": "Homepage Dashboard & Cloudflare Tunnel", "fontSize": 13 } },
-    { "type": "rectangle", "id": "gcp_sec", "x": 380, "y": 820, "width": 440, "height": 40, "roundness": { "type": 3 }, "backgroundColor": "#e6fcf5", "fillStyle": "solid", "strokeColor": "#0f766e", "label": { "text": "Hawser Agent & tecnativa/docker-socket-proxy", "fontSize": 13 } },
+    { "type": "rectangle", "id": "gcp_sec", "x": 380, "y": 820, "width": 440, "height": 40, "roundness": { "type": 3 }, "backgroundColor": "#e6fcf5", "fillStyle": "solid", "strokeColor": "#0f766e", "label": { "text": "Node exporter (host metrics)", "fontSize": 13 } },
 
     { "type": "arrow", "id": "a_scrape", "x": 740, "y": 407, "width": 280, "height": 73, "points": [[0,0],[-280,73]], "strokeColor": "#c026d3", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "Node Metrics Scrape", "fontSize": 12 } },
     { "type": "arrow", "id": "a_gcp_hlab", "x": 420, "y": 715, "width": 140, "height": 145, "points": [[0,0],[-140,-145]], "strokeColor": "#047857", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "HTTP/S Health Checks", "fontSize": 12 } },
     { "type": "arrow", "id": "a_gcp_oci", "x": 780, "y": 715, "width": 140, "height": 145, "points": [[0,0],[140,-145]], "strokeColor": "#047857", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "HTTP/S Health Checks", "fontSize": 12 } },
-    { "type": "arrow", "id": "a_oci_gcp", "x": 860, "y": 570, "width": 60, "height": 145, "points": [[0,0],[-60,145]], "strokeColor": "#6d28d9", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "Health Probes & Hawser Agent", "fontSize": 12 } }
+    { "type": "arrow", "id": "a_oci_gcp", "x": 860, "y": 570, "width": 60, "height": 145, "points": [[0,0],[-60,145]], "strokeColor": "#6d28d9", "strokeWidth": 2, "endArrowhead": "arrow", "label": { "text": "Health Probes & Host Metrics", "fontSize": 12 } }
   ],
   "appState": {
     "viewBackgroundColor": "#ffffff",

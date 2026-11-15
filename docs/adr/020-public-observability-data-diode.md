@@ -92,3 +92,8 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
 - **Freshness.** The feed reports `age_seconds` and `fresh` (under 15 minutes old). The page shows "Live · updated N ago" or "Data delayed since …". A JSON-query monitor in the DMZ's Uptime Kuma goes DOWN and alerts on Telegram when `fresh` isn't true.
 - **Backups and alerting list.** It comes from the DMZ's own Uptime Kuma, through a status page (`public`) that holds only monitors whose names are safe to publish, read over the DMZ's Docker network.
 - **Not done:** Grafana panels as images and live Grafana. The option of Grafana shared dashboards behind a second tunnel connector on OCI is deferred until after Phase 04.
+
+### Addendum: No Docker Agent on the Edge Host (2026-11-15, FND-22)
+The DMZ ran Hawser, the Dockhand agent, so the OCI Dockhand could manage its containers. Hawser mounted the Docker socket, which made it root-equivalent on the host, and it listened on port 2376 on every address. The internet couldn't reach that port (the VPC allows only IAP SSH and ICMPv6 in), and on the tailnet only `tag:oci` could. But every container on the host could, including Glance and cloudflared, the two that face the internet. Only Hawser's token separated a compromised public container from root on the host.
+
+Hawser is removed. The DMZ is managed by Ansible only, and the tailnet grant `tag:oci → tag:gcp-dmz:2376` is gone; a policy test now denies it. Dockhand no longer shows the DMZ. Container health there is still watched: OCI Uptime Kuma probes Glance and Kuma, and OCI Prometheus scrapes the node exporter.

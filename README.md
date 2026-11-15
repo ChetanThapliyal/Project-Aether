@@ -42,7 +42,7 @@ It started as a way to run a few Docker containers. It is now a three-environmen
 | Applications | 34 containers across 15 compose projects | OCI |
 | Ops automation and monitoring | Kestra with Git-synced flows, n8n, Restic, Prometheus, Loki, Alertmanager, Grafana | OCI |
 | Logs | Grafana Alloy on every cluster node, shipping to Loki on OCI | Homelab to OCI |
-| External observer and public page | Uptime Kuma, Glance (the public status page), Hawser, cloudflared | GCP |
+| External observer and public page | Uptime Kuma, Glance (the public status page), node exporter, cloudflared | GCP |
 | IaC | Four Terraform roots, GCS state, Ansible, Taskfile, nightly keyless drift checks | Git |
 | Secrets | SOPS + Age + GCP KMS, KSOPS in ArgoCD | Git and cluster |
 | CI | Validation on every push and PR; nightly keyless Terraform drift for the OCI, GCP DMZ and Backblaze roots | GitHub Actions + GCP Workload Identity Federation |
@@ -79,7 +79,7 @@ flowchart TB
 
     subgraph GCP [GCP - us-central1 - e2-micro - IPv6-only - zero-cost]
         direction TB
-        DMZ["Uptime Kuma - Glance<br/>Hawser - cloudflared"]
+        DMZ["Uptime Kuma - Glance<br/>node exporter - cloudflared"]
     end
 
     OP ==>|"Tailscale SSH / HTTPS"| K3S
@@ -135,7 +135,7 @@ OCI apps are published on the tailnet through tsdproxy. The K3s ingress path wil
 
 `aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH), and the only SSH rule admits Google's IAP range, for break-glass when the tailnet is down.
 
-It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data, copied nightly to a GCS bucket the VM can write to but not read or delete, and its target rebuild time is 15 minutes.
+It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. No Docker management agent runs there: it would hold the Docker socket on the least-trusted host, so the DMZ is managed by Ansible only. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data, copied nightly to a GCS bucket the VM can write to but not read or delete, and its target rebuild time is 15 minutes.
 
 `cloudflared` publishes one thing to the internet: the Glance status page at `https://status.chetan-thapliyal.cloud`. The tunnel is outbound-only, so no port is open. The page's live numbers come from a sanitised summary that the DMZ pulls from the monitoring core over the tailnet, so the public host never queries the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
 
@@ -154,7 +154,7 @@ Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI 
 | `tag:gcp-dmz` | `tag:oci` | 80 / 443 | Synthetic health checks |
 | `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100, 8080, 30082–30084 | Prometheus telemetry scrapes (node_exporter, KSM, ArgoCD) |
 | `tag:k3s` | `tag:oci` | 3100 | Alloy log shipping to OCI Loki (ADR-019) |
-| `tag:oci` | `tag:gcp-dmz` | 2376, 9100 | Hawser / Dockhand; node_exporter scrape |
+| `tag:oci` | `tag:gcp-dmz` | 9100 | node_exporter scrape |
 
 `tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
 

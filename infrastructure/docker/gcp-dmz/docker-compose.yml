@@ -4,9 +4,12 @@
 # Services:
 #   1. Uptime Kuma  : Independent external synthetic monitoring & status pages
 #   2. Glance       : Public platform page (HARD-17: no tailnet names, no fake vitals)
-#   3. Hawser       : Dockhand agent
-#   4. Node exporter: host metrics scraped by OCI Prometheus (FND-14)
-#   5. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+#   3. Node exporter: host metrics scraped by OCI Prometheus (FND-14)
+#   4. Cloudflared  : Zero-Trust edge ingress tunnel (activated via profile)
+#
+# No Docker management agent (FND-22): Hawser held the Docker socket, so it was
+# root on this, the least-trusted host, and every container here could reach it.
+# The DMZ is managed by Ansible only.
 #
 # Images are pinned as tag@digest (FND-08), so Dependabot can propose a bump and
 # nothing changes without a commit. The deploy pulls only images that are missing.
@@ -51,28 +54,6 @@ services:
       - dmz-net
 
   # ---------------------------------------------------------------------------
-  # Hawser — Dockhand Agent (OPS-01)
-  # ---------------------------------------------------------------------------
-  hawser:
-    image: ghcr.io/finsys/hawser:0.2.53
-    container_name: hawser
-    restart: unless-stopped
-    ports:
-      # Binding to all interfaces. GCP Firewall blocks inbound 2376 by default,
-      # and the VM has no public IPv4 anyway. This allows Tailscale IPv6 to work.
-      - "2376:2376"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Optional: uncomment if you want Dockhand to manage volumes too
-      # - /var/lib/docker/volumes:/data/volumes
-    environment:
-      # Since it binds to 0.0.0.0 internally, Hawser requires a token to start
-      - TOKEN=${HAWSER_TOKEN}
-    command: standard --port 2376
-    networks:
-      - dmz-net
-
-  # ---------------------------------------------------------------------------
   # Node exporter — host metrics for OCI Prometheus (FND-14)
   # ---------------------------------------------------------------------------
   # Host network, so it reports the VM's own interfaces and listens on :9100.
@@ -99,7 +80,7 @@ services:
   # (i.e. when CLOUDFLARE_TUNNEL_TOKEN is provisioned).
   # ---------------------------------------------------------------------------
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.7  # Pinned 2026-10 (IaC-05)
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba  # tag@digest since FND-22
     container_name: cloudflared
     restart: unless-stopped
     profiles:

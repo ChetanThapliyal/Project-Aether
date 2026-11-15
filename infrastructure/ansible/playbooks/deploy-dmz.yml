@@ -130,7 +130,6 @@
           {% endif %}
           PUID=1000
           PGID=1000
-          HAWSER_TOKEN={{ gcp_dmz_hawser_token | default('') }}
           AETHER_COMMIT={{ lookup('pipe', 'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short HEAD') }}
         dest: "{{ dmz_dir }}/.env"
         owner: "{{ dmz_user }}"
@@ -170,62 +169,6 @@
         group: "{{ dmz_group }}"
         mode: "0640"
 
-    # ─── Workaround for GHCR IPv4-only limitation on GCP VM ───
-    # ghcr.io has no IPv6, so the DMZ can't pull Hawser itself. Copy exactly the
-    # image the compose file pins (Dependabot bumps it there), via this machine.
-    - name: Read the Hawser image reference from the compose file
-      ansible.builtin.set_fact:
-        hawser_image: "{{ lookup('file', '../../docker/gcp-dmz/docker-compose.yml') | regex_search('ghcr\\.io/finsys/hawser:[^\\s#]+') }}"
-
-    - name: Fail if the Hawser image reference wasn't found
-      ansible.builtin.assert:
-        that: hawser_image | length > 0
-        fail_msg: "No ghcr.io/finsys/hawser:<tag> line in docker-compose.yml"
-        quiet: true
-
-    - name: Check if the pinned Hawser image exists on the DMZ host
-      ansible.builtin.command: docker image inspect {{ hawser_image }}
-      register: hawser_img_check
-      failed_when: false
-      changed_when: false
-
-    - name: Pull the pinned Hawser image locally (IPv4 available)
-      delegate_to: localhost
-      become: false
-      ansible.builtin.command: docker pull --platform linux/amd64 {{ hawser_image }}
-      when: hawser_img_check.rc != 0
-
-    - name: Save the Hawser image to a tar archive locally
-      delegate_to: localhost
-      become: false
-      ansible.builtin.command: docker save -o /tmp/hawser-image.tar {{ hawser_image }}
-      when: hawser_img_check.rc != 0
-
-    - name: Copy the Hawser image to the DMZ host
-      ansible.builtin.copy:
-        src: /tmp/hawser-image.tar
-        dest: /tmp/hawser-image.tar
-        mode: "0600"
-      when: hawser_img_check.rc != 0
-
-    - name: Load the Hawser image on the DMZ host
-      ansible.builtin.command: docker load -i /tmp/hawser-image.tar
-      when: hawser_img_check.rc != 0
-
-    - name: Clean up the remote tar archive
-      ansible.builtin.file:
-        path: /tmp/hawser-image.tar
-        state: absent
-      when: hawser_img_check.rc != 0
-
-    - name: Clean up the local tar archive
-      delegate_to: localhost
-      become: false
-      ansible.builtin.file:
-        path: /tmp/hawser-image.tar
-        state: absent
-      when: hawser_img_check.rc != 0
-
     # ─── Start Docker Compose Stack ───────────────────────
     - name: Remove the retired cyan Aether logo (FND-19)
       ansible.builtin.file:
@@ -236,8 +179,22 @@
       community.docker.docker_compose_v2:
         project_src: "{{ dmz_dir }}"
         state: present
-        pull: missing          # pinned digests: pulls only on a fresh host (Docker Hub works over IPv6; Hawser is loaded above)
-        remove_orphans: true   # FND-08: drops socket-proxy, which only Homepage used
+        pull: missing          # pinned digests: pulls only on a fresh host (every image is on Docker Hub, which works over IPv6)
+        remove_orphans: true   # FND-08: dropped socket-proxy; FND-22: drops hawser
+
+    # The Dockhand agent (Hawser) held the Docker socket on the least-trusted
+    # host (FND-22). remove_orphans above stops its container; drop the image
+    # too. Delete this task once no host has the image.
+    - name: Remove the retired Hawser image
+      ansible.builtin.shell: |
+        set -o pipefail
+        ids=$(docker image ls -q ghcr.io/finsys/hawser | sort -u)
+        [ -z "$ids" ] && exit 0
+        docker image rm -f $ids >/dev/null && echo removed
+      args:
+        executable: /bin/bash
+      register: hawser_rm
+      changed_when: "'removed' in hawser_rm.stdout"
 
     # ─── Verification ─────────────────────────────────────
     # Cloudflare caches /assets/user.css for 4 h, keyed on Glance's ?v= value,
