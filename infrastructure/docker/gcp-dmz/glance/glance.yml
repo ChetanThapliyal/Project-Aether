@@ -440,7 +440,7 @@ pages:
             source: |
               <div class="ae-live-head">
                 <span class="ae-live-title">Networking</span>
-                <span class="vitals-badge">DESIGN · 14 NOV 2026</span>
+                <span class="vitals-badge">DESIGN · 15 NOV 2026</span>
               </div>
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
@@ -516,13 +516,12 @@ pages:
                 <div class="ae-backups-head">
                   <div>
                     <div class="ae-stat-label">Still changing</div>
-                    <div class="ae-stat-num">3<span>queued changes</span></div>
+                    <div class="ae-stat-num">2<span>queued changes</span></div>
                     <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
                   </div>
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">FND-18</span><div><div class="ae-change-title">Cloud host joins the mesh by code</div><div class="ae-change-text">Ansible enrols the cloud host with a single role tag instead of a hand-made login.</div></div></li>
                   <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
                   <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
                 </ul>
