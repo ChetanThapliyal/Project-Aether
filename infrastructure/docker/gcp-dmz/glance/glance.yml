@@ -91,6 +91,47 @@ pages:
 
       - size: full
         widgets:
+          # FND-23: overall status in one line, first on the page. Green when all
+          # is well; otherwise it names each problem. The feed and the DMZ's own
+          # Kuma (backup and alerting checks) are the inputs, as elsewhere.
+          - type: custom-api
+            title: Status
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 2m
+            template: |
+              {{ $page := newRequest "http://uptime-kuma:3001/api/status-page/public" | getResponse }}
+              {{ $hb := newRequest "http://uptime-kuma:3001/api/status-page/heartbeat/public" | getResponse }}
+              {{ $checksDown := 0.0 }}
+              {{ range $page.JSON.Array "publicGroupList.0.monitorList" }}{{ if ne ($hb.JSON.Int (printf "heartbeatList.%d.@reverse.0.status" (.Int "id"))) 1 }}{{ $checksDown = add $checksDown 1.0 }}{{ end }}{{ end }}
+              {{ $fresh := .JSON.Bool "fresh" }}
+              {{ $nodes := ne (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total") }}
+              {{ $apps := ne (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total") }}
+              {{ $pods := ne (.JSON.Int "cluster.pods_running") (.JSON.Int "cluster.pods_total") }}
+              {{ $targets := ne (.JSON.Int "monitoring.targets_up") (.JSON.Int "monitoring.targets_total") }}
+              {{ $alerts := gt (.JSON.Int "monitoring.alerts_firing") 0 }}
+              {{ $bad := or (not $fresh) $nodes }}
+              {{ $warn := or $apps $pods $targets $alerts (gt $checksDown 0.0) }}
+              <div class="ae-banner {{ if $bad }}ae-banner-bad{{ else if $warn }}ae-banner-warn{{ else }}ae-banner-ok{{ end }}" role="status">
+                <span class="ae-dot {{ if $bad }}ae-bad{{ else if $warn }}ae-warn{{ else }}ae-ok{{ end }}"></span>
+                {{ if or $bad $warn }}
+                <span class="ae-banner-title">{{ if $bad }}Disruption{{ else }}Degraded{{ end }}</span>
+                <span class="ae-banner-items">
+                  {{ if not $fresh }}<span>live data delayed since <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> ago</span>{{ end }}
+                  {{ if $nodes }}<span>{{ .JSON.Int "cluster.nodes_ready" }} of {{ .JSON.Int "cluster.nodes_total" }} cluster nodes ready</span>{{ end }}
+                  {{ if $apps }}<span>{{ sub (.JSON.Float "cluster.apps_total") (.JSON.Float "cluster.apps_ok") | toInt }} GitOps apps not healthy</span>{{ end }}
+                  {{ if $pods }}<span>{{ sub (.JSON.Float "cluster.pods_total") (.JSON.Float "cluster.pods_running") | toInt }} pods not running</span>{{ end }}
+                  {{ if $alerts }}<span>{{ .JSON.Int "monitoring.alerts_firing" }} alert{{ if gt (.JSON.Int "monitoring.alerts_firing") 1 }}s{{ end }} firing</span>{{ end }}
+                  {{ if $targets }}<span>{{ sub (.JSON.Float "monitoring.targets_total") (.JSON.Float "monitoring.targets_up") | toInt }} scrape targets down</span>{{ end }}
+                  {{ if gt $checksDown 0.0 }}<span>{{ $checksDown | toInt }} backup or alerting check{{ if gt $checksDown 1.0 }}s{{ end }} failing</span>{{ end }}
+                </span>
+                {{ else }}
+                <span class="ae-banner-title">All systems normal</span>
+                <span class="ae-banner-items"><span>cluster, monitoring, backups and alerting checked <span {{ .JSON.String "generated_at" | parseTime "RFC3339" | toRelativeTime }}></span> ago</span></span>
+                {{ end }}
+              </div>
+
           # FND-21: who and what, first thing on desktop and phone (phones show
           # this column before the small one).
           - type: html

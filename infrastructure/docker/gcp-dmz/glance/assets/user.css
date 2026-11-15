@@ -720,6 +720,28 @@ code,
   .ae-record { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* ─── Status banner (FND-23) ────────────────────────────────────────────── */
+
+.ae-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--ae-ok-edge);
+  background: var(--ae-ok-wash);
+  font-size: 1.25rem;
+  color: var(--ae-stone-300);
+}
+.ae-banner-warn { border-color: var(--ae-warn); background: rgba(251, 191, 36, 0.10); }
+.ae-banner-bad { border-color: var(--ae-bad-edge); background: var(--ae-bad-wash); }
+.ae-banner .ae-dot { flex: none; }
+.ae-banner-title { font-family: var(--ae-font-head); font-weight: 800; color: var(--ae-stone-100); }
+.ae-banner-items { display: flex; flex-wrap: wrap; gap: 4px 0; }
+.ae-banner-items > span + span::before { content: "·"; margin: 0 8px; color: var(--ae-stone-500, var(--ae-stone-400)); }
+
 /* ─── Recovery objectives (FND-23) ──────────────────────────────────────── */
 
 .ae-rto { display: flex; flex-direction: column; }
