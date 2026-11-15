@@ -25,16 +25,18 @@ csp_script_hashes:
   networking: sha256-ZQOZHLMzwm7+tkkNP/t7sACI/lGrSCDp22epZu5Cyeo=
   feeds: sha256-D6fJR7c1uK3ak6delsoT7pkJtCVIEOSHmdnQaKADOQk=
 
+# Cloudflare Web Analytics: the edge injects its beacon script
+# (static.cloudflareinsights.com), which reports to cloudflareinsights.com.
 # Style 'unsafe-inline': Glance writes its theme as an inline <style> block and
 # sets styles from script. Images: Simple Icons (jsDelivr) and the blog and notes
 # thumbnails on the Writing page.
 csp_directives:
   - "default-src 'self'"
-  - "script-src 'self' {hashes}"
+  - "script-src 'self' {hashes} https://static.cloudflareinsights.com"
   - "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
   - "font-src 'self' https://fonts.gstatic.com"
   - "img-src 'self' data: https://cdn.jsdelivr.net https://chetan-thapliyal.cloud https://base.chetan-thapliyal.cloud"
-  - "connect-src 'self'"
+  - "connect-src 'self' https://cloudflareinsights.com"
   - "manifest-src 'self'"
   - "object-src 'none'"
   - "base-uri 'self'"
