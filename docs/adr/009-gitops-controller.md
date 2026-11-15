@@ -36,3 +36,10 @@ ADR-009: GitOps Controller Selection (ArgoCD vs Flux)
 - **Open Questions:** Selection of the secrets decryption plugin (KSOPS versus SOPS wrapper) inside ArgoCD.
 - **Related ADRs:** ADR-007 (Secrets Management), ADR-008 (Operational Toolchain).
 - **Review Conditions:** Review if Worker-02 encounters MemoryPressure or out-of-memory evictions after deploying all target applications.
+
+### Addendum: Implementation Check (2026-11-15, FND-15)
+The status line said "Proposed" long after ArgoCD went into service. It was corrected on 15 Nov, and the body was checked against the running cluster:
+
+- **Placement:** every ArgoCD component is pinned to Worker-02 with a node selector, as decided.
+- **Memory:** about 660 MiB in steady state (application controller 328 MiB, repo server 223 MiB, server 75 MiB, Redis 32 MiB), under the 1 GB budget above. Dex and notifications are disabled. The ApplicationSet controller is scaled to zero, because chart 7.8.26 ignores its `enabled` flag.
+- **Open question resolved:** secrets are decrypted by **KSOPS**, run as a config management plugin sidecar on the repo server. Encrypted `ksops-secret.yaml` generators sit next to the manifests that use them. See ADR-007.

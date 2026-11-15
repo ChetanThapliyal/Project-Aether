@@ -362,7 +362,12 @@
       no_log: true
       tags: [couchdb, apps]
 
-    - name: Copy couchdb CORS config
+    # FND-15: CouchDB and its entrypoint write runtime values (the server uuid,
+    # the hashed admin) into local.d/docker.ini, the last file it reads. Owning
+    # that file meant every run dropped them, and a restart then minted a new
+    # uuid. Our settings live in 10-aether.ini, read before docker.ini; the
+    # copies once written to docker.ini are removed so they can't override it.
+    - name: Copy couchdb settings (CORS, request size, single node)
       copy:
         content: |
           [couchdb]
@@ -378,10 +383,29 @@
           headers = accept, authorization, content-type, origin, referer
           methods = GET, PUT, POST, HEAD, DELETE
           max_age = 3600
-        dest: "{{ app_base_dir }}/couchdb/etc/local.d/docker.ini"
+        dest: "{{ app_base_dir }}/couchdb/etc/local.d/10-aether.ini"
         owner: "5984"
         group: "5984"
         mode: "0644"
+      register: couchdb_settings
+      tags: [couchdb, apps]
+
+    - name: Remove our old settings from couchdb's runtime file (keeps uuid and admins)
+      community.general.ini_file:
+        path: "{{ app_base_dir }}/couchdb/etc/local.d/docker.ini"
+        section: "{{ item.0 }}"
+        option: "{{ item.1 }}"
+        state: absent
+      loop:
+        - [couchdb, single_node]
+        - [chttpd, max_http_request_size]
+        - [chttpd, bind_address]
+        - [cors, credentials]
+        - [cors, origins]
+        - [cors, headers]
+        - [cors, methods]
+        - [cors, max_age]
+      register: couchdb_runtime_cleanup
       tags: [couchdb, apps]
 
     - name: Start couchdb
@@ -389,6 +413,11 @@
         project_src: "{{ app_base_dir }}/couchdb"
         state: present
         pull: missing   # images are pinned by digest (FND-09)
+      tags: [couchdb, apps]
+
+    - name: Restart couchdb when its settings changed (it reads ini files only at start)
+      ansible.builtin.command: docker restart couchdb
+      when: couchdb_settings.changed or couchdb_runtime_cleanup.changed
       tags: [couchdb, apps]
 
     # ─── AFFiNE (Knowledge Management) ─────────────────────

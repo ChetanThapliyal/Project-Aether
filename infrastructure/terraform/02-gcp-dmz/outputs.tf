@@ -22,9 +22,11 @@ output "private_ipv4" {
   value       = google_compute_instance.dmz.network_interface[0].network_ip
 }
 
-output "ssh_command_ipv6" {
-  description = "Direct SSH command to connect to the DMZ node over external IPv6"
-  value       = "ssh ${var.ssh_user}@${try(google_compute_instance.dmz.network_interface[0].ipv6_access_config[0].external_ipv6, "PENDING")}"
+# FND-15: replaces ssh_command_ipv6. Direct SSH over the public IPv6 has been
+# closed since FND-12; break-glass goes through IAP, which writes no metadata.
+output "ssh_command_iap" {
+  description = "Break-glass SSH when the tailnet is down: IAP TCP forwarding, gated by Google IAM"
+  value       = "gcloud compute ssh ${var.ssh_user}@${google_compute_instance.dmz.name} --zone=${google_compute_instance.dmz.zone} --tunnel-through-iap"
 }
 
 output "tailscale_access_note" {
