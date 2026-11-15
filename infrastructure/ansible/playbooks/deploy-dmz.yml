@@ -236,8 +236,8 @@
       delegate_to: localhost
       become: false
       ansible.builtin.command: >-
-        python3 {{ playbook_dir }}/../templates/check_public_headers.py
-        --config {{ playbook_dir }}/../../docker/gcp-dmz/cloudflare-response-headers.yml
+        python3 "{{ playbook_dir }}/../templates/check_public_headers.py"
+        --config "{{ playbook_dir }}/../../docker/gcp-dmz/cloudflare-response-headers.yml"
       register: header_check
       changed_when: false
       check_mode: false
