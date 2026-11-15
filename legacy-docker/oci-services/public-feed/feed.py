@@ -38,6 +38,8 @@ CHART_W, CHART_H, CHART_PAD = 300.0, 80.0, 6.0
 K3S = 'job="k3s-node-exporter"'
 HYP = 'job="proxmox-host"'
 OCI = 'job="node-exporter"'
+DMZ = 'job="gcp-dmz-node"'  # FND-14 node exporter on the edge host
+NET_DEV = 'device!~"lo|veth.*|cni.*|flannel.*|tailscale.*|docker.*|br-.*"'
 
 SCALARS = {
     "nodes_ready": 'sum(kube_node_status_condition{condition="Ready",status="true"})',
@@ -64,14 +66,23 @@ SCALARS = {
     "oci_cpu_pct": f'100 * (1 - avg(rate(node_cpu_seconds_total{{{OCI},mode="idle"}}[5m])))',
     "oci_mem_pct": f"100 * (1 - sum(node_memory_MemAvailable_bytes{{{OCI}}}) / sum(node_memory_MemTotal_bytes{{{OCI}}}))",
     "oci_disk_pct": f'100 * (1 - max(node_filesystem_avail_bytes{{{OCI},mountpoint="/"}}) / max(node_filesystem_size_bytes{{{OCI},mountpoint="/"}}))',
+    # FND-22: the edge host's own usage, and cluster network throughput (MB/s, in + out)
+    "dmz_cpu_pct": f'100 * (1 - avg(rate(node_cpu_seconds_total{{{DMZ},mode="idle"}}[5m])))',
+    "dmz_mem_pct": f"100 * (1 - sum(node_memory_MemAvailable_bytes{{{DMZ}}}) / sum(node_memory_MemTotal_bytes{{{DMZ}}}))",
+    "dmz_disk_pct": f'100 * (1 - max(node_filesystem_avail_bytes{{{DMZ},mountpoint="/"}}) / max(node_filesystem_size_bytes{{{DMZ},mountpoint="/"}}))',
+    "cluster_net_mbs": f"(sum(rate(node_network_receive_bytes_total{{{K3S},{NET_DEV}}}[5m])) + sum(rate(node_network_transmit_bytes_total{{{K3S},{NET_DEV}}}[5m]))) / 1e6",
 }
 
-# name: (PromQL, y-axis min, y-axis max, unit)
+# name: (PromQL, hard floor, hard ceiling (None: open), smallest y span, unit).
+# FND-22: the y-axis fits the data with some padding, inside the hard limits,
+# and never narrower than the smallest span, so a quiet line isn't drawn as a cliff.
 SERIES = {
-    "cluster_cpu": (SCALARS["cluster_cpu_pct"], 0, 100, "%"),
-    "cluster_mem": (SCALARS["cluster_mem_pct"], 0, 100, "%"),
-    "hyp_temp": (SCALARS["hyp_temp_c"], 20, 100, "°C"),
-    "oci_cpu": (SCALARS["oci_cpu_pct"], 0, 100, "%"),
+    "cluster_cpu": (SCALARS["cluster_cpu_pct"], 0, 100, 10, "%"),
+    "cluster_mem": (SCALARS["cluster_mem_pct"], 0, 100, 10, "%"),
+    "oci_cpu": (SCALARS["oci_cpu_pct"], 0, 100, 10, "%"),
+    "oci_mem": (SCALARS["oci_mem_pct"], 0, 100, 10, "%"),
+    "hyp_temp": (SCALARS["hyp_temp_c"], 20, 105, 10, "°C"),
+    "cluster_net": (SCALARS["cluster_net_mbs"], 0, None, 0.5, " MB/s"),
 }
 
 GAUGES = [  # (label, scalar key, group shown under the gauge)
@@ -113,7 +124,23 @@ def scalar(q):
     return None if math.isnan(v) or math.isinf(v) else v
 
 
-def series(q, lo, hi):
+def nice_range(vals, floor, ceil, min_span):
+    """A y-range around the data: 15% padding, at least min_span wide, rounded
+    to tidy numbers, and kept inside [floor, ceil]."""
+    lo, hi = min(vals), max(vals)
+    pad = max((hi - lo) * 0.15, min_span / 2 - (hi - lo) / 2, 0)
+    lo, hi = lo - pad, hi + pad
+    step = 10 ** math.floor(math.log10(max(hi - lo, 1e-9)))
+    step = step / 2 if (hi - lo) / step < 3 else step
+    lo, hi = math.floor(lo / step) * step, math.ceil(hi / step) * step
+    if lo < floor:
+        hi, lo = hi + (floor - lo), floor
+    if ceil is not None and hi > ceil:
+        lo, hi = max(floor, lo - (hi - ceil)), ceil
+    return round(lo, 2), round(hi, 2)
+
+
+def series(q, floor, ceil, min_span):
     end = time.time()
     res = prom("/api/v1/query_range", {"query": q, "start": end - RANGE_S, "end": end, "step": STEP_S})
     if not res:
@@ -121,6 +148,7 @@ def series(q, lo, hi):
     pts = [(float(t), float(v)) for t, v in res[0]["values"] if v not in ("NaN", "+Inf", "-Inf")]
     if len(pts) < 2:
         return None
+    lo, hi = nice_range([v for _, v in pts], floor, ceil, min_span)
     t0 = end - RANGE_S
     span = hi - lo
     coords = []
@@ -132,8 +160,10 @@ def series(q, lo, hi):
     first_x, last_x = coords[0].split(",")[0], coords[-1].split(",")[0]
     area = f"{first_x},{CHART_H:.0f} {line} {last_x},{CHART_H:.0f}"
     vals = [v for _, v in pts]
-    return {"line": line, "area": area, "last": round(vals[-1], 1), "min": round(min(vals), 1),
-            "max": round(max(vals), 1), "lo": lo, "hi": hi}
+    nd = 1 if max(abs(v) for v in vals) >= 1 else 2  # small units (MB/s) keep two decimals
+    return {"line": line, "area": area, "last": round(vals[-1], nd), "min": round(min(vals), nd),
+            "max": round(max(vals), nd), "lo": lo, "hi": hi,
+            "mid": round((lo + hi) / 2, 2)}
 
 
 def versions():
@@ -175,6 +205,7 @@ def build():
         },
         "delivery": {"syncs_7d": int(round(s["syncs_7d"] or 0)),
                      "syncs_failed_7d": int(round(s["syncs_failed_7d"] or 0))},
+        "edge": {k: r(s[f"dmz_{k}"]) for k in ("cpu_pct", "mem_pct", "disk_pct")},
         "host": {"temp_c": r(s["hyp_temp_c"], 0), "uptime_days": r(s["hyp_uptime_days"], 1),
                  "cpu_pct": r(s["hyp_cpu_pct"])},
         "gauges": [],
@@ -191,8 +222,8 @@ def build():
             "dash": round(GAUGE_C * pct / 100, 2), "gap": round(GAUGE_C, 2),
             "level": "high" if pct >= 85 else ("warn" if pct >= 70 else "ok"),
         })
-    for name, (q, lo, hi, unit) in SERIES.items():
-        c = series(q, lo, hi)
+    for name, (q, floor, ceil, min_span, unit) in SERIES.items():
+        c = series(q, floor, ceil, min_span)
         if c:
             c["unit"] = unit
             summary["charts"][name] = c

@@ -152,23 +152,63 @@ pages:
                 <p class="ae-muted">Host memory runs high by design: three Kubernetes VMs share a 12 GB laptop.</p>
               </div>
 
+          # FND-22: how the estate fits together, which is also the path every
+          # number on this page takes. Live dots from the same feed.
+          - type: custom-api
+            title: How it fits together
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 2m
+            template: |
+              {{ $home := and (eq (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total")) (eq (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total")) }}
+              {{ $core := and (eq (.JSON.Int "monitoring.targets_up") (.JSON.Int "monitoring.targets_total")) (eq (.JSON.Int "monitoring.alerts_firing") 0) }}
+              <div class="vitals-card">
+                <div class="vitals-header">
+                  <span class="vitals-title">How it fits together</span>
+                  <span class="vitals-badge">AND HOW THIS PAGE GETS ITS NUMBERS</span>
+                </div>
+                <div class="ae-arch">
+                  <div class="ae-node">
+                    <div class="ae-node-kicker">At home · behind CGNAT</div>
+                    <div class="ae-node-name">Home lab</div>
+                    <div class="ae-node-what">Proxmox, a 3-node K3s cluster run by ArgoCD, ZFS backups</div>
+                    <div class="ae-node-status"><span class="ae-dot {{ if $home }}ae-ok{{ else }}ae-bad{{ end }}"></span>{{ .JSON.Int "cluster.nodes_ready" }}/{{ .JSON.Int "cluster.nodes_total" }} nodes, {{ .JSON.Int "cluster.apps_ok" }}/{{ .JSON.Int "cluster.apps_total" }} apps healthy</div>
+                  </div>
+                  <div class="ae-link"><span class="ae-link-arrow" aria-hidden="true">⇄</span><span class="ae-link-text">metrics scraped, logs shipped, over the mesh</span></div>
+                  <div class="ae-node">
+                    <div class="ae-node-kicker">Oracle Cloud · no inbound TCP</div>
+                    <div class="ae-node-name">Monitoring core</div>
+                    <div class="ae-node-what">Prometheus, Loki, Alertmanager; builds a numbers-only summary</div>
+                    <div class="ae-node-status"><span class="ae-dot {{ if $core }}ae-ok{{ else }}ae-warn{{ end }}"></span>{{ .JSON.Int "monitoring.targets_up" }}/{{ .JSON.Int "monitoring.targets_total" }} targets, {{ .JSON.Int "monitoring.alerts_firing" }} alerts</div>
+                  </div>
+                  <div class="ae-link ae-link-diode"><span class="ae-link-arrow" aria-hidden="true">→</span><span class="ae-link-text">summary pulled over the mesh, {{ if .JSON.Bool "fresh" }}live{{ else }}<b>delayed</b>{{ end }}; nothing flows back</span></div>
+                  <div class="ae-node">
+                    <div class="ae-node-kicker">Google Cloud · no public IPv4</div>
+                    <div class="ae-node-name">Edge observer</div>
+                    <div class="ae-node-what">This page and Uptime Kuma, watching everything from outside</div>
+                    <div class="ae-node-status"><span class="ae-dot ae-ok"></span>serving you this page</div>
+                  </div>
+                  <div class="ae-link"><span class="ae-link-arrow" aria-hidden="true">→</span><span class="ae-link-text">tunnel opened outbound</span></div>
+                  <div class="ae-node ae-node-end">
+                    <div class="ae-node-kicker">Cloudflare</div>
+                    <div class="ae-node-name">You</div>
+                    <div class="ae-node-what">TLS ends at Cloudflare's edge; the only public path</div>
+                  </div>
+                </div>
+                <p class="ae-muted">The three sites share a WireGuard mesh with role-based rules. The public page sits on the least-trusted machine and can only read a sanitised summary, so a visitor never touches the private network. Offsite backups go from home to an Object-Locked bucket.</p>
+              </div>
+
           - type: html
             source: |
               <div class="vitals-card">
                 <div class="vitals-header">
-                  <span class="vitals-title">Architecture at a glance</span>
-                  <span class="vitals-badge">DESIGN FACTS · 12 NOV 2026</span>
+                  <span class="vitals-title">How it is built</span>
+                  <span class="vitals-badge">DESIGN FACTS · 15 NOV 2026</span>
                 </div>
-                <div class="top-grid cols-4">
-                  <div class="top-item"><div class="top-label">Cluster</div><div class="top-value">K3s · 3 nodes</div></div>
-                  <div class="top-item"><div class="top-label">GitOps apps</div><div class="top-value">17 in ArgoCD</div></div>
-                  <div class="top-item"><div class="top-label">Clouds</div><div class="top-value">Home · OCI · GCP</div></div>
-                  <div class="top-item"><div class="top-label">Monthly cost</div><div class="top-value">₹0 cloud</div></div>
-                </div>
-                <div class="section-title">How it is built</div>
                 <div class="bar-row"><span class="bar-name">Delivery</span><span class="ae-fact">ArgoCD app-of-apps tracking <code>main</code>; Helm charts pinned; values linted in CI</span></div>
                 <div class="bar-row"><span class="bar-name">Edge</span><span class="ae-fact">Envoy Gateway on a MetalLB address, internal PKI from cert-manager</span></div>
-                <div class="bar-row"><span class="bar-name">Security</span><span class="ae-fact">Tailnet roles with policy tests, default-deny NetworkPolicies, Secrets encrypted at rest, no public SSH</span></div>
+                <div class="bar-row"><span class="bar-name">Security</span><span class="ae-fact">Tailnet roles with policy tests, default-deny NetworkPolicies, Secrets encrypted at rest, no public SSH, a strict content policy on this page</span></div>
                 <div class="bar-row"><span class="bar-name">Observability</span><span class="ae-fact">Prometheus, Loki (Grafana Alloy agents) and Alertmanager to Telegram, plus a dead-man's switch</span></div>
                 <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots to ZFS, restic, then an Object-Locked offsite bucket; cold restore drilled</span></div>
               </div>
@@ -202,8 +242,9 @@ pages:
                 <div class="ae-stat"><div class="ae-stat-label">Cluster memory</div><div class="ae-stat-num">{{ .JSON.Float "charts.cluster_mem.last" | toInt }}<span>%</span></div><div class="ae-stat-sub">3 nodes, used of total</div></div>
               </div>
               <div class="vitals-card">
-                <div class="section-title">Last 6 hours · 5-minute steps</div>
+                <div class="section-title">Last 6 hours · 5-minute steps · each axis fitted to its data</div>
                 <div class="ae-charts">
+                  {{ if .JSON.Exists "charts.cluster_cpu" }}
                   <div class="ae-chart">
                     <div class="ae-chart-head"><div><div class="ae-stat-label">Cluster CPU</div><div class="ae-chart-big">{{ .JSON.Float "charts.cluster_cpu.last" }}<span>{{ .JSON.String "charts.cluster_cpu.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.cluster_cpu.min" }}–{{ .JSON.Float "charts.cluster_cpu.max" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</div></div>
                     <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster CPU, last 6 hours">
@@ -213,8 +254,10 @@ pages:
                       <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_cpu.area" }}"></polygon>
                       <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_cpu.line" }}"></polyline>
                     </svg>
-                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.cluster_cpu.lo" }}–{{ .JSON.Float "charts.cluster_cpu.hi" }}{{ .JSON.String "charts.cluster_cpu.unit" }}</span><span>now</span></div>
                   </div>
+                  {{ end }}
+                  {{ if .JSON.Exists "charts.cluster_mem" }}
                   <div class="ae-chart">
                     <div class="ae-chart-head"><div><div class="ae-stat-label">Cluster memory</div><div class="ae-chart-big">{{ .JSON.Float "charts.cluster_mem.last" }}<span>{{ .JSON.String "charts.cluster_mem.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.cluster_mem.min" }}–{{ .JSON.Float "charts.cluster_mem.max" }}{{ .JSON.String "charts.cluster_mem.unit" }}</div></div>
                     <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster memory, last 6 hours">
@@ -224,8 +267,23 @@ pages:
                       <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_mem.area" }}"></polygon>
                       <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_mem.line" }}"></polyline>
                     </svg>
-                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.cluster_mem.lo" }}–{{ .JSON.Float "charts.cluster_mem.hi" }}{{ .JSON.String "charts.cluster_mem.unit" }}</span><span>now</span></div>
                   </div>
+                  {{ end }}
+                  {{ if .JSON.Exists "charts.cluster_net" }}
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Cluster network, in + out</div><div class="ae-chart-big">{{ .JSON.Float "charts.cluster_net.last" }}<span>{{ .JSON.String "charts.cluster_net.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.cluster_net.min" }}–{{ .JSON.Float "charts.cluster_net.max" }}{{ .JSON.String "charts.cluster_net.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cluster network, in + out, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.cluster_net.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.cluster_net.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.cluster_net.lo" }}–{{ .JSON.Float "charts.cluster_net.hi" }}{{ .JSON.String "charts.cluster_net.unit" }}</span><span>now</span></div>
+                  </div>
+                  {{ end }}
+                  {{ if .JSON.Exists "charts.oci_cpu" }}
                   <div class="ae-chart">
                     <div class="ae-chart-head"><div><div class="ae-stat-label">Cloud host CPU</div><div class="ae-chart-big">{{ .JSON.Float "charts.oci_cpu.last" }}<span>{{ .JSON.String "charts.oci_cpu.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.oci_cpu.min" }}–{{ .JSON.Float "charts.oci_cpu.max" }}{{ .JSON.String "charts.oci_cpu.unit" }}</div></div>
                     <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cloud host CPU, last 6 hours">
@@ -235,8 +293,23 @@ pages:
                       <polygon class="ae-area" points="{{ .JSON.String "charts.oci_cpu.area" }}"></polygon>
                       <polyline class="ae-line" points="{{ .JSON.String "charts.oci_cpu.line" }}"></polyline>
                     </svg>
-                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 0–100%</span><span>now</span></div>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.oci_cpu.lo" }}–{{ .JSON.Float "charts.oci_cpu.hi" }}{{ .JSON.String "charts.oci_cpu.unit" }}</span><span>now</span></div>
                   </div>
+                  {{ end }}
+                  {{ if .JSON.Exists "charts.oci_mem" }}
+                  <div class="ae-chart">
+                    <div class="ae-chart-head"><div><div class="ae-stat-label">Cloud host memory</div><div class="ae-chart-big">{{ .JSON.Float "charts.oci_mem.last" }}<span>{{ .JSON.String "charts.oci_mem.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.oci_mem.min" }}–{{ .JSON.Float "charts.oci_mem.max" }}{{ .JSON.String "charts.oci_mem.unit" }}</div></div>
+                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Cloud host memory, last 6 hours">
+                      <line class="ae-grid" x1="0" y1="6" x2="300" y2="6"></line>
+                      <line class="ae-grid" x1="0" y1="40" x2="300" y2="40"></line>
+                      <line class="ae-grid" x1="0" y1="74" x2="300" y2="74"></line>
+                      <polygon class="ae-area" points="{{ .JSON.String "charts.oci_mem.area" }}"></polygon>
+                      <polyline class="ae-line" points="{{ .JSON.String "charts.oci_mem.line" }}"></polyline>
+                    </svg>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.oci_mem.lo" }}–{{ .JSON.Float "charts.oci_mem.hi" }}{{ .JSON.String "charts.oci_mem.unit" }}</span><span>now</span></div>
+                  </div>
+                  {{ end }}
+                  {{ if .JSON.Exists "charts.hyp_temp" }}
                   <div class="ae-chart">
                     <div class="ae-chart-head"><div><div class="ae-stat-label">Hypervisor CPU temperature</div><div class="ae-chart-big">{{ .JSON.Float "charts.hyp_temp.last" }}<span>{{ .JSON.String "charts.hyp_temp.unit" }}</span></div></div><div class="ae-chart-range">6 h range<br>{{ .JSON.Float "charts.hyp_temp.min" }}–{{ .JSON.Float "charts.hyp_temp.max" }}{{ .JSON.String "charts.hyp_temp.unit" }}</div></div>
                     <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Hypervisor CPU temperature, last 6 hours">
@@ -246,8 +319,9 @@ pages:
                       <polygon class="ae-area" points="{{ .JSON.String "charts.hyp_temp.area" }}"></polygon>
                       <polyline class="ae-line" points="{{ .JSON.String "charts.hyp_temp.line" }}"></polyline>
                     </svg>
-                    <div class="ae-chart-foot"><span>6 h ago</span><span>scale 20–100 °C</span><span>now</span></div>
+                    <div class="ae-chart-foot"><span>6 h ago</span><span>axis {{ .JSON.Float "charts.hyp_temp.lo" }}–{{ .JSON.Float "charts.hyp_temp.hi" }}{{ .JSON.String "charts.hyp_temp.unit" }}</span><span>now</span></div>
                   </div>
+                  {{ end }}
                 </div>
               </div>
 
@@ -267,8 +341,8 @@ pages:
                   <div>
                     <div class="ae-stat-label">Public sites, last {{ .JSON.Int "days" }} days</div>
                     {{ if gt (.JSON.Int "slo.days_with_data") 0 }}
-                    <div class="ae-stat-num {{ if .JSON.Bool "slo.met" }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Float "slo.budget_left_pct" | toInt }}<span>% error budget left</span></div>
-                    <div class="ae-stat-sub">{{ .JSON.String "slo.label" }}: objective {{ .JSON.Float "slo.target" }}% available{{ if lt (.JSON.Int "slo.days_with_data") (.JSON.Int "days") }} · measured over {{ .JSON.Int "slo.days_with_data" }} of {{ .JSON.Int "days" }} days so far{{ end }}</div>
+                    <div class="ae-stat-num {{ if .JSON.Bool "slo.met" }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Float "slo.budget_left_pct" | toInt }}<span>% budget left</span></div>
+                    <div class="ae-stat-sub">error budget for {{ .JSON.String "slo.label" }}, objective {{ .JSON.Float "slo.target" }}% available{{ if lt (.JSON.Int "slo.days_with_data") (.JSON.Int "days") }} · measured over {{ .JSON.Int "slo.days_with_data" }} of {{ .JSON.Int "days" }} days so far{{ end }}</div>
                     {{ else }}
                     <div class="ae-stat-sub">Measuring since 15 Nov 2026; the first day appears tomorrow.</div>
                     {{ end }}
@@ -280,7 +354,7 @@ pages:
                   <li>
                     <div class="ae-uptime-head"><span class="ae-status-name">{{ .String "label" }}</span><span class="ae-status-meta">{{ if gt (.Int "days_with_data") 0 }}<b>{{ .Float "uptime_pct" }}%</b> · {{ .Int "down_minutes" }} min down{{ else }}no data yet{{ end }}</span></div>
                     <div class="ae-bars" role="img" aria-label="{{ .String "label" }}: daily availability, oldest first">
-                      {{ range .Array "bars" }}<span class="ae-bar ae-{{ .String "level" }}" title="{{ .String "day" }}{{ if ne (.String "level") "none" }}: {{ .Float "pct" }}%{{ else }}: no data{{ end }}"></span>{{ end }}
+                      {{ range .Array "bars" }}<span class="ae-day ae-{{ .String "level" }}" title="{{ .String "day" }}{{ if ne (.String "level") "none" }}: {{ .Float "pct" }}%{{ else }}: no data{{ end }}"></span>{{ end }}
                     </div>
                   </li>
                   {{ end }}
@@ -499,9 +573,27 @@ pages:
                     <span class="vitals-badge">E2-MICRO · IPV6</span>
                   </div>
                   <p class="ae-note">The outside observer and this page: Uptime Kuma, Glance and a Cloudflare tunnel. It has no public IPv4 and no open ports.</p>
-                  <div class="ae-chips"><span>2 shared vCPU</span><span>1 GB RAM</span><span>₹0</span></div>
+                  <div class="ae-chips"><span>2 shared vCPU</span><span>1 GB RAM</span><span>no public IPv4</span></div>
                   <div class="section-title">Live usage</div>
-                  <p class="ae-muted">This host doesn't export metrics yet. It's the next monitoring gap on the list.</p>
+                  {{ if .JSON.Exists "edge.mem_pct" }}
+                  <div class="ae-bar-row">
+                    <div class="ae-bar-label"><span>Memory</span><small>Kuma, Glance, tunnel</small></div>
+                    <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Memory {{ .JSON.Float "edge.mem_pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ if ge (.JSON.Float "edge.mem_pct") 85.0 }}high{{ else if ge (.JSON.Float "edge.mem_pct") 70.0 }}warn{{ else }}ok{{ end }}" width="{{ .JSON.Float "edge.mem_pct" }}" height="10" rx="5"></rect></svg>
+                    <div class="ae-bar-pct">{{ .JSON.Float "edge.mem_pct" | toInt }}%</div>
+                  </div>
+                  <div class="ae-bar-row">
+                    <div class="ae-bar-label"><span>Disk</span><small>boot volume</small></div>
+                    <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Disk {{ .JSON.Float "edge.disk_pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ if ge (.JSON.Float "edge.disk_pct") 85.0 }}high{{ else if ge (.JSON.Float "edge.disk_pct") 70.0 }}warn{{ else }}ok{{ end }}" width="{{ .JSON.Float "edge.disk_pct" }}" height="10" rx="5"></rect></svg>
+                    <div class="ae-bar-pct">{{ .JSON.Float "edge.disk_pct" | toInt }}%</div>
+                  </div>
+                  <div class="ae-bar-row">
+                    <div class="ae-bar-label"><span>CPU</span><small>shared cores</small></div>
+                    <svg class="ae-bar" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="CPU {{ .JSON.Float "edge.cpu_pct" | toInt }} percent"><rect class="ae-bar-track" width="100" height="10" rx="5"></rect><rect class="ae-bar-fill ae-{{ if ge (.JSON.Float "edge.cpu_pct") 85.0 }}high{{ else if ge (.JSON.Float "edge.cpu_pct") 70.0 }}warn{{ else }}ok{{ end }}" width="{{ .JSON.Float "edge.cpu_pct" }}" height="10" rx="5"></rect></svg>
+                    <div class="ae-bar-pct">{{ .JSON.Float "edge.cpu_pct" | toInt }}%</div>
+                  </div>
+                  {{ else }}
+                  <p class="ae-muted">Usage data is delayed.</p>
+                  {{ end }}
                 </div>
               </div>
 
