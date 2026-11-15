@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""FND-22: the public page's track record, built at deploy time from the repo.
+"""Public page data built at deploy time from the repo. Prints JSON to stdout;
+deploy-dmz.yml copies it into Glance's assets.
 
-Prints JSON to stdout (deploy-dmz.yml copies it into Glance's assets):
-- incidents: the latest reviews from docs/incidents/README.md, each with its
-  first lesson, plus the total and the date of the most recent one;
-- delivery: commits on the current branch in the last 30 days.
+  build_track_record.py REPO          track record (FND-22): latest incident
+                                      reviews with their first lesson, and
+                                      commits in the last 30 days
+  build_track_record.py REPO --docs   docs index (FND-23): every ADR, incident
+                                      review, DR scenario and runbook
 
 Everything here is already public in the repository.
 """
@@ -14,9 +16,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(sys.argv[1]).resolve()
+GH = "https://github.com/ChetanThapliyal/Project-Aether/blob/main/"
+# Internal work-item IDs (chores, DR stages) mean nothing to a visitor and
+# HARD-17 keeps them off the public page.
+WORK_ID = re.compile(r"\s*\((?:DR|HARD|FND|GOP|OPS|SEC|IaC)-\d+\)|\b(?:DR|HARD|FND|GOP|OPS|SEC|IaC)-\d+\b\s*")
+
+
+def public(text):
+    return re.sub(r"\s{2,}", " ", WORK_ID.sub("", text)).strip()
 LATEST = 4
-GH = "https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/incidents/"
 
 
 def first_lesson(path):
@@ -31,24 +39,73 @@ def first_lesson(path):
     return ""
 
 
-def incidents():
+def incidents(repo, lessons=True):
     rows = []
-    index = (REPO / "docs/incidents/README.md").read_text()
+    index = (repo / "docs/incidents/README.md").read_text()
     for m in re.finditer(r"^\| \[(INC-\d{4}-\d{3})\]\(([^)]+)\) \| (\d{4}-\d{2}-\d{2}) \| ([^|]+) \| (SEV\d) \|", index, re.M):
         inc, fname, date, title, sev = m.groups()
-        rows.append({"id": inc, "date": date, "title": title.strip(), "severity": sev,
-                     "url": GH + fname, "lesson": first_lesson(REPO / "docs/incidents" / fname)})
+        row = {"id": inc, "date": date, "title": title.strip(), "severity": sev, "url": GH + "docs/incidents/" + fname}
+        if lessons:
+            row["lesson"] = first_lesson(repo / "docs/incidents" / fname)
+        rows.append(row)
     if not rows:
         sys.exit("no incidents parsed from docs/incidents/README.md")
     rows.sort(key=lambda r: (r["date"], r["id"]), reverse=True)
-    return {"total": len(rows), "last_date": rows[0]["date"] + "T00:00:00Z", "latest": rows[:LATEST]}
+    return rows
 
 
-def delivery():
-    git = ["git", "-C", str(REPO)]
-    commits = subprocess.run(git + ["rev-list", "--count", "--since=30.days", "HEAD"],
-                             capture_output=True, text=True, check=True).stdout.strip()
-    return {"commits_30d": int(commits)}
+def adrs(repo):
+    out = []
+    for f in sorted((repo / "docs/adr").glob("[0-9][0-9][0-9]-*.md")):
+        text = f.read_text()
+        t = re.search(r"ADR-(\d{3}):\s*(.+)", text)
+        st = re.search(r"\*\*Status:\*\*\s*([^\n]+)", text)
+        if not t:
+            sys.exit(f"no 'ADR-NNN: title' line in {f.name}")
+        status = re.split(r"[(;,.]", st.group(1))[0].strip() if st else "Unknown"
+        out.append({"num": t.group(1), "title": public(t.group(2)), "status": status, "url": GH + "docs/adr/" + f.name})
+    return out
 
 
-print(json.dumps({"incidents": incidents(), "delivery": delivery()}, separators=(",", ":")))
+def dr_scenarios(repo):
+    out = []
+    readme = (repo / "docs/disaster-recovery/README.md").read_text()
+    for m in re.finditer(r"^\| \[(\d{2}): ([^\]]+)\]\((scenarios/[^)]+)\) \| (SEV\d) \| ([^|]+) \|", readme, re.M):
+        num, title, path, sev, drilled = m.groups()
+        drilled = public(drilled)
+        out.append({"num": num, "title": public(title), "severity": sev, "url": GH + "docs/disaster-recovery/" + path,
+                    "last_drilled": drilled, "drilled": "not recorded" not in drilled.lower()})
+    if not out:
+        sys.exit("no scenarios parsed from docs/disaster-recovery/README.md")
+    return out
+
+
+def runbooks(repo):
+    out = []
+    for f in sorted((repo / "docs/runbooks").glob("*.md")):
+        h1 = re.search(r"^# (.+)$", f.read_text(), re.M)
+        title = h1.group(1).strip() if h1 else f.stem.replace("-", " ")
+        out.append({"title": public(re.sub(r"\s+runbook$", "", title, flags=re.I)), "url": GH + "docs/runbooks/" + f.name})
+    return out
+
+
+def commits_30d(repo):
+    return int(subprocess.run(["git", "-C", str(repo), "rev-list", "--count", "--since=30.days", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip())
+
+
+def main():
+    repo = Path(sys.argv[1]).resolve()
+    if "--docs" in sys.argv[2:]:
+        data = {"adrs": adrs(repo), "incidents": incidents(repo, lessons=False),
+                "dr": dr_scenarios(repo), "runbooks": runbooks(repo)}
+        data["counts"] = {k: len(v) for k, v in data.items()}
+    else:
+        inc = incidents(repo)
+        data = {"incidents": {"total": len(inc), "last_date": inc[0]["date"] + "T00:00:00Z", "latest": inc[:LATEST]},
+                "delivery": {"commits_30d": commits_30d(repo)}}
+    print(json.dumps(data, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    main()

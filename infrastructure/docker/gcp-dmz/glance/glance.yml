@@ -726,48 +726,92 @@ pages:
               </div>
 
   # ---------------------------------------------------------------------------
-  # Page 5: Writing. Feeds are fetched by Glance on the DMZ, which has IPv6 only:
-  # a feed host without an AAAA record (GitHub, for one) can't load here.
+  # Page 5: Docs (FND-23). The index is built from the repo at every deploy
+  # (build_track_record.py --docs), so new ADRs, reviews and runbooks appear
+  # without editing this file. Posts come from the blog's homelab tag only;
+  # Lexicon has no tag feeds, so its notes (mostly unrelated) aren't listed.
+  # Feeds are fetched by Glance on the DMZ, which has IPv6 only.
   # ---------------------------------------------------------------------------
-  - name: Writing
-    slug: feeds
+  - name: Docs
+    slug: docs
     columns:
       - size: full
         widgets:
-          # Title + summary list. Cover images (media:thumbnail) are in the feed
-          # but hidden in user.css (.rss-detailed-thumbnail).
-          - type: rss
-            title: Latest from the blog
-            style: detailed-list
-            limit: 8
-            collapse-after: 4
-            cache: 1h
-            feeds:
-              - url: https://chetan-thapliyal.cloud/index.xml
-                title: chetan-thapliyal.cloud
+          - type: custom-api
+            title: Docs
+            frameless: true
+            hide-header: true
+            url: http://127.0.0.1:8080/assets/docs-index.json
+            cache: 5m
+            template: |
+              <div class="ae-live-head">
+                <span class="ae-live-title">Docs</span>
+                <a class="vitals-badge ae-badge-link" href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs" target="_blank" rel="noreferrer">ALL IN THE REPOSITORY ↗</a>
+              </div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Architecture decisions</div><div class="ae-stat-num">{{ .JSON.Int "counts.adrs" }}</div><div class="ae-stat-sub">why each part is built the way it is</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Incident reviews</div><div class="ae-stat-num">{{ .JSON.Int "counts.incidents" }}</div><div class="ae-stat-sub">blameless, with root cause and guardrails</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Recovery scenarios</div><div class="ae-stat-num">{{ .JSON.Int "counts.dr" }}</div><div class="ae-stat-sub">each with a restore runbook and a drill</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Runbooks</div><div class="ae-stat-num">{{ .JSON.Int "counts.runbooks" }}</div><div class="ae-stat-sub">step by step, kept next to the code</div></div>
+              </div>
+
+              <div class="vitals-card">
+                <div class="section-title">Architecture decisions</div>
+                <ul class="ae-doclist ae-doclist-cols">
+                  {{ range .JSON.Array "adrs" }}
+                  <li><a href="{{ .String "url" }}" target="_blank" rel="noreferrer"><span class="ae-doc-num">{{ .String "num" }}</span><span class="ae-doc-title">{{ .String "title" }}</span></a>{{ if ne (.String "status") "Accepted" }}<span class="ae-doc-tag">{{ .String "status" }}</span>{{ end }}</li>
+                  {{ end }}
+                </ul>
+              </div>
+
+              <div class="vitals-card">
+                <div class="section-title">Incident reviews</div>
+                <ul class="ae-doclist">
+                  {{ range .JSON.Array "incidents" }}
+                  <li><a href="{{ .String "url" }}" target="_blank" rel="noreferrer"><span class="ae-doc-date">{{ .String "date" }}</span><span class="ae-doc-title">{{ .String "title" }}</span></a><span class="ae-sev{{ if eq (.String "severity") "SEV1" }} ae-sev1{{ else if eq (.String "severity") "SEV2" }} ae-sev2{{ end }}">{{ .String "severity" }}</span></li>
+                  {{ end }}
+                </ul>
+              </div>
+
+              <div class="ae-record ae-record-2">
+                <div class="vitals-card">
+                  <div class="section-title">Disaster recovery</div>
+                  <ul class="ae-doclist">
+                    {{ range .JSON.Array "dr" }}
+                    <li class="ae-doc-stack"><a href="{{ .String "url" }}" target="_blank" rel="noreferrer"><span class="ae-doc-title">{{ .String "title" }}</span></a><span class="ae-doc-note"><span class="ae-dot {{ if .Bool "drilled" }}ae-ok{{ else }}ae-warn{{ end }}"></span>{{ if .Bool "drilled" }}{{ .String "last_drilled" }}{{ else }}not drilled yet{{ end }}</span></li>
+                    {{ end }}
+                  </ul>
+                </div>
+                <div class="vitals-card">
+                  <div class="section-title">Runbooks</div>
+                  <ul class="ae-doclist">
+                    {{ range .JSON.Array "runbooks" }}
+                    <li><a href="{{ .String "url" }}" target="_blank" rel="noreferrer"><span class="ae-doc-title">{{ .String "title" }}</span></a></li>
+                    {{ end }}
+                  </ul>
+                </div>
+              </div>
 
       - size: small
         widgets:
-          # Lexicon's feed lists notes by their last git change (full history is
-          # fetched at build time on Cloudflare Pages).
+          # Title + summary list; cover images hidden in user.css.
           - type: rss
-            title: Latest notes
+            title: Writing about Aether
             style: vertical-list
             limit: 8
             collapse-after: 5
             cache: 1h
             feeds:
-              - url: https://base.chetan-thapliyal.cloud/rss.xml
-                title: Lexicon
+              - url: https://chetan-thapliyal.cloud/tags/homelab/index.xml
+                title: Blog
 
           - type: bookmarks
-            title: Notes
+            title: More
             groups:
-              - title: Lexicon
-                links:
-                  - title: Lexicon knowledge base
-                    url: https://base.chetan-thapliyal.cloud/
-                    icon: si:astro
-                  - title: Blog index
-                    url: https://chetan-thapliyal.cloud/posts/
+              - links:
+                  - title: Repository README
+                    url: https://github.com/ChetanThapliyal/Project-Aether#readme
+                    icon: si:github
+                  - title: All homelab posts
+                    url: https://chetan-thapliyal.cloud/tags/homelab/
                     icon: si:hugo

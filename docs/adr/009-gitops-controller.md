@@ -3,7 +3,7 @@
 ADR-009: GitOps Controller Selection (ArgoCD vs Flux)
 ================================================================================
 ```
-- **Status:** Proposed
+- **Status:** Accepted (ArgoCD runs the cluster; status corrected 15 Nov 2026, FND-23)
 - **Date:** September 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** The homelab cluster operates under a 12GB total RAM constraint, leaving roughly 3.0 GB of allocatable memory on Worker-02 for applications and platform controllers. Reducing the self-hosted catalog from 34 to 5 or 6 core services and moving non-essential workloads to an external OCI instance freed sufficient memory to consider a heavier GitOps controller.

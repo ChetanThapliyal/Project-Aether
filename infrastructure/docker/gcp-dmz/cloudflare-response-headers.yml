@@ -23,7 +23,7 @@ csp_script_hashes:
   observability: sha256-tJ+GUp2wYhKRV1yioieQsoZr8jynfHHcGaS2uQlRwG8=
   infrastructure: sha256-Nqf6EDEthvuBARwhdL6fV54LezaDisCAtKS4cMWKVhY=
   networking: sha256-ZQOZHLMzwm7+tkkNP/t7sACI/lGrSCDp22epZu5Cyeo=
-  feeds: sha256-D6fJR7c1uK3ak6delsoT7pkJtCVIEOSHmdnQaKADOQk=
+  docs: sha256-S3pG3Xd+4Lx5iZCzzd5tpRit//rziwGU23WO/QInCOg=
 
 # Cloudflare Web Analytics: the edge injects its beacon script
 # (static.cloudflareinsights.com), which reports to cloudflareinsights.com.

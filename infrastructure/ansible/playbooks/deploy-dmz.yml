@@ -369,6 +369,15 @@
         mode: "0644"
       tags: [fnd-22, reliability]
 
+    - name: FND-23 | Publish the docs index (ADRs, incidents, DR scenarios, runbooks) for Glance
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'python3 ' ~ ((playbook_dir ~ '/../templates/build_track_record.py') | quote) ~ ' ' ~ ((playbook_dir ~ '/../../..') | quote) ~ ' --docs') }}\n"
+        dest: "{{ dmz_dir }}/glance/assets/docs-index.json"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0644"
+      tags: [fnd-23, docs]
+
     - name: FND-22 | Install the availability job
       ansible.builtin.copy:
         src: ../templates/kuma-uptime.py
