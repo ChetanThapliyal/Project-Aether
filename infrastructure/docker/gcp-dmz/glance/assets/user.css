@@ -640,8 +640,6 @@ code,
 .ae-intro { border-color: var(--ae-orange-edge); }
 .ae-intro-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ae-intro-name { font-family: var(--ae-font-head); font-weight: 800; font-size: 2.2rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--ae-stone-100); }
-.ae-intro-role { font-size: 1.35rem; color: var(--ae-orange-light); }
-.ae-intro .ae-note b { color: var(--ae-stone-100); }
 .ae-intro-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .ae-intro-links a {
   padding: 5px 14px;

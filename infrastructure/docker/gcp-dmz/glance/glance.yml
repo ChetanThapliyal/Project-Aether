@@ -27,7 +27,7 @@ branding:
 # Crawlers don't run scripts, so the Open Graph tags carry the preview.
 document:
   head: |
-    <meta name="description" content="Live status of Project Aether, Chetan Thapliyal's hybrid cloud homelab: Kubernetes on Proxmox, monitoring on Oracle Cloud, an edge observer on Google Cloud, all declared in Git.">
+    <meta name="description" content="Live status of Project Aether, a hybrid cloud homelab run like production: Kubernetes on Proxmox, monitoring on Oracle Cloud, an edge observer on Google Cloud, all declared in Git.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Project Aether">
     <meta property="og:title" content="Project Aether · live status of a hybrid cloud homelab">
@@ -97,13 +97,10 @@ pages:
             source: |
               <div class="vitals-card ae-intro">
                 <div class="ae-intro-head">
-                  <div>
-                    <div class="ae-intro-name">Chetan Thapliyal</div>
-                    <div class="ae-intro-role">Cloud and DevOps Engineer</div>
-                  </div>
+                  <div class="ae-intro-name">Project <span class="ae-grad">Aether</span></div>
                   <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
                 </div>
-                <p class="ae-note"><b>Project <span class="ae-grad">Aether</span></b> is my homelab run like production: a three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets. The numbers below are live.</p>
+                <p class="ae-note">A homelab run like production: a three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets. The numbers below are live.</p>
                 <div class="ae-intro-links">
                   <a href="https://chetan-thapliyal.cloud/" target="_blank" rel="noreferrer">Portfolio</a>
                   <a href="https://github.com/ChetanThapliyal/Project-Aether" target="_blank" rel="noreferrer">Source on GitHub</a>
