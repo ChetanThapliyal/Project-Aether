@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | Unknown start (the heartbeat monitor had never received a push) to 2026-11-03 |
+| Started | unknown (the monitor never received a push from the day it was created) |
+| Detected | 2026-11-02 |
+| Resolved | 2026-11-04 03:00 |
+| Cause | Change |
 | Status | Fixed and verified |
 
 ## Summary

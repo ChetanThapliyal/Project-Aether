@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Investigation |
 | Duration | From the observer's first deployment (failures logged from 2026-10-28) to 2026-11-08 |
+| Started | 2026-10-28 04:09 |
+| Detected | 2026-11-03 |
+| Resolved | 2026-11-08 |
+| Cause | Change |
 | Status | Fixed and verified |
 
 ## Summary

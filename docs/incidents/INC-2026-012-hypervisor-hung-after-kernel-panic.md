@@ -6,6 +6,10 @@
 | Severity | SEV3 |
 | Found by | Alert (delivered to the operator's phone at 02:42 local time, acted on in the morning) |
 | Duration | 2026-11-10 21:09 to 2026-11-11 06:01 UTC (about 9 hours, the whole homelab) |
+| Started | 2026-11-10 21:09 |
+| Detected | 2026-11-10 21:12 |
+| Resolved | 2026-11-11 06:01 |
+| Cause | Platform |
 | Status | Fixed and verified (the host now reboots itself after a panic). Hardware cause not yet confirmed |
 
 ## Summary

@@ -6,6 +6,10 @@
 | Severity | SEV3 |
 | Found by | Verification check |
 | Duration | 2026-11-02, when the DR timers were created, to 2026-11-10, when two clean unattended nights were confirmed |
+| Started | 2026-11-02 |
+| Detected | 2026-11-05 |
+| Resolved | 2026-11-05 15:55 |
+| Cause | Change |
 | Status | Fixed and verified |
 
 ## Summary

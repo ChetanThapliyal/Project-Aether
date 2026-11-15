@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | At least 72 hours before 2026-11-02 (likely from 2026-10-28) to 2026-11-03 |
+| Started | 2026-10-28 04:05 |
+| Detected | 2026-11-02 |
+| Resolved | 2026-11-03 |
+| Cause | Change |
 | Status | Mitigated and verified; durable fix tracked |
 
 ## Summary

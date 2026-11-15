@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | 2026-10-28 04:06 (one app never synced at all) to 2026-11-05 |
+| Started | 2026-10-28 04:06 |
+| Detected | 2026-11-02 |
+| Resolved | 2026-11-05 |
+| Cause | Change |
 | Status | Fixed and verified; permanent fix scheduled (controller upgrade) |
 
 ## Summary

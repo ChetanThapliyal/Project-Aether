@@ -378,6 +378,16 @@
         mode: "0644"
       tags: [fnd-23, docs]
 
+    - name: FND-23 | Install the recovery objectives the availability job reads
+      ansible.builtin.copy:
+        content: "{{ lookup('file', '../../../docs/disaster-recovery/objectives.yml') | from_yaml | to_json }}\n"
+        dest: /usr/local/etc/aether-objectives.json
+        owner: root
+        group: root
+        mode: "0644"
+      register: objectives_file
+      tags: [fnd-23, reliability]
+
     - name: FND-22 | Install the availability job
       ansible.builtin.copy:
         src: ../templates/kuma-uptime.py
@@ -441,7 +451,7 @@
       ansible.builtin.systemd:
         name: kuma-uptime.service
         state: started
-      when: uptime_script.changed or uptime_units.changed
+      when: uptime_script.changed or uptime_units.changed or objectives_file.changed
       tags: [fnd-22, reliability]
 
     - name: Print deployment summary

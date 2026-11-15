@@ -33,4 +33,6 @@ Each review says how the problem was found. Five of the first seven came from au
 
 An incident gets a row in the index, with status `Open`, on the day it's found. The full review is written when the fix is verified, ideally in the same commit. A gap found by review, with nothing yet broken, goes in the backlog, not here.
 
+Every review's field table records when the problem started, when it was detected and when the fix was verified, all in UTC, plus whether a change or the platform caused it. A date without a time means the timeline only knows the day. The public status page computes time to detect and time to restore from these fields at each deploy, so keep them accurate.
+
 Hostnames, addresses and the private network layout are generalised. Names such as "the app host" and "the DMZ observer" describe roles. Commit hashes refer to this repository. New reviews start from [TEMPLATE.md](TEMPLATE.md).

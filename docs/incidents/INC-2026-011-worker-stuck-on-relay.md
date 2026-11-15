@@ -6,6 +6,10 @@
 | Severity | SEV3 |
 | Found by | Alert (`HomelabNodeDown`, kube-state-metrics down) |
 | Duration | 2026-11-08 01:02 to 12:14 UTC (about 11 hours of intermittent scrape gaps) |
+| Started | 2026-11-08 01:02 |
+| Detected | 2026-11-08 01:02 |
+| Resolved | 2026-11-08 12:14 |
+| Cause | Platform |
 | Status | Fixed and verified |
 
 ## Summary

@@ -8,6 +8,8 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 
 ## 1. Recovery Objectives (RTO & RPO)
 
+The public status page shows a short form of this table from [`objectives.yml`](objectives.yml), with what each drill proved and each component's newest backup read live. Change both together.
+
 | Component | My Target RTO | My Target RPO | Backup Mechanism |
 |---|---|---|---|
 | **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is rebuild time plus about 3 min of restore (HARD-11) | ≤ 24 h | 4-stage etcd pipeline (ADR-018), all IST: K3s snapshot 02:00 → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 03:30 (age-encrypted object in a 30-day Object Lock bucket, plus a transitional `restic copy`) |

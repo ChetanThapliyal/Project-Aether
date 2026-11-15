@@ -720,6 +720,38 @@ code,
   .ae-record { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* ─── Recovery objectives (FND-23) ──────────────────────────────────────── */
+
+.ae-rto { display: flex; flex-direction: column; }
+.ae-rto-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 2fr) minmax(0, 0.6fr) minmax(0, 1.5fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ae-stone-700);
+  font-size: 1.2rem;
+  color: var(--ae-stone-300);
+}
+.ae-rto-row:last-child { border-bottom: none; }
+.ae-rto-row b { color: var(--ae-stone-100); font-weight: 700; }
+.ae-rto-head { font-size: 1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ae-stone-400); }
+.ae-rto-name { font-family: var(--ae-font-head); font-weight: 700; color: var(--ae-stone-100); }
+.ae-rto-proven .ae-dot, .ae-rto-backup .ae-dot { display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+@media (max-width: 900px) {
+  .ae-rto-head { display: none; }
+  .ae-rto-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ae-rto-name { grid-column: 1 / -1; }
+  .ae-rto-proven, .ae-rto-backup { grid-column: 1 / -1; }
+  .ae-rto-row > span:nth-child(2)::before { content: "RTO "; color: var(--ae-stone-400); }
+  .ae-rto-row > span:nth-child(4)::before { content: "RPO "; color: var(--ae-stone-400); }
+  .ae-rto-row > span:nth-child(2) { order: 1; }
+  .ae-rto-row > span:nth-child(4) { order: 2; }
+  .ae-rto-proven { order: 3; }
+  .ae-rto-backup { order: 4; }
+}
+
 /* ─── Docs page (FND-23) ────────────────────────────────────────────────── */
 
 .ae-badge-link { text-decoration: none; }

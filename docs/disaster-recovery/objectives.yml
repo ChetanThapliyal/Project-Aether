@@ -1,0 +1,37 @@
+# Recovery objectives as published on the status page (FND-23).
+# The README's section 1 has the detail; this file is the short, public form and
+# must agree with it. "proven" is what a drill or real recovery measured, with
+# its date; leave it empty until something has been measured.
+# backup: the live "newest backup" source, read on the DMZ by kuma-uptime.py
+#   (kuma:<monitor name> = last UP heartbeat; systemd:<unit> = last successful run).
+components:
+  - name: Kubernetes cluster
+    rto: 30 min
+    rpo: 24 h
+    proven: "Restore from the offsite copy, 10 Nov 2026: API ready 54 s after reset; in-place reset about 18 min"
+    backup: "kuma:DR-04 etcd → B2 (Proxmox)"
+    backup_label: offsite copy
+  - name: Apps on the cloud host
+    rto: 45 min
+    rpo: 24 h
+    proven: ""
+    backup: "kuma:OCI Nightly Restic Backup"
+    backup_label: nightly restic snapshot
+  - name: Edge observer (this page)
+    rto: 15 min + data restore
+    rpo: 24 h
+    proven: "Monitor data restored from the backup bucket and checked, 15 Nov 2026; VM rebuild not yet timed"
+    backup: "systemd:kuma-backup.service"
+    backup_label: nightly upload
+  - name: Secrets access
+    rto: 15 min
+    rpo: none lost
+    proven: "Second decryption key checked, 3 Nov 2026"
+    backup: ""
+    backup_label: kept in Git, two keys
+  - name: Infrastructure state
+    rto: 10 min
+    rpo: none lost
+    proven: ""
+    backup: ""
+    backup_label: versioned bucket

@@ -6,6 +6,10 @@
 | Severity | SEV3 |
 | Found by | Change (the proxy's own logs during the cut-over) |
 | Duration | 2026-11-06 09:35 to 10:05 UTC for all 16 services. Five admin services stayed unreachable until 2026-11-07 00:12 UTC, waiting for TLS certificates |
+| Started | 2026-11-06 09:35 |
+| Detected | 2026-11-06 09:35 |
+| Resolved | 2026-11-06 10:05 |
+| Cause | Change |
 | Status | Fixed and verified |
 
 ## Summary

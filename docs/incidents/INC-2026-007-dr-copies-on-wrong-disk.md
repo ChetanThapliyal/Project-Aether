@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | From the start of the homelab DR pipeline to 2026-11-05 |
+| Started | unknown (when the backup pipeline was set up) |
+| Detected | 2026-11-02 |
+| Resolved | 2026-11-05 15:15 |
+| Cause | Change |
 | Status | Fixed and verified; the old copy is deleted after the first unattended night |
 
 ## Summary

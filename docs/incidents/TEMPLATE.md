@@ -6,6 +6,10 @@
 | Severity | SEV1 / SEV2 / SEV3 (see the [index](README.md#severity)) |
 | Found by | Alert / Audit / Verification check / User report |
 | Duration | From when it started (or "unknown") to when the fix was verified |
+| Started | UTC, `YYYY-MM-DD HH:MM`, or just the date, or "unknown (why)" |
+| Detected | When an alert fired or a person noticed (UTC, same format) |
+| Resolved | When the fix was verified (UTC, same format) |
+| Cause | Change (something we changed, including setup) / Platform (hardware, network, a provider) |
 | Status | Investigating / Fixed / Fixed and verified |
 
 ## Summary

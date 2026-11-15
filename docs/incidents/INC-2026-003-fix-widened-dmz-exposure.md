@@ -6,6 +6,10 @@
 | Severity | SEV1 |
 | Found by | Verification check |
 | Duration | Several hours on 2026-11-03, from the retagging that morning until the corrected policy was live and verified |
+| Started | 2026-11-03 |
+| Detected | 2026-11-03 |
+| Resolved | 2026-11-03 |
+| Cause | Change |
 | Status | Fixed and verified |
 
 ## Summary

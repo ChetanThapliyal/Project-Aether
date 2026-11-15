@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Audit (phase exit gate) |
 | Duration | One node since it was deployed, one since about 2026-10-30, to 2026-11-05 |
+| Started | 2026-10-30 (the second node; the first never shipped) |
+| Detected | 2026-11-02 |
+| Resolved | 2026-11-05 |
+| Cause | Change |
 | Status | Fixed and verified; root-cause clean-up tracked |
 
 ## Summary

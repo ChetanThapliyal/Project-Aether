@@ -6,6 +6,10 @@
 | Severity | SEV2 |
 | Found by | Verification check |
 | Duration | 2026-11-06 08:13 to 2026-11-07 06:11 UTC (about 22 hours without a fresh local DR copy) |
+| Started | 2026-11-06 21:00 |
+| Detected | 2026-11-07 |
+| Resolved | 2026-11-07 06:11 |
+| Cause | Platform |
 | Status | Fixed and verified; silent-failure alerting tracked under the heartbeat work |
 
 ## Summary

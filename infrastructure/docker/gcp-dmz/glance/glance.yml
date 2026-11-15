@@ -361,6 +361,29 @@ pages:
                 </ul>
                 <p class="ae-muted">Probed every 2 minutes through the public internet by the observer on Google Cloud. Grey days are before measuring began.</p>
               </div>
+              {{ if gt (len (.JSON.Array "recovery")) 0 }}
+              <div class="vitals-card">
+                <div class="ae-backups-head">
+                  <div>
+                    <div class="ae-stat-label">Recovery objectives</div>
+                    <div class="ae-stat-sub">targets, what a drill has proven, and the newest backup right now</div>
+                  </div>
+                  <span class="vitals-badge">RTO · RPO</span>
+                </div>
+                <div class="ae-rto">
+                  <div class="ae-rto-row ae-rto-head"><span>Component</span><span>Target RTO</span><span>Proven</span><span>Target RPO</span><span>Newest backup</span></div>
+                  {{ range .JSON.Array "recovery" }}
+                  <div class="ae-rto-row">
+                    <span class="ae-rto-name">{{ .String "name" }}</span>
+                    <span><b>{{ .String "rto" }}</b></span>
+                    <span class="ae-rto-proven">{{ if .String "proven" }}<span class="ae-dot ae-ok"></span>{{ .String "proven" }}{{ else }}<span class="ae-dot ae-warn"></span>not drilled yet{{ end }}</span>
+                    <span><b>{{ .String "rpo" }}</b></span>
+                    <span class="ae-rto-backup">{{ if eq (.String "rpo_state") "static" }}{{ .String "backup_label" }}{{ else if .String "last_ok" }}<span class="ae-dot {{ if eq (.String "rpo_state") "ok" }}ae-ok{{ else }}ae-bad{{ end }}"></span><span {{ .String "last_ok" | parseTime "RFC3339" | toRelativeTime }}></span>&nbsp;ago · {{ .String "backup_label" }}{{ else }}<span class="ae-dot"></span>{{ .String "backup_label" }}: time unknown until the next run{{ end }}</span>
+                  </div>
+                  {{ end }}
+                </div>
+              </div>
+              {{ end }}
 
           - type: custom-api
             title: Track record
@@ -385,13 +408,12 @@ pages:
                   </ul>
                 </div>
                 <div class="vitals-card">
-                  <div class="ae-stat-label">Recovery, drilled</div>
-                  <div class="ae-stat-num">54<span>s</span></div>
-                  <div class="ae-stat-sub">from cluster reset to a ready API, restoring an offsite backup (drill, 10 Nov 2026)</div>
-                  <div class="bar-row"><span class="bar-name">Offsite fetch</span><span class="ae-fact">1.5 min from the Object-Locked bucket</span></div>
-                  <div class="bar-row"><span class="bar-name">In place</span><span class="ae-fact">about 18 min for a full cluster reset from a local snapshot</span></div>
-                  <div class="bar-row"><span class="bar-name">Keys</span><span class="ae-fact">secrets decrypt with a second, cloud-held key (checked 3 Nov 2026)</span></div>
-                  <div class="bar-row"><span class="bar-name">Runbooks</span><span class="ae-fact"><a href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/disaster-recovery" target="_blank" rel="noreferrer">five failure scenarios</a>, each with a safe drill</span></div>
+                  <div class="ae-stat-label">Incident response</div>
+                  <div class="ae-stat-num">{{ .JSON.String "response.detect_alert" }}</div>
+                  <div class="ae-stat-sub">median time to detect when an alert caught it ({{ .JSON.Int "response.by_alert" }} of {{ .JSON.Int "response.total" }})</div>
+                  <div class="bar-row"><span class="bar-name">Found otherwise</span><span class="ae-fact">latent for a median <b>{{ .JSON.String "response.detect_other" }}</b> before an audit or check found it; each review adds the guardrail that would have caught it</span></div>
+                  <div class="bar-row"><span class="bar-name">To restore</span><span class="ae-fact">median <b>{{ .JSON.String "response.restore" }}</b> from detection to a verified fix</span></div>
+                  <div class="bar-row"><span class="bar-name">Cause</span><span class="ae-fact"><b>{{ .JSON.Int "response.caused_by_change" }} of {{ .JSON.Int "response.total" }}</b> came from a change, including setup; the rest from hardware or the network</span></div>
                 </div>
                 <div class="vitals-card">
                   <div class="ae-stat-label">Delivery</div>
