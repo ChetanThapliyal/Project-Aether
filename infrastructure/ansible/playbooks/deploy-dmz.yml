@@ -271,7 +271,7 @@
     # failure withholds it, and that monitor alerts after 26 h.
     - name: FND-17 | Install backup tools
       ansible.builtin.apt:
-        name: [sqlite3, rsync]
+        name: [sqlite3, rsync, python3]
         state: present
         update_cache: true
         cache_valid_time: 86400
@@ -288,7 +288,7 @@
           # Managed by Ansible (deploy-dmz.yml, FND-17). Nightly copy of Uptime Kuma to GCS.
           set -Eeuo pipefail
           PUSH_URL={{ (kuma_oci_push_base ~ '/' ~ kuma_push_tokens.dmz_kuma_backup ~ '?status=up&msg=OK') | quote }}
-          BUCKET={{ ('gs://' ~ dmz_backup_bucket ~ '/kuma') | quote }}
+          BUCKET={{ dmz_backup_bucket | quote }}
           SRC={{ (dmz_dir ~ '/uptime-kuma') | quote }}
           DB="$SRC/kuma.db"
           T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -303,9 +303,17 @@
           rsync -a --exclude='kuma.db*' "$SRC/" "$T/uptime-kuma/"
           tar -C "$T" -czf "$T/kuma.tgz" uptime-kuma
 
-          obj="$BUCKET/kuma-$(date -u +%Y%m%dT%H%M%SZ).tgz"
-          gcloud storage cp --quiet "$T/kuma.tgz" "$obj"
-          echo "uploaded $obj ($n monitors, $(stat -c %s "$T/kuma.tgz") bytes)"
+          # One create call to the JSON API. `gcloud storage cp` reads the object
+          # first, which this create-only account may not do. ifGenerationMatch=0
+          # refuses to replace an existing object. The token stays out of argv.
+          obj="kuma/kuma-$(date -u +%Y%m%dT%H%M%SZ).tgz"
+          curl -fsS -m 10 -H 'Metadata-Flavor: Google' \
+            http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
+            | python3 -c 'import sys,json; print("Authorization: Bearer " + json.load(sys.stdin)["access_token"])' > "$T/auth"
+          curl -fsS -m 120 --retry 3 -o /dev/null -X POST -H @"$T/auth" -H 'Content-Type: application/gzip' \
+            --data-binary @"$T/kuma.tgz" \
+            "https://storage.googleapis.com/upload/storage/v1/b/$BUCKET/o?uploadType=media&ifGenerationMatch=0&name=${obj//\//%2F}"
+          echo "uploaded gs://$BUCKET/$obj ($n monitors, $(stat -c %s "$T/kuma.tgz") bytes)"
           curl -fsS -m 10 --retry 3 -o /dev/null "$PUSH_URL"
       no_log: true
       tags: [fnd-17, backup]
