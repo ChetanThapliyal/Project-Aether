@@ -34,7 +34,7 @@ document:
     <meta property="og:description" content="Kubernetes on Proxmox, monitoring on Oracle Cloud, an edge observer on Google Cloud. Live numbers, backups, incident reviews and the decisions behind them.">
     <meta property="og:url" content="https://status.chetan-thapliyal.cloud/">
     <meta name="twitter:card" content="summary">
-    <script>document.title += " · Project Aether";</script>
+    <script src="/assets/title.js"></script>
 
 # FND-19: portfolio brand (blowfish-ct-folio/docs/brand). HSL of stone #1C1917,
 # orange #EA580C and rose #E11D48; user.css maps the rest onto brand tokens.

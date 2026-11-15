@@ -1,0 +1,50 @@
+# =============================================================================
+# Public page response headers (FND-22)
+# =============================================================================
+# Set by one Cloudflare Response Header Transform Rule on status.chetan-thapliyal.cloud
+# (Glance can't set response headers, and the zone isn't in Terraform). The
+# operator pastes these values; docs/runbooks/public-page-security-headers.md
+# has the steps. deploy-dmz.yml checks every deploy that:
+#   1. each inline script Glance renders has its hash in script-src, and
+#   2. the live headers equal this file once the rule exists.
+# A Glance upgrade changes the per-page hashes: the check fails and prints them.
+#
+# csp_mode: report-only sends Content-Security-Policy-Report-Only (violations
+# show in the browser console, nothing is blocked); enforce sends
+# Content-Security-Policy.
+# =============================================================================
+
+csp_mode: report-only
+
+# One sha256 per Glance page: its inline pageData script differs only by slug.
+# "/" serves the overview page.
+csp_script_hashes:
+  overview: sha256-nOdHQpxeoOEnO9KqohUMPxEFL7Tzzff36k1shaVjCK8=
+  observability: sha256-tJ+GUp2wYhKRV1yioieQsoZr8jynfHHcGaS2uQlRwG8=
+  infrastructure: sha256-Nqf6EDEthvuBARwhdL6fV54LezaDisCAtKS4cMWKVhY=
+  networking: sha256-ZQOZHLMzwm7+tkkNP/t7sACI/lGrSCDp22epZu5Cyeo=
+  feeds: sha256-D6fJR7c1uK3ak6delsoT7pkJtCVIEOSHmdnQaKADOQk=
+
+# Style 'unsafe-inline': Glance writes its theme as an inline <style> block and
+# sets styles from script. Images: Simple Icons (jsDelivr) and the blog and notes
+# thumbnails on the Writing page.
+csp_directives:
+  - "default-src 'self'"
+  - "script-src 'self' {hashes}"
+  - "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
+  - "font-src 'self' https://fonts.gstatic.com"
+  - "img-src 'self' data: https://cdn.jsdelivr.net https://chetan-thapliyal.cloud https://base.chetan-thapliyal.cloud"
+  - "connect-src 'self'"
+  - "manifest-src 'self'"
+  - "object-src 'none'"
+  - "base-uri 'self'"
+  - "form-action 'self'"
+  - "frame-ancestors 'none'"
+
+headers:
+  Strict-Transport-Security: "max-age=31536000"
+  X-Content-Type-Options: "nosniff"
+  X-Frame-Options: "DENY"
+  Referrer-Policy: "strict-origin-when-cross-origin"
+  Permissions-Policy: "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Cross-Origin-Opener-Policy: "same-origin"

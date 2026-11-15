@@ -158,6 +158,7 @@
         - { src: "../../docker/gcp-dmz/glance/glance.yml", dest: "{{ dmz_dir }}/glance/glance.yml" }
         - { src: "../../docker/gcp-dmz/glance/assets/user.css", dest: "{{ dmz_dir }}/glance/assets/user.css" }
         - { src: "../../docker/gcp-dmz/glance/assets/favicon.svg", dest: "{{ dmz_dir }}/glance/assets/favicon.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/title.js", dest: "{{ dmz_dir }}/glance/assets/title.js" }
       register: glance_files
 
     # ─── Docker Compose File ──────────────────────────────
@@ -225,6 +226,30 @@
       until: glance_check.status in [200, 302]
       retries: 20
       delay: 3
+
+    # ─── FND-22: public page headers ──────────────────────
+    # Checks the public URL (through Cloudflare, as visitors get it) against
+    # cloudflare-response-headers.yml: every inline script Glance renders must
+    # have its hash in the CSP, and once the Cloudflare rule exists the live
+    # headers must equal the file. A Glance upgrade fails here with the new hashes.
+    - name: FND-22 | Check the public page's CSP hashes and response headers
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >-
+        python3 {{ playbook_dir }}/../templates/check_public_headers.py
+        --config {{ playbook_dir }}/../../docker/gcp-dmz/cloudflare-response-headers.yml
+      register: header_check
+      changed_when: false
+      check_mode: false
+      retries: 3                 # Glance may still be warming up after a restart
+      delay: 10
+      until: header_check.rc != 2
+      tags: [fnd-22, headers]
+
+    - name: FND-22 | Show the header check result
+      ansible.builtin.debug:
+        msg: "{{ header_check.stdout_lines }}"
+      tags: [fnd-22, headers]
 
     # ─── FND-17: nightly Kuma backup to GCS ─────────────────
     # The VM's service account may only create objects in the bucket (Terraform
