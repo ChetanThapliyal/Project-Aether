@@ -41,3 +41,8 @@ output "subnet_name" {
   description = "The Subnet hosting the DMZ"
   value       = google_compute_subnetwork.dmz_subnet.name
 }
+
+output "kuma_backup_bucket" {
+  description = "Bucket holding the nightly DMZ Uptime Kuma backups (FND-17)"
+  value       = google_storage_bucket.dmz_backups.name
+}

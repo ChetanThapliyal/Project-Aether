@@ -135,7 +135,7 @@ OCI apps are published on the tailnet through tsdproxy. The K3s ingress path wil
 
 `aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH), and the only SSH rule admits Google's IAP range, for break-glass when the tailnet is down.
 
-It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data (not backed up yet), and its target rebuild time is 15 minutes.
+It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), Hawser, a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data, copied nightly to a GCS bucket the VM can write to but not read or delete, and its target rebuild time is 15 minutes.
 
 `cloudflared` publishes one thing to the internet: the Glance status page at `https://status.chetan-thapliyal.cloud`. The tunnel is outbound-only, so no port is open. The page's live numbers come from a sanitised summary that the DMZ pulls from the monitoring core over the tailnet, so the public host never queries the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
 
@@ -228,13 +228,13 @@ These are operator commands, not a one-command demo. They assume the tailnet, cl
 
 ## Reliability and recovery
 
-The recovery targets are documented and, for the cluster, measured: the K3s etcd snapshot chain runs nightly through the hypervisor, a local encrypted restic repository and two Backblaze B2 copies (one immutable for 30 days), and a cold restore from B2 has been drilled. The remaining gaps are listed in the [DR README](docs/disaster-recovery/README.md#5-known-gaps): the OCI backups share a tenancy with the instance, nothing backs up Kubernetes volumes yet, and the DMZ's Uptime Kuma data isn't backed up.
+The recovery targets are documented and, for the cluster, measured: the K3s etcd snapshot chain runs nightly through the hypervisor, a local encrypted restic repository and two Backblaze B2 copies (one immutable for 30 days), and a cold restore from B2 has been drilled. The remaining gaps are listed in the [DR README](docs/disaster-recovery/README.md#5-known-gaps): the OCI backups share a tenancy with the instance, and nothing backs up Kubernetes volumes yet. The DMZ's Uptime Kuma data goes to a create-only GCS bucket every night.
 
 | Component | RTO | RPO | Mechanism | State |
 |---|---|---|---|---|
 | K3s control plane | 30 min (18 min measured in place) | up to 24 h | Nightly etcd snapshots, local restic, immutable B2 copy | Live; cold restore drilled |
 | OCI apps and databases | 45 min | 24 h | Restic to OCI Object Storage | Live; offsite copy on a second provider pending |
-| GCP DMZ | 15 min | 0 | Terraform and Compose (Uptime Kuma data not backed up) | Live |
+| GCP DMZ | 15 min | 24 h | Terraform and Compose; Uptime Kuma nightly to GCS, write-only from the VM | Live |
 | Secrets and network access | 15 min | 0 | SOPS dual-key and break-glass SSH | Live |
 | Terraform state | 10 min | 0 | GCS versions | Live |
 

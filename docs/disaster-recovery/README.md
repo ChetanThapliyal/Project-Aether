@@ -12,7 +12,7 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 |---|---|---|---|
 | **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is rebuild time plus about 3 min of restore (HARD-11) | ≤ 24 h | 4-stage etcd pipeline (ADR-018), all IST: K3s snapshot 02:00 → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 03:30 (age-encrypted object in a 30-day Object Lock bucket, plus a transitional `restic copy`) |
 | **OCI applications & databases** | 45 min (instance loss); none if the OCI tenancy is lost (see §5) | ≤ 24 h | Restic to the OCI Object Storage bucket `dr-backups`, 03:00 UTC (08:30 IST), scheduled by the Kestra flow `aether.ops.restic-nightly` |
-| **GCP DMZ observer** | 15 min for the VM; monitors need a manual rebuild | Uptime Kuma data is **not** backed up | Terraform + Ansible + compose files in Git |
+| **GCP DMZ observer** | 15 min for the VM, plus a few minutes to restore Kuma | ≤ 24 h (nightly Kuma backup, FND-17) | Terraform + Ansible + compose files in Git; Kuma data in GCS |
 | **Secrets access** | 15 min | 0 | SOPS with two recipients: Age + GCP Cloud KMS (both proven working, 3 Nov) |
 | **Terraform state** | 10 min | 0 | GCS bucket `tf-backend-oci-hlab-gcs` with object versioning |
 
@@ -34,7 +34,7 @@ Every `task` command below runs from the repository root. `tf:*` tasks always ne
 | OCI data **not** backed up | `calibre-library/`, `navidrome/` (excluded on purpose); `kestra/postgres/` (raw data dir, covered by the dump) | — | — |
 | OCI boot volume | OCI block storage | One manual boot-volume backup, `bookorbit-pre-upgrade` (Terraform output `bookorbit_backup_id`) | OCI console |
 | Kestra flows | Git `automation/kestra/flows/` | Synced by `system/git-sync-flows.yml` | — |
-| DMZ Uptime Kuma data | `aether-gcp-dmz:/opt/dmz/uptime-kuma/` | **None** | — |
+| DMZ Uptime Kuma data | `aether-gcp-dmz:/opt/dmz/uptime-kuma/` | Nightly at 01:30 UTC to `gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/`, kept 30 days. The VM can create objects there but not read, overwrite or delete them. Heartbeat: OCI Kuma "DMZ Kuma Backup" | [Scenario 05 §3.5](scenarios/05-gcp-dmz-rebuild.md) |
 | Tailscale policy | `infrastructure/secrets/tailscale-policy.sops.yaml` | Git | SOPS; pasted into the admin console by hand |
 | Cloudflare tunnel token | `/opt/dmz/.env` on the DMZ (`CLOUDFLARE_TUNNEL_TOKEN`) | Cloudflare dashboard | — |
 
@@ -78,7 +78,6 @@ These are the gaps I know about and have accepted for now:
 
 - **The OCI backups aren't offsite.** The `dr-backups` bucket is in the same OCI tenancy as the instance. If I lose the tenancy, I lose the backups too. A second-provider copy is deferred to the Phase 04 DR review.
 - **Nothing backs up the Kubernetes PVs** (`local-path`).
-- **Nothing backs up DMZ Uptime Kuma.** If I lose it, I rebuild every monitor by hand and change the OCI backup push URL. FND-17 fixes this.
 - **A rebuilt OCI host needs a fresh Tailscale auth key.** The base playbook installs and joins Tailscale (FND-18), but the key is one-time and expires after 90 days, so I create a new one for each rebuild (Scenario 02 §3.3).
 - **GCS-CP's bootstrap state lives only on my workstation.** It describes one resource (the state bucket), so losing it means re-importing the bucket, not losing data.
 - **No runbooks yet** for: losing the GCP project (Terraform state, KMS and DMZ all live there), losing the OCI tenancy, losing my workstation (toolchain and keys), or losing the GitHub repository.

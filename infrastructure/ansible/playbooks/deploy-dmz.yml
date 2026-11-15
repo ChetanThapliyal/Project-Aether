@@ -17,6 +17,9 @@
     dmz_group: owl
     enable_swap: true
     swap_size_gb: 2
+    # FND-17: Kuma backups (bucket from Terraform 02-gcp-dmz output kuma_backup_bucket)
+    dmz_backup_bucket: gcs-oci-homelab-controlplane-dmz-backups
+    kuma_oci_push_base: https://uptimekuma.tail7067ab.ts.net/api/push
 
   tasks:
     # ─── Load SOPS Secrets (if available) ────────────────
@@ -260,6 +263,103 @@
       until: glance_check.status in [200, 302]
       retries: 20
       delay: 3
+
+    # ─── FND-17: nightly Kuma backup to GCS ─────────────────
+    # The VM's service account may only create objects in the bucket (Terraform
+    # 02-gcp-dmz), so this job can add backups but never read, replace or delete
+    # them. Success pushes a heartbeat to OCI Kuma ("DMZ Kuma Backup"); any
+    # failure withholds it, and that monitor alerts after 26 h.
+    - name: FND-17 | Install backup tools
+      ansible.builtin.apt:
+        name: [sqlite3, rsync]
+        state: present
+        update_cache: true
+        cache_valid_time: 86400
+      tags: [fnd-17, backup]
+
+    - name: FND-17 | Deploy the Kuma backup script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/backup-kuma.sh
+        owner: root
+        group: root
+        mode: "0700"
+        content: |
+          #!/usr/bin/env bash
+          # Managed by Ansible (deploy-dmz.yml, FND-17). Nightly copy of Uptime Kuma to GCS.
+          set -Eeuo pipefail
+          PUSH_URL={{ (kuma_oci_push_base ~ '/' ~ kuma_push_tokens.dmz_kuma_backup ~ '?status=up&msg=OK') | quote }}
+          BUCKET={{ ('gs://' ~ dmz_backup_bucket ~ '/kuma') | quote }}
+          SRC={{ (dmz_dir ~ '/uptime-kuma') | quote }}
+          DB="$SRC/kuma.db"
+          T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+
+          # sqlite3 would quietly create an empty database at a wrong path.
+          [[ -s "$DB" ]] || { echo "kuma.db missing or empty: $DB" >&2; exit 1; }
+          mkdir -p "$T/uptime-kuma"
+          sqlite3 -readonly "$DB" ".backup '$T/uptime-kuma/kuma.db'"   # consistent copy while Kuma runs
+          [[ "$(sqlite3 "$T/uptime-kuma/kuma.db" 'PRAGMA integrity_check;')" == ok ]] || { echo "integrity check failed" >&2; exit 1; }
+          n=$(sqlite3 "$T/uptime-kuma/kuma.db" 'SELECT count(*) FROM monitor;')
+          (( n > 0 )) || { echo "backup holds no monitors" >&2; exit 1; }
+          rsync -a --exclude='kuma.db*' "$SRC/" "$T/uptime-kuma/"
+          tar -C "$T" -czf "$T/kuma.tgz" uptime-kuma
+
+          obj="$BUCKET/kuma-$(date -u +%Y%m%dT%H%M%SZ).tgz"
+          gcloud storage cp --quiet "$T/kuma.tgz" "$obj"
+          echo "uploaded $obj ($n monitors, $(stat -c %s "$T/kuma.tgz") bytes)"
+          curl -fsS -m 10 --retry 3 -o /dev/null "$PUSH_URL"
+      no_log: true
+      tags: [fnd-17, backup]
+
+    - name: FND-17 | Deploy the Kuma backup service and timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: kuma-backup.service
+          content: |
+            # Managed by Ansible (deploy-dmz.yml, FND-17)
+            [Unit]
+            Description=Back up Uptime Kuma to GCS (FND-17)
+            After=network-online.target docker.service
+            Wants=network-online.target
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/backup-kuma.sh
+        - name: kuma-backup.timer
+          # No Requires= on the service (03.05 HARD-04 N1).
+          content: |
+            # Managed by Ansible (deploy-dmz.yml, FND-17)
+            [Unit]
+            Description=Nightly Uptime Kuma backup (FND-17)
+
+            [Timer]
+            OnCalendar=*-*-* 01:30:00 UTC
+            Persistent=true
+            RandomizedDelaySec=300
+
+            [Install]
+            WantedBy=timers.target
+      loop_control:
+        label: "{{ item.name }}"
+      register: kuma_backup_units
+      tags: [fnd-17, backup]
+
+    - name: FND-17 | Reload systemd when the units changed
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: kuma_backup_units.changed
+      tags: [fnd-17, backup]
+
+    - name: FND-17 | Enable the Kuma backup timer
+      ansible.builtin.systemd:
+        name: kuma-backup.timer
+        enabled: true
+        state: started
+      tags: [fnd-17, backup]
 
     - name: Print deployment summary
       debug:

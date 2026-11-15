@@ -28,7 +28,7 @@
 
 ### What Lives Only on the VM
 
-`/opt/dmz/uptime-kuma/` holds every DMZ monitor, its history, and the push token for "OCI Nightly Restic Backup". `/opt/dmz/.env` holds the Hawser and Cloudflare tunnel tokens. I can recreate the `.env` from SOPS and Cloudflare. **The Kuma database I can't recreate.** If the disk still works, I copy it off first:
+`/opt/dmz/uptime-kuma/` holds every DMZ monitor, its history, and the push tokens other hosts report to (among them "OCI Nightly Restic Backup"). `/opt/dmz/.env` holds the Hawser and Cloudflare tunnel tokens, which I recreate from SOPS and Cloudflare. Kuma is copied every night at 01:30 UTC to `gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/` (FND-17), so I lose at most a day of monitor history. If the disk still works, a fresh copy is better than last night's, so I take one first:
 
 ```bash
 gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab \
@@ -71,8 +71,6 @@ The output must be empty: a private IPv4 plus an external IPv6, so no $3.65/mont
 
 ### Step 3.4: Deploy the Stack
 
-The compose and Glance files must be in Git. Until HARD-03 is done, `infrastructure/docker/gcp-dmz/glance/` exists only on my workstation, so a rebuild from a fresh clone fails.
-
 ```bash
 task ansible:dmz
 ```
@@ -80,19 +78,31 @@ task ansible:dmz
 The playbook:
 1. Adds a Docker drop-in that waits for `tailscaled`.
 2. Creates a 2 GB swapfile (the e2-micro has 1 GB RAM).
-3. Deploys Uptime Kuma (3001), Glance (3000) and Hawser (2376) on `dmz-net`, from images pinned by tag and digest. A fresh VM pulls them on first run (`pull: missing`; Docker Hub works over IPv6, and the GHCR-hosted Hawser image is copied over by the playbook).
+3. Deploys Uptime Kuma (3001), Glance (3000), Hawser (2376) and the node exporter (9100, host network), from images pinned by tag and digest. A fresh VM pulls them on first run (`pull: missing`; Docker Hub works over IPv6, and the GHCR-hosted Hawser image is copied over by the playbook).
 4. Starts `cloudflared` only with the compose profile `tunnel` and a `CLOUDFLARE_TUNNEL_TOKEN`.
 5. Provisions the Telegram notification channel in Kuma.
 
-### Step 3.5: Restore or Rebuild the Monitors
+### Step 3.5: Restore the Monitors
 
-* **I have a copy** from §2: stop Kuma, unpack the copy into `/opt/dmz/uptime-kuma/`, and start Kuma again.
-* **I don't have a copy:** recreate the monitors by hand (the OCI probe targets, the homelab endpoints, and the "OCI Nightly Restic Backup" push monitor with a 24 h interval). The push monitor gets a **new token**, so then:
-  ```bash
-  sops infrastructure/secrets/ansible-secrets.sops.yaml     # update oci_backup_kuma_push_url
-  task ansible:oci:ops -- --tags backup                     # re-render /opt/backup/restic.env
-  ```
-  If I skip this, every backup run withholds its heartbeat and the monitor stays red.
+After `task ansible:dmz`, Kuma runs empty. I restore last night's backup, or the fresher copy from §2 if I took one. The VM can't read the bucket (its account is create-only), so the copy goes through my workstation:
+
+```bash
+obj=$(gcloud storage ls gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/ | sort | tail -1); echo "$obj"
+gcloud storage cp "$obj" kuma.tgz                 # or use dmz-kuma-<date>.tgz from §2
+scp kuma.tgz owl@aether-gcp-dmz:/tmp/kuma.tgz
+ssh owl@aether-gcp-dmz 'cd /opt/dmz && docker compose stop uptime-kuma \
+  && sudo rm -rf uptime-kuma && sudo tar -xzf /tmp/kuma.tgz -C /opt/dmz && rm /tmp/kuma.tgz \
+  && docker compose start uptime-kuma'
+```
+
+The push tokens come back with the database, so `oci_backup_kuma_push_url` and the Proxmox DR heartbeats keep working without changes. Then `sudo systemctl start kuma-backup.service` on the VM, and the OCI monitor "DMZ Kuma Backup" turns UP.
+
+**If no backup exists at all**, I recreate the monitors by hand (the OCI probe targets, the homelab endpoints, and the "OCI Nightly Restic Backup" push monitor with a 24 h interval), and `task ansible:dmz` recreates the push monitors it owns. The hand-made push monitor gets a **new token**, so then:
+```bash
+sops infrastructure/secrets/ansible-secrets.sops.yaml     # update oci_backup_kuma_push_url
+task ansible:oci:ops -- --tags backup                     # re-render /opt/backup/restic.env
+```
+If I skip this, every backup run withholds its heartbeat and the monitor stays red.
 
 ### Step 3.6: Check the Tailnet Policy
 

@@ -40,7 +40,7 @@
           {{ (telegram_bot_token is defined and telegram_bot_token | string | length > 0) and
              (telegram_chat_id is defined and telegram_chat_id | string | length > 0) and
              (uptime_kuma_admin_password is defined and uptime_kuma_admin_password | string | length > 0) }}
-      tags: [ops-02, notifications, ops]
+      tags: [ops-02, notifications, ops, fnd-17]
 
     - name: OPS-02 | Skip notice — Telegram secrets not found (OCI)
       debug:
@@ -63,9 +63,10 @@
 
     - name: OPS-02 | Provision Telegram channel in OCI UK (https://uptimekuma) via Tailscale
       # Runs locally — reaches OCI UK over Tailscale mesh. No pip3 needed on remote host.
+    # Full tailnet name: the short name fails TLS (the certificate is for the FQDN).
       command: >
         python3 "{{ playbook_dir }}/../templates/provision_uk_telegram.py"
-        --url https://uptimekuma
+        --url https://uptimekuma.tail7067ab.ts.net
         --username kill3rbee
         --password {{ uptime_kuma_admin_password | quote }}
         --bot-token {{ telegram_bot_token | string | quote }}
@@ -84,6 +85,34 @@
         msg: "{{ uk_oci_provision.stdout }}"
       when: telegram_configured_oci and uk_oci_provision is defined
       tags: [ops-02, notifications, ops]
+
+    # ─── FND-17: heartbeat for the DMZ Kuma backup ──────────
+    # The DMZ's nightly backup-kuma.sh pushes here on success. It reports to OCI,
+    # not to the DMZ's own Kuma, so losing the DMZ can't hide a missing backup.
+    - name: FND-17 | Provision the "DMZ Kuma Backup" push monitor in OCI UK
+      command: >
+        python3 "{{ playbook_dir }}/../templates/provision_uk_push_monitors.py"
+        --url https://uptimekuma.tail7067ab.ts.net
+        --username kill3rbee
+        --password {{ uptime_kuma_admin_password | quote }}
+        --notification "Telegram — Aether Alerts (OCI)"
+        --monitors {{ monitors | to_json | quote }}
+      vars:
+        monitors:
+          - { name: "DMZ Kuma Backup", token: "{{ kuma_push_tokens.dmz_kuma_backup }}", interval: 93600 }
+      register: uk_oci_push
+      changed_when: "'OK:' in uk_oci_push.stdout"
+      delegate_to: localhost
+      become: false
+      when: telegram_configured_oci
+      no_log: true
+      tags: [fnd-17, notifications, ops]
+
+    - name: FND-17 | Show push monitor provisioning result (names only)
+      debug:
+        msg: "{{ uk_oci_push.stdout_lines }}"
+      when: telegram_configured_oci and uk_oci_push.stdout_lines is defined
+      tags: [fnd-17, notifications, ops]
 
     # ─── Backups (Restic) ───────────────────────────────────
     - name: Create backup directory
