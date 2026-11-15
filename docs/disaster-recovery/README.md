@@ -62,7 +62,7 @@ Each runbook has symptoms, the restore steps, checks to run afterwards, and a dr
 | Scenario | Severity | Last drilled |
 |---|---|---|
 | [01: Tailscale control plane & DERP outage](scenarios/01-tailscale-outage.md) | SEV3 | Not recorded |
-| [02: OCI instance loss & restic restore](scenarios/02-oci-loss-restic.md) | SEV1 | Single-volume restore: not recorded |
+| [02: OCI instance loss & restic restore](scenarios/02-oci-loss-restic.md) | SEV1 | Single-app restore, 15 Nov 2026: 972 MiB restored in 11 s, the dump loaded into a throwaway database in 4 s, 176 tables and 39,599 rows matched live (`task dr:drill:oci`). Full instance rebuild: not timed yet |
 | [03: Homelab hardware failure & K3s etcd recovery](scenarios/03-homelab-hardware.md) | SEV1 | In-place reset (DR-05): about 18 min. Cold restore from B2 (HARD-11): 10 Nov 2026, reset to ready API 54 s |
 | [04: Age key loss & GCP KMS recovery](scenarios/04-age-key-loss.md) | SEV2 | Dual-recipient check passed 3 Nov |
 | [05: GCP DMZ rebuild](scenarios/05-gcp-dmz-rebuild.md) | SEV2 | Not recorded |

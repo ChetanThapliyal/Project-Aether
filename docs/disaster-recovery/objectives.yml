@@ -14,7 +14,7 @@ components:
   - name: Apps on the cloud host
     rto: 45 min
     rpo: 24 h
-    proven: ""
+    proven: "One app restored and its database verified against live, 15 Nov 2026: 29 s for 1 GB and 176 tables; instance rebuild not yet timed"
     backup: "kuma:OCI Nightly Restic Backup"
     backup_label: nightly restic snapshot
   - name: Edge observer (this page)

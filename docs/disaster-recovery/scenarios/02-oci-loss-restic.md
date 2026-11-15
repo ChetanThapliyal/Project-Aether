@@ -157,17 +157,24 @@ When tsdproxy service nodes are recreated, their tags reset (INC-2026-003, M11),
 
 ---
 
-## 5. Simulation Drill (Single-Volume Restore)
+## 5. Simulation Drill (Single-App Restore)
 
 Without touching running services:
 
 ```bash
-ssh bookorbit
-sudo bash -c 'source /opt/backup/restic.env && restic restore latest --target /tmp/dr-drill --include /home/ubuntu/uptimekuma'
-sudo sqlite3 /tmp/dr-drill/home/ubuntu/uptimekuma/data/kuma.db "PRAGMA integrity_check;"   # → ok
-sudo bash -c 'source /opt/backup/restic.env && restic dump latest /home/ubuntu/kestra/db.sql | head -5'   # dump is present and readable
-sudo rm -rf /tmp/dr-drill
+task dr:drill:oci
 ```
+
+[`scripts/dr-drill-oci.sh`](../../../scripts/dr-drill-oci.sh) runs on the OCI host as root and:
+
+1. Runs `restic check` reading 5% of the data.
+2. Restores BookOrbit's directory and OCI Uptime Kuma's data from the latest snapshot into `/var/tmp/dr-drill`.
+3. Starts a throwaway Postgres from BookOrbit's exact image, with no network, loads the restored nightly dump into it, and compares the tables and row counts with the live database. The live side is a read-only count. Rows can differ by what changed since the snapshot, and the drill prints those tables.
+4. Runs `PRAGMA integrity_check` on the restored Kuma database.
+
+Everything is removed on exit, including on failure. The last line reads `DRILL OK …` with the timings. I don't run it near the 03:00 UTC backup.
+
+**Last result (15 Nov 2026):** snapshot `71315ec6` from 03:00 UTC. Check took 5 s, 988 MB restored in 11 s, database ready in 8 s, dump loaded in 4 s, 176 tables and 39,599 rows matched live, Kuma integrity ok. Total 29 s. This proves the data path. The full instance rebuild (Steps 3.2 to 3.8) hasn't been timed.
 
 **Heartbeat negative test** (from INC-2026-001; run it after any change to `backup.sh.j2`): break one `pg_dump` on purpose, run the backup, and check that it prints `heartbeat withheld` and exits 1. Then revert, and check that a clean run turns the push monitor UP.
 

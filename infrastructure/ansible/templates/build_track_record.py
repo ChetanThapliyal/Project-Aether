@@ -25,7 +25,7 @@ WORK_ID = re.compile(r"\s*\((?:DR|HARD|FND|GOP|OPS|SEC|IaC)-\d+\)|\b(?:DR|HARD|F
 
 
 def public(text):
-    return re.sub(r"\s{2,}", " ", WORK_ID.sub("", text)).strip()
+    return re.sub(r"\s{2,}", " ", WORK_ID.sub("", text)).replace("`", "").strip()
 LATEST = 4
 
 

@@ -170,6 +170,11 @@ tasks:
     cmds:
       - ansible-playbook playbooks/proxmox-monitoring.yml {{.CLI_ARGS}}
 
+  dr:drill:oci:
+    desc: "DR Scenario 02 drill: restore BookOrbit + Kuma from restic, load the dump into a throwaway DB, compare with live (read-only to production)"
+    cmds:
+      - ssh ubuntu@bookorbit 'sudo bash -s' < scripts/dr-drill-oci.sh
+
   ansible:etcd:sync:
     desc: "Deploy automated off-node etcd snapshot sync to Proxmox (DR-02)"
     dir: infrastructure/ansible
