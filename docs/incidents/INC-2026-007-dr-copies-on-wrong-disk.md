@@ -6,7 +6,7 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | From the start of the homelab DR pipeline to 2026-11-05 |
-| Started | unknown (when the backup pipeline was set up) |
+| Started | 2026-11-02 10:40 (the first DR playbook, `7d1bac1`; from git history) |
 | Detected | 2026-11-02 |
 | Resolved | 2026-11-05 15:15 |
 | Cause | Change |
@@ -26,7 +26,7 @@ All times UTC.
 
 | Time | Event |
 |------|-------|
-| Pipeline setup | The DR jobs create `/mnt/aether-pool/...` with `mkdir -p` and Ansible `file: state=directory`. Nothing checks what filesystem the path is on |
+| 2026-11-02 10:40 | The first DR playbook is committed (`7d1bac1`). The DR jobs create `/mnt/aether-pool/...` with `mkdir -p` and Ansible `file: state=directory`. Nothing checks what filesystem the path is on |
 | 2026-11-02 | A re-audit runs `findmnt` on the DR path and gets `ext4` on the root volume. `zfs list` shows the HDD pool mounted at `/aether-pool`, nearly empty |
 | 2026-11-05 15:01 | The three DR timers are stopped. Two ZFS datasets are created, the data is copied with `rsync -aHAX`, and the old directory is moved aside. `diff -rq` shows the copies are identical |
 | 2026-11-05 | The ZFS cache cap is lowered to 512 MiB, since the hypervisor has about 1 GiB of memory free |

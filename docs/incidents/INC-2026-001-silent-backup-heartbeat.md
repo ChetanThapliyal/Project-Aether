@@ -6,7 +6,7 @@
 | Severity | SEV2 |
 | Found by | Audit |
 | Duration | Unknown start (the heartbeat monitor had never received a push) to 2026-11-03 |
-| Started | unknown (the monitor never received a push from the day it was created) |
+| Started | 2026-10-09 16:26 (the heartbeat was added with the push URL unquoted, `7cffd6c`; from git history) |
 | Detected | 2026-11-02 |
 | Resolved | 2026-11-04 03:00 |
 | Cause | Change |
@@ -32,7 +32,7 @@ All times UTC.
 
 | Time | Event |
 |------|-------|
-| Unknown | The heartbeat monitor is created. It never receives a push |
+| 2026-10-09 16:26 | The heartbeat push is added to the backup script (`7cffd6c`), with the URL unquoted in the env file. From the next nightly run on, no push arrives |
 | 2026-11-02 | A platform audit finds the monitor permanently DOWN and traces the cause to the env file |
 | 2026-11-02 | The audit also finds two schedulers, a root cron job at 03:00 and a Kestra flow at 03:30, both running the backup every night |
 | 2026-11-03 13:45 | The fixed script runs from Kestra. Snapshot saved, `restic check` clean, heartbeat received |
