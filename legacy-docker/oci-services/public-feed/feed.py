@@ -45,7 +45,9 @@ SCALARS = {
     "apps_ok": 'count(argocd_app_info{sync_status="Synced",health_status="Healthy"}) or vector(0)',
     "apps_total": "count(argocd_app_info)",
     "pods_running": 'sum(kube_pod_status_phase{phase="Running"})',
-    "pods_total": "sum(kube_pod_status_phase)",
+    # FND-21: finished job pods (Succeeded) never run again, so counting them
+    # made "running / total" look like a fault forever.
+    "pods_total": 'sum(kube_pod_status_phase{phase!="Succeeded"})',
     "targets_up": "count(up == 1)",
     "targets_total": "count(up)",
     "alerts_firing": 'count(ALERTS{alertstate="firing",alertname!="Watchdog"}) or vector(0)',

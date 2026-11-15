@@ -37,6 +37,9 @@ services:
     image: glanceapp/glance:v0.8.8@sha256:4d7445bc7971836858ffddee5d7501f1efbabb6e694a45b1dde1a789bb1943bb
     container_name: glance
     restart: unless-stopped
+    environment:
+      # FND-21: footer commit. Glance refuses a config naming a missing variable.
+      - AETHER_COMMIT=${AETHER_COMMIT:-unknown}
     ports:
       # Direct access over Tailscale mesh & Cloudflare Tunnel (aether-gcp-dmz:3000)
       - "3000:8080"

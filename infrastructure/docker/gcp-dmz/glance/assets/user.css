@@ -635,6 +635,31 @@ code,
   .ae-path > .ae-flow-arrow { display: none; }
 }
 
+/* ─── Overview intro (FND-21) ───────────────────────────────────────────── */
+
+.ae-intro { border-color: var(--ae-orange-edge); }
+.ae-intro-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ae-intro-name { font-family: var(--ae-font-head); font-weight: 800; font-size: 2.2rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--ae-stone-100); }
+.ae-intro-role { font-size: 1.35rem; color: var(--ae-orange-light); }
+.ae-intro .ae-note b { color: var(--ae-stone-100); }
+.ae-intro-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.ae-intro-links a {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: var(--ae-font-head);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--ae-orange-light);
+  background: var(--ae-orange-wash);
+  border: 1px solid var(--ae-orange-edge);
+  text-decoration: none;
+}
+.ae-intro-links a:hover, .ae-intro-links a:focus-visible { color: var(--ae-stone-100); border-color: var(--ae-orange); }
+.ae-stat-sub a { color: var(--ae-orange-light); }
+
+.ae-footer { font-size: 1.15rem; color: var(--ae-stone-400); text-align: center; }
+.ae-footer a { color: var(--ae-orange-light); }
+
 /* Writing page: blog posts as title + summary, no cover images (operator choice). */
 .rss-detailed-thumbnail { display: none; }
 

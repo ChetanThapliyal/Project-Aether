@@ -131,11 +131,13 @@
           PUID=1000
           PGID=1000
           HAWSER_TOKEN={{ gcp_dmz_hawser_token | default('') }}
+          AETHER_COMMIT={{ lookup('pipe', 'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short HEAD') }}
         dest: "{{ dmz_dir }}/.env"
         owner: "{{ dmz_user }}"
         group: "{{ dmz_group }}"
         mode: "0600"
       no_log: true
+      register: dmz_env
 
     # ─── Homepage leftovers (FND-08) ──────────────────────
     # Homepage was replaced by Glance on 2026-11-02. Delete this task once no
@@ -240,10 +242,13 @@
     # ─── Verification ─────────────────────────────────────
     # Cloudflare caches /assets/user.css for 4 h, keyed on Glance's ?v= value,
     # which changes only when Glance (re)starts. Restart on any Glance file change
-    # so a CSS-only update gets a fresh URL instead of the cached copy.
-    - name: Restart Glance when its config or assets changed (cache-bust the stylesheet)
+    # so a CSS-only update gets a fresh URL instead of the cached copy. A new
+    # footer commit in .env (FND-21) is applied by the launch task above, which
+    # recreates Glance when its environment changes; restarting here as well
+    # keeps the stylesheet URL fresh either way.
+    - name: Restart Glance when its config, assets or environment changed (cache-bust the stylesheet)
       ansible.builtin.command: docker restart glance
-      when: glance_files is changed
+      when: glance_files is changed or dmz_env is changed
       changed_when: true
 
     - name: Wait for Uptime Kuma to respond locally

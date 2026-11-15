@@ -18,6 +18,23 @@ branding:
   app-name: "Project Aether"
   logo-text: "Aether"                 # styled in user.css (brand gradient)
   favicon-url: "/assets/favicon.svg"   # rose "A" on stone, same style as the portfolio's "C" icon
+  # FND-21: AETHER_COMMIT comes from the DMZ .env (deploy-dmz.yml). Glance refuses
+  # a config that names a missing variable, so compose defaults it to "unknown".
+  custom-footer: |
+    <p class="ae-footer">Deployed from <a href="https://github.com/ChetanThapliyal/Project-Aether/commit/${AETHER_COMMIT}" target="_blank" rel="noreferrer"><code>${AETHER_COMMIT}</code></a> · <a href="https://github.com/ChetanThapliyal/Project-Aether" target="_blank" rel="noreferrer">source on GitHub</a> · numbers refresh every 2 minutes through a one-way feed</p>
+
+# FND-21: link previews (LinkedIn, Slack) and a tab title that names the project.
+# Crawlers don't run scripts, so the Open Graph tags carry the preview.
+document:
+  head: |
+    <meta name="description" content="Live status of Project Aether, Chetan Thapliyal's hybrid cloud homelab: Kubernetes on Proxmox, monitoring on Oracle Cloud, an edge observer on Google Cloud, all declared in Git.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Project Aether">
+    <meta property="og:title" content="Project Aether · live status of a hybrid cloud homelab">
+    <meta property="og:description" content="Kubernetes on Proxmox, monitoring on Oracle Cloud, an edge observer on Google Cloud. Live numbers, backups, incident reviews and the decisions behind them.">
+    <meta property="og:url" content="https://status.chetan-thapliyal.cloud/">
+    <meta name="twitter:card" content="summary">
+    <script>document.title += " · Project Aether";</script>
 
 # FND-19: portfolio brand (blowfish-ct-folio/docs/brand). HSL of stone #1C1917,
 # orange #EA580C and rose #E11D48; user.css maps the rest onto brand tokens.
@@ -37,14 +54,6 @@ pages:
     columns:
       - size: small
         widgets:
-          - type: clock
-            hour-format: 24h
-            timezones:
-              - timezone: Asia/Kolkata
-                label: IST (Local)
-              - timezone: UTC
-                label: UTC
-
           - type: bookmarks
             title: Evidence
             groups:
@@ -82,6 +91,27 @@ pages:
 
       - size: full
         widgets:
+          # FND-21: who and what, first thing on desktop and phone (phones show
+          # this column before the small one).
+          - type: html
+            source: |
+              <div class="vitals-card ae-intro">
+                <div class="ae-intro-head">
+                  <div>
+                    <div class="ae-intro-name">Chetan Thapliyal</div>
+                    <div class="ae-intro-role">Cloud and DevOps Engineer</div>
+                  </div>
+                  <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
+                </div>
+                <p class="ae-note"><b>Project <span class="ae-grad">Aether</span></b> is my homelab run like production: a three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets. The numbers below are live.</p>
+                <div class="ae-intro-links">
+                  <a href="https://chetan-thapliyal.cloud/" target="_blank" rel="noreferrer">Portfolio</a>
+                  <a href="https://github.com/ChetanThapliyal/Project-Aether" target="_blank" rel="noreferrer">Source on GitHub</a>
+                  <a href="https://www.linkedin.com/in/chetanthapliyal/" target="_blank" rel="noreferrer">LinkedIn</a>
+                  <a href="https://chetan-thapliyal.cloud/resume/" target="_blank" rel="noreferrer">CV</a>
+                </div>
+              </div>
+
           # FND-20: live numbers from the sanitised feed on OCI (ADR-020). Numbers and
           # plain strings only; Glance escapes them, and this template draws everything.
           - type: custom-api
@@ -102,12 +132,12 @@ pages:
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Nodes ready</div><div class="ae-stat-num {{ if eq (.JSON.Int "cluster.nodes_ready") (.JSON.Int "cluster.nodes_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.nodes_ready" }}<span>/{{ .JSON.Int "cluster.nodes_total" }}</span></div><div class="ae-stat-sub">K3s cluster on Proxmox</div></div>
                 <div class="ae-stat"><div class="ae-stat-label">GitOps apps healthy</div><div class="ae-stat-num {{ if eq (.JSON.Int "cluster.apps_ok") (.JSON.Int "cluster.apps_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.apps_ok" }}<span>/{{ .JSON.Int "cluster.apps_total" }}</span></div><div class="ae-stat-sub">synced and healthy in ArgoCD</div></div>
-                <div class="ae-stat"><div class="ae-stat-label">Pods running</div><div class="ae-stat-num">{{ .JSON.Int "cluster.pods_running" }}<span>/{{ .JSON.Int "cluster.pods_total" }}</span></div><div class="ae-stat-sub">across all namespaces</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Pods running</div><div class="ae-stat-num {{ if eq (.JSON.Int "cluster.pods_running") (.JSON.Int "cluster.pods_total") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "cluster.pods_running" }}<span>/{{ .JSON.Int "cluster.pods_total" }}</span></div><div class="ae-stat-sub">of all pods, finished jobs not counted</div></div>
                 <div class="ae-stat"><div class="ae-stat-label">Alerts firing</div><div class="ae-stat-num {{ if eq (.JSON.Int "monitoring.alerts_firing") 0 }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "monitoring.alerts_firing" }}</div><div class="ae-stat-sub">excluding the watchdog heartbeat</div></div>
                 <div class="ae-stat"><div class="ae-stat-label">Scrape targets up</div><div class="ae-stat-num">{{ .JSON.Int "monitoring.targets_up" }}<span>/{{ .JSON.Int "monitoring.targets_total" }}</span></div><div class="ae-stat-sub">Prometheus on Oracle Cloud</div></div>
                 <div class="ae-stat"><div class="ae-stat-label">Kubernetes</div><div class="ae-stat-num">{{ .JSON.String "cluster.k3s_version" }}</div><div class="ae-stat-sub">K3s, upgraded via Ansible</div></div>
                 <div class="ae-stat"><div class="ae-stat-label">Host CPU temp</div><div class="ae-stat-num">{{ .JSON.Float "host.temp_c" | toInt }}<span>°C</span></div><div class="ae-stat-sub">the 2015 laptop under it all</div></div>
-                <div class="ae-stat"><div class="ae-stat-label">Host uptime</div><div class="ae-stat-num">{{ .JSON.Float "host.uptime_days" }}<span>days</span></div><div class="ae-stat-sub">since the last reboot</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Host uptime</div><div class="ae-stat-num">{{ .JSON.Float "host.uptime_days" }}<span>days</span></div><div class="ae-stat-sub">since the last reboot · unplanned ones get an <a href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/incidents" target="_blank" rel="noreferrer">incident review</a></div></div>
               </div>
               <div class="vitals-card">
                 <div class="section-title">Capacity</div>
@@ -124,16 +154,7 @@ pages:
                   </div>
                   {{ end }}
                 </div>
-              </div>
-
-          - type: html
-            source: |
-              <div class="vitals-card">
-                <div class="vitals-header">
-                  <span class="vitals-title">Project <span class="ae-grad">Aether</span></span>
-                  <span class="vitals-badge">HYBRID CLOUD HOMELAB</span>
-                </div>
-                <p class="ae-note">A three-node Kubernetes cluster on a Proxmox host at home, a monitoring and automation core on Oracle Cloud, and this edge observer on Google Cloud, joined by a WireGuard mesh. Everything is declared in one Git repository: Terraform for machines, Ansible for hosts, ArgoCD for the cluster, SOPS for secrets.</p>
+                <p class="ae-muted">Host memory runs high by design: three Kubernetes VMs share a 12 GB laptop.</p>
               </div>
 
           - type: html
@@ -263,7 +284,9 @@ pages:
                   {{ $tm := $hb.JSON.String (printf "heartbeatList.%d.@reverse.0.time" $id) }}
                   <li>
                     <span class="ae-dot {{ if eq $st 1 }}ae-ok{{ else if eq $st 2 }}ae-warn{{ else }}ae-bad{{ end }}"></span>
-                    <span class="ae-status-name">{{ .String "name" }}</span>
+                    {{/* FND-21: display names only. Kuma names stay as they are: deploy-dmz.yml and provision_uk_public_feed.py match monitors by name. */}}
+                    {{ $n := .String "name" }}
+                    <span class="ae-status-name">{{ if eq $n "OCI Nightly Restic Backup" }}Cloud host backup (nightly, restic){{ else if eq $n "Watchdog — OCI Alertmanager" }}Alerting pipeline heartbeat{{ else if eq $n "DR-02 etcd sync (Proxmox)" }}Cluster snapshot copied to ZFS{{ else if eq $n "DR-03 etcd restic (Proxmox)" }}Cluster snapshot backed up (restic){{ else if eq $n "DR-04 etcd → B2 (Proxmox)" }}Cluster snapshot offsite (Object-Locked){{ else if eq $n "OCI — Bookorbit" }}App on the cloud host (Bookorbit){{ else if eq $n "Public feed — fresh (FND-20)" }}Live data feed for this page{{ else }}{{ $n }}{{ end }}</span>
                     <span class="ae-status-meta">{{ if $tm }}last <span {{ $tm | parseTime "2006-01-02 15:04:05.000" | toRelativeTime }}></span> ago · {{ end }}<b>{{ $hb.JSON.Float (printf "uptimeList.%d_24" $id) | mul 100 | toInt }}%</b> 24 h</span>
                   </li>
                   {{ end }}
@@ -522,8 +545,8 @@ pages:
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">GOP-04</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
-                  <li><span class="ae-change-id">Phase 4</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
+                  <li><span class="ae-change-id">GitOps</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
+                  <li><span class="ae-change-id">Apps</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
                 </ul>
               </div>
 
