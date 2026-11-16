@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Image updates for the OCI compose files. Dependabot can't see them (it only recognises compose files by name, and these are named per app), so Renovate covers this directory only. Dependabot keeps the DMZ compose file and GitHub Actions. Deploys stay manual: after a merge, run task ansible:oci:apps or task ansible:oci:monitoring. BookOrbit's image is set in SOPS (oci_bookorbit_app_image) and isn't tracked here.",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "enabledManagers": ["docker-compose"],
+  "docker-compose": {
+    "managerFilePatterns": ["/^legacy-docker/oci-services/[^/]+\\.ya?ml$/"]
+  },
+  "ignorePaths": ["legacy-docker/retired/**"],
+  "timezone": "Asia/Kolkata",
+  "schedule": ["before 9am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies", "oci"],
+  "pinDigests": true,
+  "packageRules": [
+    {
+      "description": "Patch and digest-only updates: one grouped weekly PR",
+      "matchUpdateTypes": ["patch", "digest", "pin", "pinDigest"],
+      "groupName": "OCI patch and digest updates"
+    },
+    {
+      "description": "Major updates wait for approval in the Dependency Dashboard issue (n8n 3, Postgres majors need migrations)",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Database images: a major version needs a dump and restore, so never propose one automatically",
+      "matchPackageNames": ["postgres", "pgvector/pgvector", "redis", "couchdb"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
+}
