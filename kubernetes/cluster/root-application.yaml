@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: root-apps
   namespace: argocd
+  annotations:
+    # GOP-06: a GitHub webhook refreshes only apps whose source path changed (INC-2026-013)
+    argocd.argoproj.io/manifest-generate-paths: .
   # No resources-finalizer (HARD-18): deleting root-apps must only orphan the
   # child Applications, never cascade into every workload they deploy.
 spec:

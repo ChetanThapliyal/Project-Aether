@@ -4,6 +4,8 @@ metadata:
   name: gateway-instance
   namespace: argocd
   annotations:
+    # GOP-06: a GitHub webhook refreshes only apps whose source path changed (INC-2026-013)
+    argocd.argoproj.io/manifest-generate-paths: .
     argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
