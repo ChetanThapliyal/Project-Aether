@@ -47,3 +47,18 @@ Operator access stays on Tailscale, as decided above. The project now has exactl
 | `status.chetan-thapliyal.cloud` | Cloudflare edge → Cloudflare Tunnel (outbound-only `cloudflared` on the GCP DMZ) | The Glance status page only ([ADR-020](020-public-observability-data-diode.md)) |
 
 The tunnel was rejected above for *operator* access, and it still isn't used for that: it routes one hostname to one container, opens no inbound port, and reaches nothing on the tailnet. Any other way in from the internet is a defect, with one recorded exception: a Tailscale Funnel on the app host still publishes one app (BookOrbit) because it has a user. FND-03 limited the Funnel permission to that one tagged node. Closing it is scheduled for the Phase 05 close-out (re-audit sign-off FND-16, 15 Nov 2026).
+
+### Addendum: A Second Public Hostname for GitOps Webhooks (2026-11-16, GOP-04)
+The tunnel now publishes a second hostname, `argocd-hook.chetan-thapliyal.cloud`, with one path, `^/api/webhook$`. It forwards GitHub's push notifications to the ArgoCD server over the tailnet, so a push syncs in seconds instead of on the 3-minute poll.
+
+| Public name | Path | Serves |
+|-------------|------|--------|
+| `argocd-hook.chetan-thapliyal.cloud` | Cloudflare edge → Tunnel → `cloudflared` on the GCP DMZ → tailnet (`tag:gcp-dmz → tag:k8s:443`) → ArgoCD's Tailscale ingress | `POST /api/webhook` only. Every other path is the tunnel's catch-all 404 |
+
+This changes one statement in the addendum above: the tunnel now reaches one thing on the tailnet, ArgoCD's webhook endpoint, over a grant that already existed. The limits:
+
+- ArgoCD rejects any payload that isn't signed with the shared secret (HMAC-SHA256). The secret lives in SOPS and is injected at install; it is never in Git in plaintext. An unsigned or wrongly signed request gets 400 (tested 16 Nov).
+- A valid webhook can only make ArgoCD re-read Git. It can't change what gets deployed: that is still whatever is on `main`.
+- The ArgoCD UI and API stay tailnet-only: `/`, `/applications` and `/api/v1/...` return 404 on the public hostname (tested 16 Nov).
+
+Rollback: delete the GitHub webhook and the tunnel route. ArgoCD falls back to polling on its own.

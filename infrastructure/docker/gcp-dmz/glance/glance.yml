@@ -234,7 +234,7 @@ pages:
                   <div class="ae-node ae-node-end">
                     <div class="ae-node-kicker">Cloudflare</div>
                     <div class="ae-node-name">You</div>
-                    <div class="ae-node-what">TLS ends at Cloudflare's edge; the only public path</div>
+                    <div class="ae-node-what">TLS ends at Cloudflare's edge; this page and one signed webhook are the only public paths</div>
                   </div>
                 </div>
                 <p class="ae-muted">The three sites share a WireGuard mesh with role-based rules. The public page sits on the least-trusted machine and can only read a sanitised summary, so a visitor never touches the private network. Offsite backups go from home to an Object-Locked bucket.</p>
@@ -671,7 +671,7 @@ pages:
             source: |
               <div class="ae-live-head">
                 <span class="ae-live-title">Network &amp; access</span>
-                <span class="vitals-badge">DESIGN · 15 NOV 2026</span>
+                <span class="vitals-badge">DESIGN · 16 NOV 2026</span>
               </div>
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
@@ -681,7 +681,7 @@ pages:
               </div>
 
               <div class="vitals-card">
-                <div class="section-title">The one public path</div>
+                <div class="section-title">The public paths</div>
                 <div class="ae-path">
                   <div class="ae-hop"><span class="ae-hop-k">Visitor</span><span class="ae-hop-v">browser, HTTPS</span></div>
                   <span class="ae-flow-arrow" aria-hidden="true">→</span>
@@ -691,7 +691,7 @@ pages:
                   <span class="ae-flow-arrow" aria-hidden="true">→</span>
                   <div class="ae-hop ae-hop-end"><span class="ae-hop-k">This page</span><span class="ae-hop-v">Glance, read-only</span></div>
                 </div>
-                <p class="ae-muted">Nothing else is reachable from the internet. The live numbers on this page come from a sanitised summary that the page pulls from the monitoring core over the private mesh, so visitors never touch the private network.</p>
+                <p class="ae-muted">A second hostname on the same tunnel publishes one path: GitHub's push notifications to the GitOps controller, which rejects any request not signed with a shared secret. Every other path there returns 404, and the controller's UI stays on the mesh. Nothing else is reachable from the internet. The live numbers on this page come from a sanitised summary that the page pulls from the monitoring core over the private mesh, so visitors never touch the private network.</p>
               </div>
 
               <div class="ae-section-head">Zones</div>
@@ -783,13 +783,12 @@ pages:
                 <div class="ae-backups-head">
                   <div>
                     <div class="ae-stat-label">Still changing</div>
-                    <div class="ae-stat-num">2<span>queued changes</span></div>
+                    <div class="ae-stat-num">1<span>queued change</span></div>
                     <div class="ae-stat-sub">the network isn't final; these land over the next phases</div>
                   </div>
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">GitOps</span><div><div class="ae-change-title">Push-driven GitOps</div><div class="ae-change-text">A second public hostname on the same tunnel, for signed GitHub webhooks to ArgoCD only.</div></div></li>
                   <li><span class="ae-change-id">Apps</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
                 </ul>
               </div>
