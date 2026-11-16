@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/diagrams/banner.svg" alt="Project Aether: K3s, Proxmox VE, Docker, and Tailscale" width="100%">
+<img src="docs/diagrams/banner.svg" alt="Project Aether: hybrid-cloud platform, run like production" width="100%">
 
 **A hybrid-cloud platform run to production standards: Kubernetes on a 12 GB laptop, two free-tier clouds, and a private mesh between them.**
 

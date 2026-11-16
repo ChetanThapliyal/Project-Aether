@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 180" width="1280" height="180" role="img" aria-label="Project Aether: hybrid-cloud platform, run like production" font-family="Inter, 'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0B1020"/><stop offset="1" stop-color="#151033"/></linearGradient>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22D3EE" stop-opacity="0"/><stop offset=".2" stop-color="#22D3EE"/><stop offset=".55" stop-color="#818CF8"/><stop offset=".85" stop-color="#F472B6"/><stop offset="1" stop-color="#F472B6" stop-opacity="0"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy="1" r=".7"><stop offset="0" stop-color="#818CF8" stop-opacity=".22"/><stop offset="1" stop-color="#818CF8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1280" height="180" rx="16" fill="url(#sky)"/>
+  <rect width="1280" height="180" rx="16" fill="url(#glow)"/>
+  <!-- the aether: one thin band of light with three points on it -->
+  <path d="M0 132 C 320 104, 520 150, 760 124 S 1100 104, 1280 128" fill="none" stroke="url(#aurora)" stroke-width="2"/>
+  <circle cx="842" cy="117" r="4" fill="#A5B4FC"/><circle cx="968" cy="108.5" r="4" fill="#C4B5FD"/><circle cx="1094" cy="109.5" r="4" fill="#F9A8D4"/>
+  <text x="640" y="84" font-size="44" font-weight="300" letter-spacing="14" fill="#F8FAFC" text-anchor="middle">PROJECT <tspan font-weight="700">AETHER</tspan></text>
+  <text x="640" y="160" font-size="14" letter-spacing="4" fill="#94A3B8" text-anchor="middle">HYBRID CLOUD · GITOPS · ZERO TRUST</text>
+</svg>
