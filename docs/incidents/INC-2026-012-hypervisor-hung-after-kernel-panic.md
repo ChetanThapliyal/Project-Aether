@@ -73,7 +73,7 @@ The crash came nine minutes after the nightly snapshot pull had finished, not pa
 ## Guardrails added
 
 - The playbook reads the live sysctls back and fails unless all three hold.
-- Follow-up: run memtest86+ overnight. Errors would confirm the memory as the cause.
+- Follow-up, done 16 Nov 2026: memtest86+ v7.20 completed one full pass over both modules (4 GB Samsung and 8 GB SK Hynix DDR3-1600, both 2015) with 0 errors. That makes faulty memory unlikely, though a single pass can miss intermittent faults. The panic's cause stays unconfirmed, so the idle-state workaround below is the next step if it happens again.
 - Follow-up: if another panic lands in the idle path, limit the CPU's sleep states (`intel_idle.max_cstate=1`), a known workaround for this CPU generation.
 - Follow-up: hardware that has out-of-band management, or a second hypervisor, would remove the need for someone to be at the machine.
 
