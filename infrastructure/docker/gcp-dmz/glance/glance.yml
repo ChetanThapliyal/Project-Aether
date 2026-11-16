@@ -682,7 +682,8 @@ pages:
   # hostnames or port numbers. Static design facts dated below; update this page
   # when a networking chore lands (FND-03/11/12/14/18, GOP-04, Phase 04).
   # ---------------------------------------------------------------------------
-  - name: Networking
+  - name: "Network & access"
+    slug: networking            # FND-24 rename; the slug keeps the URL and the CSP hash
     columns:
       - size: full
         widgets:
@@ -692,7 +693,7 @@ pages:
             hide-header: true
             source: |
               <div class="ae-live-head">
-                <span class="ae-live-title">Networking</span>
+                <span class="ae-live-title">Network &amp; access</span>
                 <span class="vitals-badge">DESIGN · 15 NOV 2026</span>
               </div>
               <div class="ae-hero">
@@ -765,6 +766,42 @@ pages:
                 </div>
               </div>
 
+
+          # FND-24: identity and access, role level only. The two counts come
+          # from access.json, built at every deploy (build_track_record.py
+          # --access): service-account keys in the Google Cloud project, and
+          # encrypted secret files in Git. No names, IDs or key ages.
+          - type: custom-api
+            title: Identity and access
+            frameless: true
+            hide-header: true
+            url: http://127.0.0.1:8080/assets/access.json
+            cache: 10m
+            template: |
+              {{ $known := .JSON.Exists "user_keys" }}
+              {{ $keys := .JSON.Int "user_keys" }}
+              <div class="ae-section-head">Identity and access</div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Service-account keys</div><div class="ae-stat-num {{ if and $known (eq $keys 0) }}ae-ok{{ else }}ae-bad{{ end }}">{{ if $known }}{{ $keys }}{{ else }}?{{ end }}</div><div class="ae-stat-sub">{{ if $known }}long-lived keys for the {{ .JSON.Int "service_accounts" }} Google Cloud service accounts{{ else }}not checked at the last deploy{{ end }}; counted at every deploy</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Secrets in Git</div><div class="ae-stat-num {{ if eq (.JSON.Int "secret_files") (.JSON.Int "secret_files_encrypted") }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Int "secret_files_encrypted" }}<span>/{{ .JSON.Int "secret_files" }}</span></div><div class="ae-stat-sub">files encrypted with SOPS; CI rejects a plaintext one</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">People with access</div><div class="ae-stat-num">1</div><div class="ae-stat-sub">the operator; everything else is a machine identity</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Public SSH</div><div class="ae-stat-num ae-ok">0<span>hosts</span></div><div class="ae-stat-sub">SSH only over the mesh, or IAP when it's down</div></div>
+              </div>
+              <div class="vitals-card">
+                <div class="section-title">Who and what can do what (design facts · 16 Nov 2026)</div>
+                <div class="bar-row"><span class="bar-name">Operator</span><span class="ae-fact">SSH from personal devices re-authenticates every 12 hours; routine logins aren't root</span></div>
+                <div class="bar-row"><span class="bar-name">CI</span><span class="ae-fact">GitHub Actions gets short-lived cloud credentials through workload identity federation, only from <code>main</code>; it can read infrastructure state and metadata, nothing else</span></div>
+                <div class="bar-row"><span class="bar-name">Edge VM</span><span class="ae-fact">its service account may create backup objects only: it can't read, replace or delete them</span></div>
+                <div class="bar-row"><span class="bar-name">Cluster</span><span class="ae-fact">secrets are decrypted inside the cluster at deploy time; the GitOps UI is reachable on the mesh only</span></div>
+                <div class="bar-row"><span class="bar-name">Secrets</span><span class="ae-fact">encrypted for two independent keys, one local and one in Cloud KMS; each alone decrypts (checked 15 Nov 2026); mesh auth keys follow a rotation runbook</span></div>
+                <div class="bar-row"><span class="bar-name">Break-glass</span><span class="ae-fact">if the mesh is down, SSH goes through Google's Identity-Aware Proxy, gated by IAM; no host has public SSH</span></div>
+              </div>
+
+          - type: html
+            title: Roadmap and decisions
+            frameless: true
+            hide-header: true
+            source: |
               <div class="vitals-card ae-gap-top">
                 <div class="ae-backups-head">
                   <div>

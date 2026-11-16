@@ -19,6 +19,7 @@
     swap_size_gb: 2
     # FND-17: Kuma backups (bucket from Terraform 02-gcp-dmz output kuma_backup_bucket)
     dmz_backup_bucket: gcs-oci-homelab-controlplane-dmz-backups
+    aether_gcp_project: gcs-oci-homelab-controlplane   # FND-24: the access facts count keys here
     kuma_oci_push_base: https://uptimekuma.tail7067ab.ts.net/api/push
 
   tasks:
@@ -387,6 +388,15 @@
         mode: "0644"
       register: objectives_file
       tags: [fnd-23, reliability]
+
+    - name: FND-24 | Publish the access facts (service-account keys, encrypted secrets) for Glance
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'python3 ' ~ ((playbook_dir ~ '/../templates/build_track_record.py') | quote) ~ ' ' ~ ((playbook_dir ~ '/../../..') | quote) ~ ' --access ' ~ (aether_gcp_project | quote)) }}\n"
+        dest: "{{ dmz_dir }}/glance/assets/access.json"
+        owner: "{{ dmz_user }}"
+        group: "{{ dmz_group }}"
+        mode: "0644"
+      tags: [fnd-24, access]
 
     - name: FND-22 | Install the availability job
       ansible.builtin.copy:

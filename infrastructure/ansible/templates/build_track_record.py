@@ -7,6 +7,11 @@ deploy-dmz.yml copies it into Glance's assets.
                                       commits in the last 30 days
   build_track_record.py REPO --docs   docs index (FND-23): every ADR, incident
                                       review, DR scenario and runbook
+  build_track_record.py REPO --access PROJECT
+                                      access facts (FND-24): service accounts and
+                                      user-managed keys in the Google Cloud
+                                      project (live, via gcloud), encrypted
+                                      secret files in Git
 
 Everything here is already public in the repository.
 """
@@ -155,9 +160,33 @@ def commits_30d(repo):
                               capture_output=True, text=True, check=True).stdout.strip())
 
 
+def access(repo, project):
+    """Counts only: no names, IDs or key ages reach the page. If gcloud can't
+    answer (expired login, no network), report unknown rather than guess."""
+    from datetime import timezone
+    files = subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True).stdout.split()
+    secrets = [f for f in files if re.search(r"\.sops\.(ya?ml|json|env|tfvars)$|(^|/)vault\.ya?ml$", f)
+               and Path(f).name not in (".sops.yaml", ".sops.yml")]  # SOPS's own config, as in check-sops-encryption.sh
+    encrypted = sum(1 for f in secrets if re.search(r"^sops:|\"sops\":|^sops_version|ENC\[AES256_GCM", (repo / f).read_text(errors="replace"), re.M))
+    out = {"checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "secret_files": len(secrets), "secret_files_encrypted": encrypted,
+           "service_accounts": None, "user_keys": None}
+    try:
+        gc = lambda *a: subprocess.run(["gcloud", *a, "--project", project, "--format=value(name)"],
+                                       capture_output=True, text=True, check=True, timeout=60).stdout.split()
+        sas = [x.rsplit("/", 1)[-1] for x in gc("iam", "service-accounts", "list")]
+        out["service_accounts"] = len(sas)
+        out["user_keys"] = sum(len(gc("iam", "service-accounts", "keys", "list", "--iam-account", sa, "--managed-by=user")) for sa in sas)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return out
+
+
 def main():
     repo = Path(sys.argv[1]).resolve()
-    if "--docs" in sys.argv[2:]:
+    if "--access" in sys.argv[2:]:
+        data = access(repo, sys.argv[sys.argv.index("--access") + 1])
+    elif "--docs" in sys.argv[2:]:
         data = {"adrs": adrs(repo), "incidents": incidents(repo, lessons=False),
                 "dr": dr_scenarios(repo), "runbooks": runbooks(repo)}
         data["counts"] = {k: len(v) for k, v in data.items()}
