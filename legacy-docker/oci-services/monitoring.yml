@@ -68,7 +68,7 @@ services:
       tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   loki:
-    image: grafana/loki:3.0.0@sha256:757b5fadf816a1396f1fea598152947421fa49cb8b2db1ddd2a6e30fae003253
+    image: grafana/loki:3.7.10@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
     container_name: loki
     restart: unless-stopped
     ports:
@@ -87,7 +87,7 @@ services:
       tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     container_name: alertmanager
     restart: unless-stopped
     command:
