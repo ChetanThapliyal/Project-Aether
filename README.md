@@ -2,256 +2,216 @@
 
 <img src="docs/diagrams/banner.svg" alt="Project Aether: K3s, Proxmox VE, Docker, and Tailscale" width="100%">
 
-**A production-style platform spread across a 12 GB notebook, two free-tier clouds, and a zero-trust tailnet.**
+**A hybrid-cloud platform run to production standards: Kubernetes on a 12 GB laptop, two free-tier clouds, and a private mesh between them.**
 
-[![K3s](https://img.shields.io/badge/K3s-v1.36.4-326CE5?logo=kubernetes&logoColor=white&style=flat-square)](https://k3s.io)
+[![Live status](https://img.shields.io/badge/live%20status-status.chetan--thapliyal.cloud-EA580C?style=flat-square)](https://status.chetan-thapliyal.cloud)
+[![K3s](https://img.shields.io/badge/K3s-v1.36-326CE5?logo=kubernetes&logoColor=white&style=flat-square)](https://k3s.io)
 [![GitOps](https://img.shields.io/badge/GitOps-ArgoCD%20%2B%20KSOPS-EF7B4D?style=flat-square)](https://argo-cd.readthedocs.io)
-[![Terraform](https://img.shields.io/badge/IaC-Terraform%201.5%2B-7B42BC?logo=terraform&logoColor=white&style=flat-square)](https://developer.hashicorp.com/terraform)
-[![Tailscale](https://img.shields.io/badge/Network-Tailscale%20Grants-24292E?logo=tailscale&logoColor=white&style=flat-square)](https://tailscale.com)
-[![SOPS](https://img.shields.io/badge/Secrets-SOPS%20%2B%20Age%20%2B%20KMS-FF6B6B?style=flat-square)](https://getsops.io)
-[![MetalLB](https://img.shields.io/badge/LoadBalancer-MetalLB%200.14.8-1F6FEB?style=flat-square)](https://metallb.universe.tf)
+[![Terraform](https://img.shields.io/badge/IaC-Terraform%20%2B%20Ansible-7B42BC?logo=terraform&logoColor=white&style=flat-square)](https://developer.hashicorp.com/terraform)
+[![Tailscale](https://img.shields.io/badge/Network-Tailscale%20grants-24292E?logo=tailscale&logoColor=white&style=flat-square)](https://tailscale.com)
+[![SOPS](https://img.shields.io/badge/Secrets-SOPS%20%2B%20age%20%2B%20KMS-FF6B6B?style=flat-square)](https://getsops.io)
 
 </div>
 
-**Contents:** [Why](#why-this-exists) · [Today](#what-runs-today) · [Architecture](#architecture) · [How it works](#how-it-works) · [IaC](#infrastructure-as-code) · [Operations](#operations) · [Reliability](#reliability-and-recovery) · [Roadmap](#roadmap) · [Docs](#documentation)
+**Contents:** [Overview](#overview) · [Architecture](#architecture) · [How it works](#how-it-works) · [Security](#security) · [Reliability](#reliability-and-recovery) · [Infrastructure as code](#infrastructure-as-code) · [Operations](#operations) · [Status](#status-and-roadmap) · [Documentation](#documentation)
 
-> **Status, 2026-11-13.** Phases 01, 02 and 03 are complete: the cluster, GitOps, ingress, certificates, private ArgoCD access, monitoring, NetworkPolicies and the four-stage etcd backup chain are live and were re-verified on 13 Nov after a hardening pass. Phase 04 has Kestra running on OCI; none of the seven applications has moved to K3s yet, and app-data backups come first. Phase 05 is about 65% complete.
+## Overview
 
-## Why this exists
+Project Aether is a personal platform engineering project. It runs a three-node Kubernetes cluster on a 2015 laptop at home, a monitoring and automation host on Oracle Cloud, and a deliberately low-trust observer on Google Cloud. The three sites are joined by a WireGuard mesh and declared in this repository: Terraform builds the machines, Ansible configures the hosts, ArgoCD reconciles the cluster, and SOPS keeps the secrets encrypted in Git.
 
-Project Aether is a personal platform engineering project built on hardware that was never meant to run one: an HP notebook with an Intel i3-5005U, 12 GB of DDR3, and a 500 GB spinning disk. It sits behind carrier-grade NAT with no public IPv4 and no open ports.
+The hardware is modest on purpose. The laptop sits behind carrier-grade NAT with no public address, and both clouds run on always-free tiers. Those limits force the decisions that make platform work interesting: what runs where, what may talk to what, how a failure is noticed, and how the system comes back.
 
-The obvious answer is to rent a cluster. That also removes the constraints that make the project worth doing. Instead, the platform is split across three environments:
+No customers depend on it. The data, the backups and the attack surface are real, so it is operated like production: every change goes through Git, every real failure gets a written review, and every backup has to pass a restore.
 
-- **Homelab.** Proxmox VE 9.2 on the notebook runs three Ubuntu 24.04 VMs. One is the K3s control plane; two are workers. ArgoCD and the platform services live here.
-- **OCI.** An Always Free `VM.Standard.A1.Flex` instance in Mumbai runs the applications that do not fit in 12 GB of RAM.
-- **GCP.** An Always Free `e2-micro` in `us-central1` runs an external observer on IPv6-only networking, so the alert path sits outside both the homelab and OCI.
+**See it running:** the [status page](https://status.chetan-thapliyal.cloud) shows live cluster health, recovery objectives with the age of each newest backup, incident response times, and the network design.
 
-A laptop is not a production data center. The point is to practice the parts of platform engineering that survive a hardware change: declarative infrastructure, GitOps, least-privilege networking, secret handling, observability, and recovery.
+### What it demonstrates
 
-It started as a way to run a few Docker containers. It is now a three-environment platform with a GitOps control plane, ingress and certificates, out-of-band monitoring, and tested disaster recovery. The remaining work is the application migration and the CI and documentation polish around it.
-
-## What runs today
-
-| Layer | Live now | Where |
-|---|---|---|
-| Cluster | K3s v1.36.4, one control plane and two workers, Ubuntu 24.04, embedded etcd | Homelab |
-| GitOps | ArgoCD v3.5.7 + KSOPS, App-of-Apps, 17 Applications Synced/Healthy | Homelab |
-| Ingress and TLS | MetalLB 0.14.8 (L2 pool `192.168.1.100-105`, `.100` for the gateway), Envoy Gateway v1.9.2, cert-manager with an internal CA | Homelab |
-| Cluster networking | Default-deny NetworkPolicies in four namespaces, Tailscale operator publishing ArgoCD on the tailnet | Homelab |
-| Applications | 34 containers across 15 compose projects | OCI |
-| Ops automation and monitoring | Kestra with Git-synced flows, n8n, Restic, Prometheus, Loki, Alertmanager, Grafana | OCI |
-| Logs | Grafana Alloy on every cluster node, shipping to Loki on OCI | Homelab to OCI |
-| External observer and public page | Uptime Kuma, Glance (the public status page), node exporter, cloudflared | GCP |
-| IaC | Four Terraform roots, GCS state, Ansible, Taskfile, nightly keyless drift checks | Git |
-| Secrets | SOPS + Age + GCP KMS, KSOPS in ArgoCD | Git and cluster |
-| CI | Validation on every push and PR; nightly keyless Terraform drift for the OCI, GCP DMZ and Backblaze roots | GitHub Actions + GCP Workload Identity Federation |
-
-**Next:** Envoy Gateway, cert-manager, the Tailscale Operator, kube-prometheus-stack/Loki, the etcd snapshot chain, and the first 4A migration. None of these are deployed yet.
+| Area | In practice |
+|---|---|
+| GitOps | ArgoCD app-of-apps with KSOPS. A push reaches the cluster in about a second through a signed webhook, and a drift check guards the bootstrap layer |
+| Zero-trust networking | No inbound TCP port from the internet on any machine. Role-based mesh rules with policy tests that reject a bad change at save time |
+| Observability | Metrics, logs and alerting hosted off the cluster, plus an outside observer and a dead-man's switch for the alert path itself |
+| Disaster recovery | 3-2-1 backups with an Object-Locked offsite copy. Restores are drilled and timed, and each backup stage reports a heartbeat |
+| Security | Secrets encrypted for two independent keys, keyless CI, pinned images, default-deny NetworkPolicies, a strict content policy on the public page |
+| Operations | 13 blameless incident reviews, five recovery scenarios, runbooks, and a sign-off checklist for each phase |
 
 ## Architecture
 
-Solid boxes run today. Dashed boxes are planned: Phase 04 moves the apps from Oracle Cloud onto the cluster, and Phase 05 finishes CI.
+Solid boxes run today. Dashed boxes are planned (see [Status and roadmap](#status-and-roadmap)).
 
 <img src="docs/diagrams/project-aether-architecture.svg" alt="Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private Tailscale mesh, the on-prem K3s home lab, the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned." width="100%">
 
-The live version of this, with packet flows, is on the [status page](https://status.chetan-thapliyal.cloud/networking).
+How traffic moves through it, one flow at a time:
+
+<img src="infrastructure/docker/gcp-dmz/glance/assets/aether-traffic.gif" alt="Animated diagram of five flows: a visitor reaching the status page through Cloudflare and an outbound tunnel, the operator working over the mesh, a git push deploying through a signed webhook, metrics, logs and alerts, and backups going offsite with heartbeats." width="100%">
 
 ### Three environments
 
-| | Homelab | OCI | GCP DMZ |
+| | On-prem home lab | Oracle Cloud (OCI) | Google Cloud (DMZ) |
 |---|---|---|---|
-| Hardware | HP notebook: i3-5005U, 12 GB DDR3, 250 GB SSD and 500 GB HDD | `VM.Standard.A1.Flex`: 2 ARM vCPU, 12 GB RAM, 200 GB boot | `e2-micro`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, 30 GB |
-| Platform | Proxmox VE 9.2, Ubuntu 24.04 VMs | Ubuntu 24.04, Docker Compose | Ubuntu 24.04, Docker Compose |
-| Role | K3s control plane and GitOps | Applications and ops automation | External observer |
-| Network | CGNAT, tailnet only | SSH 22 public, apps tailnet-only | IPv6-only, no public IPv4 |
-| Cost | Existing hardware | $0 Always Free | $0 Always Free |
-
-Cloud compute runs on free tiers. The S3-compatible backup bucket is the only line item that may cost money.
+| Hardware | HP laptop: i3-5005U, 12 GB RAM, SSD plus a 500 GB HDD | `VM.Standard.A1.Flex`: 2 ARM OCPU, 12 GB RAM | `e2-micro`: 2 shared vCPU, 1 GB RAM |
+| Platform | Proxmox VE, three Ubuntu VMs, K3s | Ubuntu, Docker Compose | Ubuntu, Docker Compose |
+| Role | Kubernetes cluster and GitOps | Monitoring, automation and applications | Outside observer and the public status page |
+| Exposure | Behind CGNAT, no port forwards | No inbound TCP | No public IPv4, no inbound TCP |
+| Cost | Existing hardware | Always free | Always free |
 
 ## How it works
 
-### The homelab runs the control plane
+### Cluster and platform
 
-Proxmox VE 9.2 runs on the notebook. Three Ubuntu 24.04 VMs are cloned from a cloud-init template: `k3s-control-01` (2 vCPU / 3 GB) and two workers (2 vCPU / 3.5 GB each). Terraform clones them with the `bpg/proxmox` provider; Ansible configures the hosts and the cluster.
+Proxmox VE runs three Ubuntu VMs cloned from a cloud-init template: one K3s control plane and two workers. Terraform creates them with the `bpg/proxmox` provider, and Ansible installs and configures K3s.
 
-K3s is pinned at v1.36.4. The control plane uses embedded etcd. A three-server etcd quorum would need two more VMs and roughly 4 GB of RAM, which the 12 GB host does not have to spare. The trade-off is explicit: after a control-plane loss, the cluster is rebuilt from Git and Terraform rather than failed over. The etcd snapshot chain that makes that recovery practical is Phase 03 work.
+The control plane uses embedded etcd on a single server. A three-server quorum would need about 4 GB more memory than the host has. The trade-off is explicit: after a control-plane loss the cluster is restored from a snapshot or rebuilt from Git, not failed over. The backup chain below exists to make that fast.
 
-ArgoCD runs in the cluster. `root-apps` is the only Application applied by hand; it watches `kubernetes/cluster/` and creates the child Applications. The five current Applications (`root-apps`, `platform-namespaces`, `metallb`, `metallb-config`, `smoke-test`) are Synced/Healthy. The seven platform and app namespaces carry Pod Security Admission labels.
+On the cluster, MetalLB provides a layer-2 address for Envoy Gateway, cert-manager issues certificates from an internal CA, and the Tailscale operator publishes ArgoCD on the mesh. Storage is `local-path`. Longhorn was rejected for its memory footprint, and NFS from the ZFS pool is reserved for media ([ADR-016](docs/adr/016-kubernetes-storage-strategy.md)).
 
-MetalLB 0.14.8 advertises a six-address L2 pool, `192.168.1.100-105`. The pool sits outside the router's DHCP range, and `.100` is reserved for Envoy Gateway so the ingress address stays put when the gateway lands.
+### GitOps delivery
 
-Storage is `local-path`. Longhorn's minimum footprint is about 1.2-1.5 GB of RAM; on a host that is already split across three VMs, that is too much for storage the applications do not need yet. NFS from the Proxmox ZFS pool is reserved for the 4B media apps. The storage strategy is codified in [ADR-016](docs/adr/016-kubernetes-storage-strategy.md).
+GitHub is the source of truth. `root-apps` is the only Application applied by hand. It watches `kubernetes/cluster/` and creates the 16 child Applications, ordered by sync waves so namespaces, operators and secrets land before the things that need them.
 
-### OCI carries the workloads
+A push triggers a signed GitHub webhook. It enters through Cloudflare, which admits only GitHub's address ranges, travels down the outbound tunnel to the DMZ, crosses the mesh, and reaches ArgoCD, which verifies the signature and pulls the change. Reconciliation starts about a second after the push. The three-minute poll remains as a fallback.
 
-`bookorbit` is an OCI Always Free `VM.Standard.A1.Flex` instance in AP-Mumbai-1: 2 ARM vCPU, 12 GB RAM, and a 200 GB boot volume. It runs 34 containers across 15 compose projects, including Affine, Blinko, Bookorbit, Navidrome, CouchDB, IT-Tools, NextExplorer, Kestra, n8n, Prometheus/Grafana, Uptime Kuma, and the host tooling (tsdproxy, Dockhand, Dozzle).
+KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` files while rendering. The bootstrap itself (the ArgoCD Helm release) is installed by `task k8s:bootstrap-argocd`, and `task argocd:drift` fails when the live release differs from Git. The layout and the rules for adding an app are in [`kubernetes/README.md`](kubernetes/README.md).
 
-The split is driven by memory. The homelab host has 12 GB, split across three VMs and Proxmox; OCI has 12 GB of its own. The applications that need more than the homelab can spare stay on OCI until the migration budget is proven.
+### Monitoring and automation core
 
-Kestra is the ops orchestrator. It runs on OCI with Postgres 16, Tailnet-only access with basic auth, and three Git-synced flows: a nightly Restic backup, a weekly Docker prune, and a six-hour flow sync. n8n stays for webhook glue. Running a second automation stack inside the cluster would cost RAM the cluster does not have.
+The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened ([INC-2026-012](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
 
-Restic runs nightly at 03:00 IST to S3-compatible object storage and pings Uptime Kuma on success. The backup includes a logical `pg_dump` of Kestra's Postgres. A Kestra flow at 03:30 UTC runs in parallel while it builds a track record; the legacy cron stays enabled until then. The offsite replica and the restore drill are still open.
+Kestra is the operations scheduler, with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
 
-OCI apps are published on the tailnet through tsdproxy. The K3s ingress path will use the Tailscale Operator; OCI keeps tsdproxy. `legacy-docker/` holds the retired compose estate for reference; none of it runs.
+### The DMZ observer
 
-### GCP is the external witness
+The Google Cloud VM is the least-trusted machine and is treated that way. It runs Uptime Kuma, the Glance status page, a node exporter and `cloudflared`. It has no public IPv4 address and no Docker management agent, and its mesh role can reach only probe-tagged services and the cluster's front door.
 
-`aether-gcp-dmz` is an Always Free `e2-micro` in `us-central1-a`: 2 shared vCPU, 1 GB RAM plus 2 GB swap, and a 30 GB `pd-standard` disk. It has no public IPv4, which avoids the $3.65/month address fee, and no inbound rule from the internet: operators reach it over the tailnet (Tailscale SSH), and the only SSH rule admits Google's IAP range, for break-glass when the tailnet is down.
+It watches the other two sites from outside, and they watch it. If either side loses its network, the other still has an alert path. The backup jobs report heartbeats to it, and so does Alertmanager, so a silent backup or a dead alert pipeline raises an alarm of its own.
 
-It runs Uptime Kuma, Glance (replacing Homepage per [ADR-020](docs/adr/020-public-observability-data-diode.md)), a node exporter that OCI Prometheus scrapes over the tailnet, and `cloudflared`. No Docker management agent runs there: it would hold the Docker socket on the least-trusted host, so the DMZ is managed by Ansible only. It probes OCI and the K3s endpoints over the tailnet; OCI probes it back. If one side loses network, the other still has an alert path. The DMZ is deliberately outside the blast radius: its only state is Uptime Kuma's monitor data, copied nightly to a GCS bucket the VM can write to but not read or delete, and its target rebuild time is 15 minutes.
+The public status page reads a sanitised, numbers-only summary from the monitoring core over the mesh. Visitors reach the page through Cloudflare and never touch the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
 
-`cloudflared` publishes one thing to the internet: the Glance status page at `https://status.chetan-thapliyal.cloud`. The tunnel is outbound-only, so no port is open. The page's live numbers come from a sanitised summary that the DMZ pulls from the monitoring core over the tailnet, so the public host never queries the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
+### The mesh
 
-A systemd drop-in starts Docker after `tailscaled`, which prevents the observer from coming up before its network. The Docker socket proxy that fronted Homepage was removed with it, and the stack's images are pinned by tag and digest.
+Tailscale provides the WireGuard overlay. Every machine and every published service carries a role tag, and access is granted between roles, deny by default:
 
-### The tailnet is the network
+| From | To | For |
+|---|---|---|
+| Operator devices | every zone | Admin and SSH; personal devices re-authenticate every 12 hours |
+| DMZ observer | probe services, cluster ingress | HTTPS checks, the webhook relay, the status summary |
+| Monitoring core | cluster nodes, hypervisor, DMZ | Metrics scrapes; probes and heartbeats to the DMZ monitor |
+| Cluster nodes | monitoring core | Log shipping only |
+| Hypervisor | DMZ observer | Backup heartbeats |
 
-Tailscale provides the WireGuard overlay. The homelab has no inbound ports, OCI exposes SSH on 22, and GCP has no public IPv4. Every endpoint carries a tag, and the grants are explicit:
+The policy carries tests. Saving a change that would let the DMZ reach an admin tool is rejected by the control plane before it takes effect ([ADR-013](docs/adr/013-tailnet-microsegmentation.md)).
 
-| Source | Destination | Port / protocol | Purpose |
-|---|---|---|---|
-| `tag:operator` | `*` | SSH / HTTPS | Admin access from operator devices |
-| `tag:k3s` | `tag:k3s` | Cluster mesh | Pod, service, and node traffic |
-| `tag:oci` | `tag:oci` | Container network | Local containers on OCI |
-| `tag:gcp-dmz` | `tag:k3s` | 80 / 443 | Synthetic health checks |
-| `tag:gcp-dmz` | `tag:oci` | 80 / 443 | Synthetic health checks |
-| `tag:oci` | `tag:k3s`, `tag:homelab-dc` | 9100, 8080, 30082–30084 | Prometheus telemetry scrapes (node_exporter, KSM, ArgoCD) |
-| `tag:k3s` | `tag:oci` | 3100 | Alloy log shipping to OCI Loki (ADR-019) |
-| `tag:oci` | `tag:gcp-dmz` | 9100 | node_exporter scrape |
+## Security
 
-`tag:k3s` has no grant to `tag:oci` or `tag:gcp-dmz`. The asymmetry is deliberate. OCI can scrape node_exporter on 9100, but it cannot reach the Kubernetes API or Proxmox. The cluster has no path back to OCI or GCP. That keeps the blast radius small, and it is why Kestra's homelab flows (Terraform drift, etcd snapshots) are still open: a scoped grant is a pending decision.
-
-The tailnet is the perimeter. Inside the cluster, every namespace the platform owns (`platform`, `apps`, `monitoring`, `argocd`) is default-deny, with explicit allow rules for DNS, the Prometheus scrape ports, log shipping and ArgoCD; only the Envoy proxy may reach application pods.
-
-### GitOps is the delivery path
-
-GitHub is the source of truth. ArgoCD polls the repository every three minutes, so a pushed change lands within 180 seconds. A manifest edited but not pushed does not exist to the cluster.
-
-`root-apps` is the only Application applied by hand. It watches `kubernetes/cluster/`; the child Applications point at `kubernetes/platform/` and `kubernetes/apps/`. Sync waves keep the first sync from racing: `-3` namespaces, `-2` CRDs and operators, `-1` shared secrets, `0` controllers, `1+` applications. New apps use automated sync with `prune` and `selfHeal`.
-
-KSOPS runs as a Config Management Plugin sidecar in the ArgoCD repo-server. It decrypts `*.sops.yaml` files as ArgoCD renders them. The Age key is a Kubernetes secret in the `argocd` namespace, injected by `task k8s:sops-secret`; it is never committed.
-
-The bootstrap path is manual by design: `task k8s:bootstrap-argocd` installs the Helm chart, the KSOPS ConfigMap, and the Age key. Everything after that is reconciled from Git. The layout and the rules for adding an app are in [`kubernetes/README.md`](kubernetes/README.md).
-
-### Secrets stay encrypted in Git
-
-SOPS encrypts secrets to two recipients: an offline Age key and a GCP Cloud KMS key. Either key can decrypt. Losing the local Age key does not lock you out if `gcloud` ADC works; losing cloud access does not lock you out if the Age key is safe.
-
-`*.sops.yaml` and `*.sops.tfvars` are the encrypted file types. The Tailscale access policy is HuJSON stored as a block scalar inside a SOPS file, which preserves the comments that HuJSON exists for. Terraform tasks decrypt tfvars to `.decrypted.auto.tfvars` and remove the file with a shell trap; Ansible variables are SOPS-encrypted; KSOPS handles the in-cluster secrets.
-
-Pre-commit runs gitleaks, a SOPS-encryption check, kubeconform, `terraform fmt`/`validate`, and YAML checks. It catches a plaintext secret before it reaches a commit, but it only protects the local path. CI enforcement and branch protection are still Phase 05 work.
-
-## Infrastructure as code
-
-### Terraform
-
-Four root modules, split by blast radius and state-lock contention rather than by environment tier:
-
-| Root | What it provisions |
-|---|---|
-| `01-oci-compute` | OCI instance, security lists, subnets, and imports for unmanaged networking |
-| `02-gcp-dmz` | GCP VPC, IPv6 subnet, firewall rules, and the DMZ instance |
-| `03-homelab` | Proxmox VM clones from the Ubuntu cloud-init template |
-| `04-backblaze-b2` | Backblaze B2 offsite backup bucket (`aether-restic-etcd-offsite`) & write-isolated Application Key for 3-2-1 DR |
-
-`02-gcp-dmz` reads `01-oci-compute` outputs through `terraform_remote_state`, so the DMZ firewall can allow the OCI address without a copied value. `03-homelab` uses `bpg/proxmox` with `insecure = false` and a valid Let's Encrypt certificate.
-
-State lives in `gs://tf-backend-oci-hlab-gcs/` under separate prefixes, with GCS locking and five versions of history.
-
-### Ansible
-
-Playbooks are split so a change does not re-run the whole estate: `common.yml`, `control.yml`, `workers.yml`, `kubeconfig.yml`, `bootstrap-oci.yml` (with `oci-base`, `oci-apps`, `oci-monitoring`, `oci-ops`), and `deploy-dmz.yml`.
-
-OCI app deploys are tagged per service: `task ansible:oci:apps -- --tags n8n`. The GCP DMZ playbook adds the Docker-after-tailscaled drop-in. Inventory host-key checking is `accept-new`, so the first bootstrap works and later key changes fail.
-
-### CI and guardrails
-
-A nightly Terraform drift check runs at 02:00 UTC. It signs in to GCP with GitHub's OIDC token through Workload Identity Federation, so no key is stored, and only runs on `main` can get a credential. It plans `01-oci-compute`, `02-gcp-dmz` and `04-backblaze-b2` read-only (`-lock=false`) and fails on drift. Because the repository is public, the log lists only the action and address of each drifted resource, never values. `03-homelab` is planned by hand monthly: the Proxmox provider needs a disk-write privilege just to plan. See the [drift runbook](docs/runbooks/gcp-ci-drift-detector-setup.md). Dependabot checks the Compose images and GitHub Actions monthly.
-
-A second workflow, `validate.yml`, runs on every push and pull request. It runs the same pre-commit hooks as the workstation (including the SOPS encryption check, kubeconform and gitleaks), the Helm values lint and `promtool`, with tool versions from `mise.toml`. A commit that skipped the local hooks still gets checked. Branch protection isn't enabled yet.
-
-## Operations
-
-The Taskfile is the operator interface. Terraform tasks decrypt SOPS tfvars to a temporary `.decrypted.auto.tfvars` and remove it with a trap on exit, so a failed apply does not leave plaintext on disk.
-
-```bash
-task                         # list tasks
-task tf:plan DIR=03-homelab
-task tf:apply DIR=03-homelab
-task ansible:bootstrap       # common -> control -> workers -> kubeconfig
-task ansible:oci             # converge OCI
-task ansible:dmz             # GCP DMZ
-task k8s:bootstrap-argocd    # ArgoCD + KSOPS
-task argocd:password
-task argocd:port-forward
-task encrypt FILE=path/to/secret.yaml
-```
-
-These are operator commands, not a one-command demo. They assume the tailnet, cloud credentials, and SOPS keys are already in place. ArgoCD is reached on the tailnet through the Tailscale Operator; `task argocd:port-forward` remains as a fallback.
+- **No inbound TCP from the internet** on any machine, and no host with public SSH. Break-glass SSH goes through Google's Identity-Aware Proxy, gated by IAM.
+- **One public path.** A Cloudflare tunnel, opened outbound by the DMZ, serves the status page and accepts signed GitHub webhooks on a single path. [ADR-004](docs/adr/004-network-access.md) lists every public entry point, including one legacy exception that is scheduled for removal.
+- **Secrets** are SOPS-encrypted for two independent recipients, an age key and a Cloud KMS key. Either one alone can decrypt, and that is tested. A pre-commit hook and CI both reject a plaintext secret.
+- **Keyless CI.** GitHub Actions gets short-lived cloud credentials through workload identity federation, only from `main`, with read-only access to infrastructure state. The project holds no long-lived service-account keys, and every deploy of the status page counts them.
+- **Least privilege by default.** The DMZ's service account can create backup objects and cannot read, replace or delete them. Platform namespaces are default-deny, and only the Envoy proxy may reach application pods.
+- **Supply chain.** Container images are pinned by tag and digest. Renovate and Dependabot propose updates; database major versions are never proposed automatically.
+- **The public page** sends a strict Content-Security-Policy with per-page script hashes, and a deploy fails if the live headers differ from the repository.
 
 ## Reliability and recovery
 
-The recovery targets are documented and, for the cluster, measured: the K3s etcd snapshot chain runs nightly through the hypervisor, a local encrypted restic repository and two Backblaze B2 copies (one immutable for 30 days), and a cold restore from B2 has been drilled. The remaining gaps are listed in the [DR README](docs/disaster-recovery/README.md#5-known-gaps): the OCI backups share a tenancy with the instance, and nothing backs up Kubernetes volumes yet. The DMZ's Uptime Kuma data goes to a create-only GCS bucket every night.
+Recovery targets are shown next to what has been proven. The live version, with the age of each newest backup, is on the [status page](https://status.chetan-thapliyal.cloud/observability).
 
-| Component | RTO | RPO | Mechanism | State |
-|---|---|---|---|---|
-| K3s control plane | 30 min (18 min measured in place) | up to 24 h | Nightly etcd snapshots, local restic, immutable B2 copy | Live; cold restore drilled |
-| OCI apps and databases | 45 min | 24 h | Restic to OCI Object Storage | Live; offsite copy on a second provider pending |
-| GCP DMZ | 15 min | 24 h | Terraform and Compose; Uptime Kuma nightly to GCS, write-only from the VM | Live |
-| Secrets and network access | 15 min | 0 | SOPS dual-key and break-glass SSH | Live |
-| Terraform state | 10 min | 0 | GCS versions | Live |
+| Component | Target RTO | Target RPO | Proven |
+|---|---|---|---|
+| Kubernetes cluster | 30 min | 24 h | Restore from the offsite copy: API ready 54 s after reset. In-place reset: about 18 min |
+| Applications on Oracle Cloud | 45 min | 24 h | One app restored and its database compared with live: 29 s for 1 GB and 176 tables. Full instance rebuild not yet timed |
+| DMZ observer | 15 min plus data restore | 24 h | Monitor data restored from the backup bucket and checked. VM rebuild not yet timed |
+| Secrets access | 15 min | none lost | Each key decrypts alone |
+| Infrastructure state | 10 min | none lost | Versioned bucket |
 
-Five failure drills are written: Tailscale outage, OCI loss and Restic restore, homelab hardware and etcd recovery, Age key loss and KMS recovery, and GCP DMZ rebuild. They are in [`docs/disaster-recovery/`](docs/disaster-recovery/). A successful `restic copy` is not the success criterion; a restore is.
+**Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first. The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
 
-The design assumption is that the VMs are disposable. Git, Terraform, and SOPS are the source of truth; OCI holds the state that needs backups. That is why the cluster is rebuilt rather than failed over.
+**Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` restores an application into a throwaway database and compares it with the live one, without touching production.
 
-## Roadmap
+**Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 13 so far. When an alert caught the problem, the median time to detect was 2 minutes. Problems found by audit instead had been latent for a median of 3 days, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
+
+**Known limits.** One hypervisor and one control-plane node mean a hardware failure is an outage, not a failover. The Oracle Cloud backups live in the same tenancy as the host they protect. The full rebuild drills for the cloud host and the DMZ have not been timed.
+
+## Infrastructure as code
+
+**Terraform.** Four roots, split by blast radius:
+
+| Root | Provisions |
+|---|---|
+| `01-oci-compute` | The Oracle Cloud instance, its network and its backup bucket |
+| `02-gcp-dmz` | The DMZ network, firewall, VM, service account and backup bucket |
+| `03-homelab` | The Proxmox VMs, cloned from a cloud-init template |
+| `04-backblaze-b2` | The offsite buckets and their write-only keys |
+
+State is in a versioned Google Cloud Storage bucket. The bucket, the KMS key and the CI identity belong to a separate foundation repository, so no root can destroy what it depends on ([ADR-011](docs/adr/011-terraform-remote-backend.md)).
+
+**Ansible.** Playbooks are split per concern and tagged per service, so one app can be redeployed without touching the rest: `task ansible:oci:apps -- --tags n8n`.
+
+**CI.** `validate.yml` runs on every push and pull request: the pre-commit hooks (secret scanning, the SOPS encryption check, kubeconform, `terraform fmt`), a Helm values lint and `promtool`, with tool versions pinned in `mise.toml`. `terraform-drift.yml` plans three roots every night without stored credentials and fails on drift. Because the repository is public, its log lists only the address of each drifted resource, never values ([ADR-015](docs/adr/015-ci-validation-pipeline.md)).
+
+## Operations
+
+The Taskfile is the operator interface. Terraform tasks decrypt their variables to a temporary file and remove it on exit, so a failed apply leaves no plaintext on disk.
+
+```bash
+task                                  # list tasks
+task tf:plan DIR=02-gcp-dmz           # plan one Terraform root
+task ansible:bootstrap                # build the cluster: common, control, workers, kubeconfig
+task ansible:oci:apps -- --tags n8n   # deploy one app on the cloud host
+task ansible:dmz                      # deploy the DMZ and the status page
+task k8s:bootstrap-argocd             # install or upgrade ArgoCD with KSOPS
+task argocd:drift                     # fail if the live ArgoCD release differs from Git
+task dr:drill:oci                     # restore drill, read-only to production
+```
+
+These are operator commands, not a one-command demo. They assume mesh access, cloud credentials and the SOPS keys.
+
+## Status and roadmap
+
+The foundation, GitOps and platform phases are complete, and each was re-audited against the live systems and hardened afterwards. Two phases are still open.
 
 | Phase | Scope | State |
 |---|---|---|
-| 01 | Multi-cloud foundation: Proxmox, K3s, Tailscale, SOPS, Ansible, OCI, GCP DMZ | Complete |
-| 02 | GitOps foundation: ArgoCD, App-of-Apps, KSOPS, namespaces, smoke test | Complete |
-| 03 | Core platform: Envoy Gateway, cert-manager, Tailscale Operator, monitoring, storage, etcd backups, NetworkPolicies | Complete (13 Nov 2026) |
-| 04 | Applications and migration: Kestra ops, 4A sensitive apps, then 4B | In progress: Kestra live, migration not started; app-data backups first |
-| 05 | CI/CD and polish: PR CI, branch protection, docs, ADRs, runbooks | In progress: about 65% (CI validation and drift detection live) |
-
-Phase 03 delivered the platform the applications need: Envoy Gateway and cert-manager for TLS, the Tailscale Operator for private access, the etcd backup chain, default-deny networking and a storage decision (ADR-016). Monitoring stays on OCI by design, so it survives a homelab outage. Phase 04 is now the critical path.
-
-Phase 04 starts with the four sensitive apps: Affine, Blinko, Bookorbit, and CouchDB. Navidrome, IT-Tools, and NextExplorer are deferred until the 4A set is stable and the worker memory budget is measured. Migration is a parallel run, not a cutover: each OCI service stays up until its K3s replacement is proven.
-
-Phase 05 runs in parallel. Validation and the SOPS check run in CI on every push and pull request; what remains is branch protection (a deliberate choice, off while working solo), diagrams, and the remaining runbooks. None of it blocks the platform work.
+| 01 | Foundation: Proxmox, K3s, the mesh, secrets, both clouds | Complete, hardened and signed off |
+| 02 | GitOps: ArgoCD, app-of-apps, KSOPS, CI validation, webhook delivery | Complete, hardened and signed off |
+| 03 | Platform: ingress, certificates, private access, monitoring, logging, backups, NetworkPolicies | Complete, hardened and signed off |
+| 04 | Applications: move seven apps from Oracle Cloud onto the cluster | In progress. Automation is live. App-data backups come first, then the apps move one at a time, each running in parallel until proven |
+| 05 | CI and documentation polish | In progress. Validation and drift detection are live; branch protection and the remaining diagrams are open |
 
 ## Documentation
 
+**Architecture decisions** ([`docs/adr/`](docs/adr/)):
+
 | ADR | Decision |
 |---|---|
-| [001](docs/adr/001-hypervisor-selection.md) | Proxmox on the notebook instead of bare-metal Docker |
-| [002](docs/adr/002-storage-topology.md) | Dual-tier storage: SSD for the OS and VMs, ZFS HDD for bulk |
+| [001](docs/adr/001-hypervisor-selection.md) | Proxmox on the laptop instead of bare-metal Docker |
+| [002](docs/adr/002-storage-topology.md) | Two storage tiers: SSD for the OS and VMs, ZFS on the HDD for backups |
 | [003](docs/adr/003-kubernetes-distribution.md) | K3s over Talos |
-| [004](docs/adr/004-network-access.md) | Tailscale for remote access |
-| [005](docs/adr/005-mono-repo-structure.md) | One monorepo for infrastructure, Kubernetes, and docs |
-| [007](docs/adr/007-secrets-management.md) | SOPS with Age and GCP Cloud KMS |
+| [004](docs/adr/004-network-access.md) | A mesh for operators, and an inventory of every public entry point |
+| [005](docs/adr/005-mono-repo-structure.md) | One repository for infrastructure, Kubernetes and docs |
+| [006](docs/adr/006-proxmox-vm-provisioning-strategy.md) | VMs from Terraform and a cloud-init template |
+| [007](docs/adr/007-secrets-management.md) | SOPS with age and Cloud KMS |
+| [008](docs/adr/008-operational-toolchain.md) | Taskfile, pre-commit hooks and a pinned toolchain |
 | [009](docs/adr/009-gitops-controller.md) | ArgoCD over Flux |
-| [011](docs/adr/011-terraform-remote-backend.md) | GCS remote state |
-| [013](docs/adr/013-tailnet-microsegmentation.md) | Tailscale Grants instead of flat ACLs |
-| [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | Single environment, namespace isolation, VM rollback |
-| [015](docs/adr/015-ci-validation-pipeline.md) | CI: validation on every push and PR, keyless nightly drift detection |
-| [016](docs/adr/016-kubernetes-storage-strategy.md) | Kubernetes storage strategy: local-path default, Longhorn rejected, NFS for media |
-| [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | Offsite backup & 3-2-1 DR: Backblaze B2 S3 API, write-isolated keys, restic copy |
-| [019](docs/adr/019-centralized-logging-architecture.md) | Centralized logging: Grafana Loki on OCI, Grafana Alloy agent on K3s, Tailscale mesh transit |
-| [020](docs/adr/020-public-observability-data-diode.md) | Public observability: Glance dashboard (<50 MiB RAM) & push-based data diode |
-| [021](docs/adr/021-internal-dns-and-pki.md) | Internal DNS & PKI: 10-year root CA with a stable key; `lab.` subdomain with DNS-01 certificates (Phase 04) |
+| [010](docs/adr/010-orchestration-migration.md) | Moving workloads from Docker Compose to Kubernetes |
+| [011](docs/adr/011-terraform-remote-backend.md) | Remote state in GCS, owned by a separate foundation |
+| [012](docs/adr/012-oci-monorepo-consolidation.md) | Oracle Cloud infrastructure in this repository |
+| [013](docs/adr/013-tailnet-microsegmentation.md) | Role tags, grants and policy tests on the mesh |
+| [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | One environment, isolated by namespace, with VM rollback |
+| [015](docs/adr/015-ci-validation-pipeline.md) | Validation on every push, keyless nightly drift detection |
+| [016](docs/adr/016-kubernetes-storage-strategy.md) | `local-path` by default, NFS for media, Longhorn rejected |
+| [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | 3-2-1 backups with an Object-Locked offsite copy |
+| [019](docs/adr/019-centralized-logging-architecture.md) | Loki on the cloud host, Alloy agents on the cluster |
+| [020](docs/adr/020-public-observability-data-diode.md) | The public status page and its one-way data feed |
+| [021](docs/adr/021-internal-dns-and-pki.md) | Internal names and certificates |
 
-ADR-017 is reserved for the Kestra automation decision (Kestra on Oracle Cloud is the ops orchestrator; n8n stays on OCI for webhook glue and isn't migrated) and isn't written yet.
+**Also in the repository:**
 
-Also in the repo:
-
-- [Runbooks](docs/runbooks/): Proxmox cloud-init, Proxmox ACME TLS, Tailscale key rotation, ArgoCD recovery, GCP drift detector setup.
-- [Disaster recovery](docs/disaster-recovery/): RTO/RPO, break-glass access, five scenarios.
-- [Kubernetes layout](kubernetes/README.md): ArgoCD ownership, sync waves, SOPS rules, adding an app.
-- [Kestra flows](automation/kestra/flows/): Restic, Docker prune, flow sync.
-- [Architecture diagram](docs/diagrams/project-aether-architecture.svg), generated by [`build_architecture.py`](docs/diagrams/build_architecture.py). An older [Excalidraw version](docs/diagrams/project-aether-architecture.excalidraw) is kept for reference.
+- [Incident reviews](docs/incidents/): 13 blameless reviews with timelines, root causes and guardrails.
+- [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
+- [Runbooks](docs/runbooks/): ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
+- [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
+- [Architecture diagram](docs/diagrams/project-aether-architecture.svg), generated by [`build_architecture.py`](docs/diagrams/build_architecture.py).
 
 <details>
 <summary>Repository layout</summary>
@@ -259,39 +219,35 @@ Also in the repo:
 ```text
 Project Aether/
 ├── .github/
-│   ├── workflows/terraform-drift.yml
+│   ├── workflows/               # validate.yml, terraform-drift.yml
 │   └── dependabot.yml
-├── automation/kestra/flows/
-│   ├── ops/oci-docker-prune.yml
-│   ├── ops/restic-nightly.yml
-│   └── system/git-sync-flows.yml
+├── automation/kestra/flows/     # backup, Docker prune, flow sync
 ├── docs/
-│   ├── adr/                     # 001-020
-│   ├── disaster-recovery/       # RTO/RPO and five scenarios
+│   ├── adr/                     # 20 architecture decisions
 │   ├── diagrams/                # banner, architecture SVG and its generator
-│   └── runbooks/                # five operational runbooks
+│   ├── disaster-recovery/       # objectives and five scenarios
+│   ├── incidents/               # 13 incident reviews
+│   └── runbooks/                # six operational runbooks
 ├── infrastructure/
 │   ├── ansible/                 # inventory, playbooks, templates
-│   ├── secrets/                 # SOPS-encrypted variables and policies
-│   └── terraform/
-│       ├── 01-oci-compute/
-│       ├── 02-gcp-dmz/
-│       ├── 03-homelab/
-│       └── 04-backblaze-b2/
+│   ├── docker/gcp-dmz/          # the DMZ stack and the status page
+│   ├── secrets/                 # SOPS-encrypted variables and the mesh policy
+│   └── terraform/               # 01-oci-compute, 02-gcp-dmz, 03-homelab, 04-backblaze-b2
 ├── kubernetes/
-│   ├── bootstrap/argocd/        # Helm values and KSOPS CMP
-│   ├── cluster/                 # root App-of-Apps and child Applications
-│   ├── platform/                # namespaces and smoke test
-│   └── apps/                    # migration target, empty today
-├── scripts/                     # SOPS check and K3s comparison
-├── legacy-docker/               # archived compose files, not running
+│   ├── bootstrap/argocd/        # Helm values and the KSOPS plugin
+│   ├── cluster/                 # root app-of-apps and child Applications
+│   ├── platform/                # ingress, certificates, mesh operator, policies, monitoring
+│   └── apps/                    # application manifests (Phase 04)
+├── legacy-docker/               # the cloud host's compose files, and a retired archive
+├── scripts/                     # CI checks and the restore drill
 ├── Taskfile.yaml
-├── .sops.yaml
-└── .pre-commit-config.yaml
+├── mise.toml                    # pinned tool versions
+├── renovate.json
+└── .sops.yaml
 ```
 
 </details>
 
 <div align="center">
-  <sub>Last updated 2026-10-25 · Built and operated by <a href="https://github.com/ChetanThapliyal">Chetan Thapliyal</a></sub>
+  <sub>Built and operated by <a href="https://github.com/ChetanThapliyal">Chetan Thapliyal</a> · <a href="https://status.chetan-thapliyal.cloud">live status</a></sub>
 </div>
