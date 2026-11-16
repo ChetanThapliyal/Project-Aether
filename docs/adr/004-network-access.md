@@ -58,6 +58,7 @@ The tunnel now publishes a second hostname, `argocd-hook.chetan-thapliyal.cloud`
 This changes one statement in the addendum above: the tunnel now reaches one thing on the tailnet, ArgoCD's webhook endpoint, over a grant that already existed. The limits:
 
 - ArgoCD rejects any payload that isn't signed with the shared secret (HMAC-SHA256). The secret lives in SOPS and is injected at install; it is never in Git in plaintext. An unsigned or wrongly signed request gets 400 (tested 16 Nov).
+- A Cloudflare WAF custom rule blocks the hostname for every source outside GitHub's published webhook ranges (`hooks` in `https://api.github.com/meta`, checked 16 Nov). Other sources get 403 at Cloudflare's edge before reaching the tunnel. Review the ranges when GitHub announces changes; a missing range shows up as failed deliveries in the repository's webhook settings.
 - A valid webhook can only make ArgoCD re-read Git. It can't change what gets deployed: that is still whatever is on `main`.
 - The ArgoCD UI and API stay tailnet-only: `/`, `/applications` and `/api/v1/...` return 404 on the public hostname (tested 16 Nov).
 
