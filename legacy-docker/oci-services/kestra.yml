@@ -1,6 +1,6 @@
 services:
   kestra:
-    image: kestra/kestra:v2.0.9@sha256:9ef0e7750a5b35cbfe84eb650fb45ed0f91e45f824e89515c9e39c2967785bd1
+    image: kestra/kestra:v2.0.10@sha256:494d2e81aacd92c0353098822aa7214833f8b1ed7a8fe6b5a46b79b1caec3ec5
     container_name: kestra
     restart: unless-stopped
     pull_policy: always
@@ -71,7 +71,7 @@ services:
       tsdproxy.proxyprovider: "admin"   # FND-03: tags from the admin provider
 
   kestra-postgres:
-    image: postgres:16@sha256:933463a6c8eba2b9f5cd414138738cd8d5519cd2c471214c222652f547a66a32
+    image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
     container_name: kestra-postgres
     restart: unless-stopped
     environment:

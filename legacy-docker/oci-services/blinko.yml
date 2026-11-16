@@ -19,7 +19,7 @@ services:
       tsdproxy.container_port: "1111"
 
   postgres:
-    image: postgres:14.24@sha256:834a046089d76edd1d2e81c4741f3ad5d1853646ededc86c2708936aad31c1ed
+    image: postgres:14.25@sha256:c0e9c0e9bac7e4c1834b698217a03ee5c708de30d313c84a506972de0e24b059
     container_name: blinko-postgres
     restart: unless-stopped
     env_file:
