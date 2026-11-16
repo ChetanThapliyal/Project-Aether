@@ -8,7 +8,7 @@
 | Duration | 2026-11-16 02:46 to 02:53 UTC (about 6 minutes; no deploys were blocked) |
 | Started | 2026-11-16 02:46 |
 | Detected | 2026-11-16 02:48 |
-| Resolved | 2026-11-16 03:05 |
+| Resolved | 2026-11-16 02:59 |
 | Cause | Change |
 | Status | Fixed and verified |
 
@@ -34,7 +34,7 @@ All times UTC.
 | 02:49 to 02:52 | A hard refresh clears three. The KSOPS sidecar logs `Generating manifests with deadline -7s from now`: requests reach it after their deadline has passed. A KSOPS build run by hand inside the sidecar takes 2 s, so decryption itself isn't slow |
 | 02:52 to 02:53 | The cached failures expire, the two KSOPS apps build, and all 17 apps are Synced and Healthy |
 | 02:58 | Fix pushed: `argocd.argoproj.io/manifest-generate-paths: .` on the 10 repo apps (`a2b3aa5`) |
-| 03:05 | Verified with a docs-only push (this review's commit): no app refresh was requested, and every app stayed Synced and Healthy |
+| 02:59:52 | Verified with a docs-only push (this review's commit, `7639a07`): ArgoCD logged the push event, requested no app refresh, and every app stayed Synced and Healthy |
 
 ## Root cause
 
