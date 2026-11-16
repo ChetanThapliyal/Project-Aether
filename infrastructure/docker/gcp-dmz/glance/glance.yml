@@ -681,6 +681,11 @@ pages:
               </div>
 
               <div class="vitals-card">
+                <div class="section-title">How traffic moves · five flows, one at a time</div>
+                <img class="ae-diagram" src="/assets/aether-traffic.gif" width="1280" height="720" loading="lazy" alt="Animated diagram with three zones: the on-prem home lab, the Oracle Cloud core and the Google Cloud DMZ, joined by a private WireGuard mesh. It plays five flows in turn: a visitor reaching the status page through Cloudflare and an outbound tunnel; the operator working over the mesh; a git push deploying through a signed webhook; metrics, logs and alerts; and backups going offsite with heartbeats.">
+              </div>
+
+              <div class="vitals-card">
                 <div class="section-title">The public paths</div>
                 <div class="ae-path">
                   <div class="ae-hop"><span class="ae-hop-k">Visitor</span><span class="ae-hop-v">browser, HTTPS</span></div>

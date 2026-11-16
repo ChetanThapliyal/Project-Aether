@@ -160,6 +160,7 @@
         - { src: "../../docker/gcp-dmz/glance/assets/user.css", dest: "{{ dmz_dir }}/glance/assets/user.css" }
         - { src: "../../docker/gcp-dmz/glance/assets/favicon.svg", dest: "{{ dmz_dir }}/glance/assets/favicon.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/title.js", dest: "{{ dmz_dir }}/glance/assets/title.js" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-traffic.gif", dest: "{{ dmz_dir }}/glance/assets/aether-traffic.gif" }
       register: glance_files
 
     # ─── Docker Compose File ──────────────────────────────

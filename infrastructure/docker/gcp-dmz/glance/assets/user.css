@@ -714,6 +714,9 @@ code,
   .ae-record { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Traffic diagram (GIF built by docs/git-ignored/misc/aether-packet-flow/aether-traffic.html) */
+.ae-diagram { display: block; width: 100%; height: auto; border-radius: 8px; }
+
 /* ─── Status banner (FND-23) ────────────────────────────────────────────── */
 
 .ae-banner {
