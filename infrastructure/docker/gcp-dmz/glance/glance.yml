@@ -638,6 +638,19 @@ pages:
               </div>
 
           - type: html
+            title: Architecture
+            hide-header: true
+            frameless: true
+            source: |
+              <div class="ae-section-head">Architecture</div>
+              <div class="vitals-card">
+                <div class="section-title">The whole project · dashed boxes are planned</div>
+                <div class="ae-diagram-scroll">
+                  <img class="ae-diagram ae-diagram-wide" src="/assets/aether-architecture.svg" width="1600" height="1040" loading="lazy" alt="Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private mesh, the on-prem Kubernetes home lab, the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned for the next two phases.">
+                </div>
+              </div>
+
+          - type: html
             title: Decisions
             hide-header: true
             frameless: true

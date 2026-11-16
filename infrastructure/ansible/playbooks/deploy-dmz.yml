@@ -161,6 +161,8 @@
         - { src: "../../docker/gcp-dmz/glance/assets/favicon.svg", dest: "{{ dmz_dir }}/glance/assets/favicon.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/title.js", dest: "{{ dmz_dir }}/glance/assets/title.js" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-traffic.gif", dest: "{{ dmz_dir }}/glance/assets/aether-traffic.gif" }
+        # A copy of docs/diagrams/project-aether-architecture.svg: re-copy it after running build_architecture.py
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-architecture.svg", dest: "{{ dmz_dir }}/glance/assets/aether-architecture.svg" }
       register: glance_files
 
     # ─── Docker Compose File ──────────────────────────────
