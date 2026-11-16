@@ -366,42 +366,19 @@ pages:
                 </div>
               </div>
 
-          # FND-22: reliability over time. uptime.json is written on this host
-          # every 15 min from its own Kuma (kuma-uptime.py); track-record.json
-          # at deploy time from the repo. Both read over Glance's own localhost.
+          # FND-22/23: reliability over time. uptime.json is written on this host
+          # every 15 min (kuma-uptime.py: recovery objectives with live backup
+          # ages); track-record.json at deploy time from the repo. Both read over
+          # Glance's own localhost. The public-site availability card was removed
+          # on 16 Nov: those sites are hosted by Cloudflare, so it said little.
           - type: custom-api
-            title: Availability
+            title: Recovery objectives
             frameless: true
             hide-header: true
             url: http://127.0.0.1:8080/assets/uptime.json
             cache: 5m
             template: |
               <div class="ae-section-head">Reliability over time</div>
-              <div class="vitals-card">
-                <div class="ae-backups-head">
-                  <div>
-                    <div class="ae-stat-label">Public sites, last {{ .JSON.Int "days" }} days</div>
-                    {{ if gt (.JSON.Int "slo.days_with_data") 0 }}
-                    <div class="ae-stat-num {{ if .JSON.Bool "slo.met" }}ae-ok{{ else }}ae-bad{{ end }}">{{ .JSON.Float "slo.budget_left_pct" | toInt }}<span>% budget left</span></div>
-                    <div class="ae-stat-sub">error budget for {{ .JSON.String "slo.label" }}, objective {{ .JSON.Float "slo.target" }}% available{{ if lt (.JSON.Int "slo.days_with_data") (.JSON.Int "days") }} · measured over {{ .JSON.Int "slo.days_with_data" }} of {{ .JSON.Int "days" }} days so far{{ end }}</div>
-                    {{ else }}
-                    <div class="ae-stat-sub">Measuring since 15 Nov 2026; the first day appears tomorrow.</div>
-                    {{ end }}
-                  </div>
-                  <span class="vitals-badge">CHECKED FROM GOOGLE CLOUD</span>
-                </div>
-                <ul class="ae-uptime">
-                  {{ range .JSON.Array "sites" }}
-                  <li>
-                    <div class="ae-uptime-head"><span class="ae-status-name">{{ .String "label" }}</span><span class="ae-status-meta">{{ if gt (.Int "days_with_data") 0 }}<b>{{ .Float "uptime_pct" }}%</b> · {{ .Int "down_minutes" }} min down{{ else }}no data yet{{ end }}</span></div>
-                    <div class="ae-bars" role="img" aria-label="{{ .String "label" }}: daily availability, oldest first">
-                      {{ range .Array "bars" }}<span class="ae-day ae-{{ .String "level" }}" title="{{ .String "day" }}{{ if ne (.String "level") "none" }}: {{ .Float "pct" }}%{{ else }}: no data{{ end }}"></span>{{ end }}
-                    </div>
-                  </li>
-                  {{ end }}
-                </ul>
-                <p class="ae-muted">Probed every 2 minutes through the public internet by the observer on Google Cloud. Grey days are before measuring began.</p>
-              </div>
               {{ if gt (len (.JSON.Array "recovery")) 0 }}
               <div class="vitals-card">
                 <div class="ae-backups-head">

@@ -697,13 +697,6 @@ code,
 
 /* ─── Reliability over time (FND-22) ───────────────────────────────────── */
 
-.ae-uptime { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.ae-uptime-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.ae-bars { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 3px; height: 26px; }
-.ae-day { border-radius: 2px; background: var(--ae-stone-700); }
-.ae-day.ae-ok { background: var(--ae-ok); }
-.ae-day.ae-warn { background: var(--ae-warn); }
-.ae-day.ae-bad { background: var(--ae-bad); }
 
 .ae-record { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--widget-gap); }
 .ae-record > .vitals-card { margin-bottom: 0; }

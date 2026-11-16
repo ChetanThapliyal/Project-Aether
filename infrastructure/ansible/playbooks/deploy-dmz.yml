@@ -420,7 +420,7 @@
           content: |
             # Managed by Ansible (deploy-dmz.yml, FND-22)
             [Unit]
-            Description=Public site availability from Uptime Kuma for Glance (FND-22)
+            Description=Recovery objectives with live backup ages for Glance (FND-23)
 
             [Service]
             Type=oneshot
@@ -430,7 +430,7 @@
           content: |
             # Managed by Ansible (deploy-dmz.yml, FND-22)
             [Unit]
-            Description=Refresh public site availability every 15 minutes (FND-22)
+            Description=Refresh the recovery objectives every 15 minutes (FND-23)
 
             [Timer]
             OnBootSec=2min
@@ -567,7 +567,8 @@
         --public-monitors {{ public_monitors | to_json | quote }}
         --site-monitors {{ site_monitors | to_json | quote }}
       vars:
-        # FND-22: these names are matched by kuma-uptime.py; rename both together.
+        # FND-22: alerting on the public sites (Telegram). The page's availability card
+        # built from them was removed on 16 Nov; the monitors stay.
         site_monitors:
           - ["Public site — Portfolio", "https://chetan-thapliyal.cloud/"]
           - ["Public site — Lexicon", "https://base.chetan-thapliyal.cloud/"]
