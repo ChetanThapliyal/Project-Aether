@@ -3,6 +3,7 @@ creation_rules:
   - path_regex: kubernetes/secrets/.*\.ya?ml$
     gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
     age: "age19juxqkka8l38vgnjuwtn20cmmsffeqftcraj0a88720c3fzw7f0qxcvx89"
+    encrypted_regex: '^(data|stringData)$'   # GOP-01: Kubernetes Secrets need plaintext apiVersion/kind/metadata (Phase 02 Bug C)
 
   - path_regex: (infrastructure/secrets/|infrastructure/ansible/group_vars/).*\.ya?ml$
     gcp_kms: projects/gcs-oci-homelab-controlplane/locations/global/keyRings/sops/cryptoKeys/sops-key
