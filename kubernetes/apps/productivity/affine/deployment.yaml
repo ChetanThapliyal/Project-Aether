@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: affine
 spec:
-  replicas: 0   # M1 cutover: 0 until the OCI data is restored, then 1
+  replicas: 1
   selector:
     matchLabels: { app.kubernetes.io/name: affine }
   strategy: { type: Recreate }   # one writer to the schema migrations
