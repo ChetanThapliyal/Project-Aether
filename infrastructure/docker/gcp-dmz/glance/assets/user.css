@@ -714,7 +714,7 @@ code,
   .ae-record { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Traffic diagram (GIF built by docs/git-ignored/misc/aether-packet-flow/aether-traffic.html) */
+/* Traffic diagram (GIF rendered from a private HTML source) */
 .ae-diagram { display: block; width: 100%; height: auto; border-radius: 8px; }
 /* The architecture diagram is dense: on narrow screens it keeps a readable width and scrolls sideways inside its card. */
 .ae-diagram-scroll { overflow-x: auto; }

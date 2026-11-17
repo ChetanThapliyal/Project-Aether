@@ -4,8 +4,6 @@ This directory is the declarative source of truth for everything running on my P
 
 Managed by ArgoCD (App-of-Apps). See [ADR-005 (Monorepo Structure)](../docs/adr/005-mono-repo-structure.md) and [ADR-009 (GitOps Controller)](../docs/adr/009-gitops-controller.md).
 
-Reference: [Phase 02 Foundation Deep-Dive](../docs/git-ignored/notes/architecture/phase-02-foundation.md) · [Phase 02 Chores](../docs/git-ignored/misc/phase-02-chores.md)
-
 ---
 
 ## The one rule that matters
@@ -135,7 +133,5 @@ pre-commit run --all-files
 
 ## Related documentation
 
-- [Phase 02 — GitOps Foundation Deep-Dive](../docs/git-ignored/notes/architecture/phase-02-foundation.md) — how and why all of this works
-- [Phase 02 Chores & Implementation Guide](../docs/git-ignored/misc/phase-02-chores.md) — the task-by-task execution log
 - [ArgoCD Disaster Recovery Runbook](../docs/runbooks/argocd-recovery.md) — 3-level recovery procedure
 - [ADR-005 — Monorepo Structure](../docs/adr/005-mono-repo-structure.md) · [ADR-007 — Secrets Management](../docs/adr/007-secrets-management.md) · [ADR-009 — GitOps Controller](../docs/adr/009-gitops-controller.md)
