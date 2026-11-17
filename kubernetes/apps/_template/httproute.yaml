@@ -1,0 +1,14 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: myapp
+spec:
+  parentRefs:
+    - name: aether-gateway
+      namespace: gateway-system
+      sectionName: https   # HTTP is redirected for every lab name (gateway/http-redirect.yaml)
+  hostnames:
+    - myapp.lab.chetan-thapliyal.cloud
+  rules:
+    - backendRefs:
+        - { name: myapp, port: 80 }

@@ -27,6 +27,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: redis }
     spec:
+      priorityClassName: platform   # 4.19: every app depends on it
       nodeSelector: { kubernetes.io/hostname: k3s-worker-01 }
       securityContext:
         runAsNonRoot: true

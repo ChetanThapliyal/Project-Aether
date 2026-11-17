@@ -1,0 +1,65 @@
+# Phase 04 task 4.19: egress from the apps namespace is opt-in by pod label.
+# Default-deny (default-deny.yaml) and DNS (allow-dns-egress.yaml) already apply;
+# an app adds only what it needs to its pod template:
+#   aether.dev/postgres: "true"   → shared PostgreSQL (databases namespace, 5432)
+#   aether.dev/redis: "true"      → shared Redis (6379)
+#   aether.dev/internet: "true"   → public internet on 80/443 only; never the LAN,
+#                                   the tailnet or the cluster
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-postgres
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels: { aether.dev/postgres: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: databases }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: postgres }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-redis
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels: { aether.dev/redis: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: databases }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: redis }
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-internet
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels: { aether.dev/internet: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8        # pods, services
+              - 172.16.0.0/12
+              - 192.168.0.0/16    # home LAN
+              - 100.64.0.0/10     # tailnet
+              - 169.254.0.0/16    # link-local
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 80 }

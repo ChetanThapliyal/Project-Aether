@@ -1,0 +1,14 @@
+# Template for a new app (Phase 04 task 4.19). Copy this folder to
+# kubernetes/apps/<group>/<app>/, replace myapp everywhere, then follow README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../_components/app-defaults   # from <group>/<app>/ this becomes ../../_components/app-defaults
+labels:
+  - pairs: { app.kubernetes.io/name: myapp }
+    includeSelectors: true
+resources:
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml

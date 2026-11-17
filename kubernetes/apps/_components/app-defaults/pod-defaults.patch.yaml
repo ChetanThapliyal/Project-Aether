@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: any   # ignored: the target in kustomization.yaml selects every Deployment
+spec:
+  revisionHistoryLimit: 3
+  template:
+    spec:
+      priorityClassName: apps
+      automountServiceAccountToken: false   # apps don't talk to the Kubernetes API
+      enableServiceLinks: false             # no FOO_SERVICE_HOST env clutter or name clashes
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100   # worker-01 runs the data plane and the databases; worker-02 the controllers
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [k3s-worker-01] }

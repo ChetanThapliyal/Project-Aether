@@ -40,7 +40,7 @@ repos:
         entry: kubeconform
         language: system
         files: '^kubernetes/.*\.ya?ml$'
-        exclude: 'values\.yaml|kustomization\.yaml|\.sops\.ya?ml$'
+        exclude: 'values\.yaml|kustomization\.yaml|\.sops\.ya?ml$|\.patch\.ya?ml$'   # patches are partial manifests by design
         args:
           - -summary
           - -ignore-missing-schemas

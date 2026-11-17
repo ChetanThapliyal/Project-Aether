@@ -1,0 +1,15 @@
+# Phase 04 task 4.19: pod defaults every app shares. Include it from an app's
+# kustomization.yaml:   components: [../../_components/app-defaults]
+# It deliberately does NOT set runAsNonRoot or container security contexts: a patch
+# can't be "a default only when unset", so it would override an app that genuinely
+# needs root. Each app sets those itself; _template starts from the strict version.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: aether-apps
+patches:
+  - target: { kind: Deployment }
+    path: pod-defaults.patch.yaml
+  - target: { kind: StatefulSet }
+    path: pod-defaults-sts.patch.yaml

@@ -27,6 +27,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: postgres }
     spec:
+      priorityClassName: platform   # 4.19: every app depends on it
       nodeSelector: { kubernetes.io/hostname: k3s-worker-01 }
       terminationGracePeriodSeconds: 60   # time for a clean shutdown checkpoint
       securityContext:

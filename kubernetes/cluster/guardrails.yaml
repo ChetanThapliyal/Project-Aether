@@ -1,0 +1,22 @@
+# Phase 04 task 4.19: priority classes and the apps namespace's limits.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guardrails
+  namespace: argocd
+  annotations:
+    # GOP-06: a GitHub webhook refreshes only apps whose source path changed (INC-2026-013)
+    argocd.argoproj.io/manifest-generate-paths: .
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
+    targetRevision: main
+    path: kubernetes/platform/guardrails
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
