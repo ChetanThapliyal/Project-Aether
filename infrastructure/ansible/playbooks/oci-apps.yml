@@ -322,12 +322,13 @@
         group: "{{ app_user }}"
       tags: [blinko, apps]
 
-    - name: Start blinko
+    # M2 (17 Nov 2026): Blinko moved to the cluster (blinko.lab), data restored with
+    # identical row counts. App and database kept stopped and intact for 7 days, then
+    # this block, the compose file and the directory go after a final backup (4.23).
+    - name: Keep blinko stopped (moved to the cluster)
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/blinko"
-        state: present
-        recreate: auto
-        pull: missing   # images are pinned by digest (FND-09)
+        state: stopped
       tags: [blinko, apps]
 
     # ─── CouchDB (Obsidian LiveSync) ────────────────────────
