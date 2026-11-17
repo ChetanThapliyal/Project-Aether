@@ -1,0 +1,15 @@
+# M6 IT-Tools (Phase 04): the first app on the cluster, built from apps/_template.
+# Stateless static site: no database, no files, no egress.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../../_components/app-defaults
+labels:
+  - pairs: { app.kubernetes.io/name: it-tools }
+    includeSelectors: true
+resources:
+  - nginx-config.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml

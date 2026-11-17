@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: it-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: it-tools }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: it-tools
+        # Every tool runs in the browser; the server only serves files. No egress.
+        aether.dev/postgres: "false"
+        aether.dev/redis: "false"
+        aether.dev/internet: "false"
+      annotations:
+        # Restart when the nginx config changes (bump by hand with the ConfigMap).
+        aether.dev/config-rev: "1"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101   # the image's nginx user
+        runAsGroup: 101
+      containers:
+        - name: it-tools
+          image: corentinth/it-tools:2024.10.22-7ca5933@sha256:8b8128748339583ca951af03dfe02a9a4d7363f61a216226fc28030731a5a61f
+          # Skip the image's entrypoint scripts: they try to rewrite /etc/nginx.
+          command: ["nginx", "-c", "/etc/nginx-aether/nginx.conf", "-g", "daemon off;"]
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:   # measured on OCI: about 9 MiB
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: config, mountPath: /etc/nginx-aether, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap: { name: it-tools-nginx }
+        - { name: tmp, emptyDir: { sizeLimit: 16Mi } }

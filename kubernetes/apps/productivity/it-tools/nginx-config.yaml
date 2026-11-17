@@ -1,0 +1,37 @@
+# The image is stock nginx (root, port 80, writes pid and temp files under /var).
+# This config lets it run as the image's nginx user (101) with a read-only root
+# filesystem: port 8080, everything writable in /tmp, logs to stdout and stderr.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: it-tools-nginx
+data:
+  nginx.conf: |
+    worker_processes 1;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events { worker_connections 256; }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      access_log /dev/stdout;
+      client_body_temp_path /tmp/client_body;
+      proxy_temp_path /tmp/proxy;
+      fastcgi_temp_path /tmp/fastcgi;
+      uwsgi_temp_path /tmp/uwsgi;
+      scgi_temp_path /tmp/scgi;
+      sendfile on;
+      server_tokens off;
+      gzip on;
+      gzip_types text/css application/javascript application/json image/svg+xml;
+      server {
+        listen 8080;
+        root /usr/share/nginx/html;
+        index index.html;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+        add_header X-Frame-Options DENY always;
+        location = /healthz { access_log off; return 200 "ok\n"; }
+        location / { try_files $uri $uri/ /index.html; }
+      }
+    }
