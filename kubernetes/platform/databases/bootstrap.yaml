@@ -52,7 +52,11 @@ metadata:
   name: db-bootstrap
   namespace: databases
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    # Sync hook in wave 1: after PostgreSQL (wave 0) is healthy and before anything
+    # that logs in (exporters, wave 2). A PostSync hook would deadlock: it waits for
+    # everything to be healthy, and the exporter can't be without its role (4.20).
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 3
