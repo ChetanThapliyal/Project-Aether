@@ -41,7 +41,7 @@ data:
     rm -rf "$out"; mv "$tmp" "$out"
     # keep seven nights; ZFS snapshots and the offsite copies reach further back
     ls -1d /dumps/20??-??-?? | sort | head -n -7 | xargs -r rm -rf
-    printf '%s %s databases=%s size=%s\n' "$(date -u +%FT%TZ)" "$day" "$total" "$(du -sh "$out" | cut -f1)" > /dumps/LAST_SUCCESS.tmp
+    printf '%s %s databases=%s size=%s\n' "$(date -u +%FT%TZ)" "$day" "$total" "$(du -sh --apparent-size "$out" | cut -f1)" > /dumps/LAST_SUCCESS.tmp
     mv /dumps/LAST_SUCCESS.tmp /dumps/LAST_SUCCESS
     cat /dumps/LAST_SUCCESS
 ---
