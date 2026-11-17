@@ -1,0 +1,17 @@
+# M2 Blinko (Phase 04): notes, moved from OCI. PostgreSQL on the shared server
+# (database and role "blinko", created by databases/bootstrap.yaml), files on nfs-zfs.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../../_components/app-defaults
+labels:
+  - pairs: { app.kubernetes.io/name: blinko }
+    includeSelectors: true
+generators:
+  - ksops-blinko.yaml
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml

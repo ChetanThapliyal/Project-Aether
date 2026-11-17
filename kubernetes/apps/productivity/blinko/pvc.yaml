@@ -1,0 +1,10 @@
+# /app/.blinko: uploads, recordings, plugins, local vector index. Small (96 KB on OCI).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: blinko-data
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-zfs
+  resources:
+    requests: { storage: 2Gi }
