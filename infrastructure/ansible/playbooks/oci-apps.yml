@@ -452,11 +452,13 @@
         group: "{{ app_user }}"
       tags: [affine, apps]
 
-    - name: Start affine
+    # M1 (17 Nov 2026): AFFiNE moved to the cluster (affine.lab), data restored with
+    # identical row counts. Kept stopped and intact for 7 days, then this block, the
+    # compose file and the directory go after a final backup (4.23).
+    - name: Keep affine stopped (moved to the cluster)
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/affine"
-        state: present
-        pull: missing   # images are pinned by digest (FND-09)
+        state: stopped
       tags: [affine, apps]
 
     # ─── Anytype (Notes, self-hosted sync network) ──────

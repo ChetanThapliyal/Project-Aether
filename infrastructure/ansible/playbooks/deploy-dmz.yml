@@ -583,6 +583,7 @@
           - ["Cluster — app gateway", "https://ping.lab.chetan-thapliyal.cloud/"]
           - ["Cluster — IT-Tools", "https://it-tools.lab.chetan-thapliyal.cloud/healthz"]
           - ["Cluster — Blinko", "https://blinko.lab.chetan-thapliyal.cloud/signin"]
+          - ["Cluster — AFFiNE", "https://affine.lab.chetan-thapliyal.cloud/info"]
         public_monitors:
           - "OCI Nightly Restic Backup"
           - "Watchdog — OCI Alertmanager"
