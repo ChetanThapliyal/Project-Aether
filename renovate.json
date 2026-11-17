@@ -1,19 +1,37 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Image updates for the OCI compose files. Dependabot can't see them (it only recognises compose files by name, and these are named per app), so Renovate covers this directory only. Dependabot keeps the DMZ compose file and GitHub Actions. Deploys stay manual: after a merge, run task ansible:oci:apps or task ansible:oci:monitoring. BookOrbit's image is set in SOPS (oci_bookorbit_app_image) and isn't tracked here.",
+  "description": "Image and chart updates. OCI compose files: Dependabot can't see them (it only recognises compose files by name, and these are named per app); deploys stay manual after a merge (task ansible:oci:apps or task ansible:oci:monitoring); BookOrbit's image is set in SOPS (oci_bookorbit_app_image) and isn't tracked here. Cluster: image tags in kubernetes/apps and kubernetes/platform manifests, Helm chart versions in the ArgoCD Applications under kubernetes/cluster; ArgoCD deploys on merge. Dependabot keeps the DMZ compose file and GitHub Actions. kubernetes/bootstrap is applied by hand and isn't tracked.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard"
   ],
   "enabledManagers": [
-    "docker-compose"
+    "docker-compose",
+    "kubernetes",
+    "argocd"
   ],
   "includePaths": [
-    "legacy-docker/oci-services/**"
+    "legacy-docker/oci-services/**",
+    "kubernetes/apps/**",
+    "kubernetes/platform/**",
+    "kubernetes/cluster/**"
+  ],
+  "ignorePaths": [
+    "kubernetes/apps/_template/**"
   ],
   "docker-compose": {
     "managerFilePatterns": [
       "/^legacy-docker/oci-services/[^/]+\\.ya?ml$/"
+    ]
+  },
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/^kubernetes/(apps|platform)/.+\\.ya?ml$/"
+    ]
+  },
+  "argocd": {
+    "managerFilePatterns": [
+      "/^kubernetes/cluster/[^/]+\\.ya?ml$/"
     ]
   },
   "timezone": "Asia/Kolkata",
@@ -22,13 +40,40 @@
   ],
   "prConcurrentLimit": 5,
   "labels": [
-    "dependencies",
-    "oci"
+    "dependencies"
   ],
   "pinDigests": true,
   "packageRules": [
     {
-      "description": "Patch and digest-only updates: one grouped weekly PR",
+      "description": "Cloud host (OCI) compose files",
+      "matchFileNames": [
+        "legacy-docker/oci-services/**"
+      ],
+      "addLabels": [
+        "oci"
+      ]
+    },
+    {
+      "description": "Cluster manifests and charts",
+      "matchFileNames": [
+        "kubernetes/**"
+      ],
+      "addLabels": [
+        "cluster"
+      ]
+    },
+    {
+      "description": "Kubernetes apiVersion suggestions are noise here; API moves are done by hand with the K3s upgrade",
+      "matchDatasources": [
+        "kubernetes-api"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "OCI patch and digest-only updates: one grouped weekly PR",
+      "matchFileNames": [
+        "legacy-docker/oci-services/**"
+      ],
       "matchUpdateTypes": [
         "patch",
         "digest",
@@ -38,7 +83,20 @@
       "groupName": "OCI patch and digest updates"
     },
     {
-      "description": "Major updates wait for approval in the Dependency Dashboard issue (n8n 3, Postgres majors need migrations)",
+      "description": "Cluster patch and digest-only updates: one grouped weekly PR (ArgoCD deploys it on merge)",
+      "matchFileNames": [
+        "kubernetes/**"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "Cluster patch and digest updates"
+    },
+    {
+      "description": "Major updates wait for approval in the Dependency Dashboard issue (n8n 3, Postgres majors need migrations, chart majors change CRDs)",
       "matchUpdateTypes": [
         "major"
       ],
