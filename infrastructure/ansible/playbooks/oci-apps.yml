@@ -181,10 +181,12 @@
         group: "{{ app_user }}"
       tags: [it-tools, apps]
 
-    - name: Start it-tools
+    # M6 (17 Nov 2026): IT-Tools moved to the cluster (it-tools.lab). Kept stopped
+    # for 7 days, then this block, the compose file and the directory go (4.23).
+    - name: Keep it-tools stopped (moved to the cluster)
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/it-tools"
-        state: present
+        state: stopped
         pull: missing   # images are pinned by digest (FND-09)
       tags: [it-tools, apps]
 
