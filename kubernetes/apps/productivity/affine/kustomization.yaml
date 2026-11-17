@@ -1,0 +1,19 @@
+# M1 AFFiNE (Phase 04): knowledge base, moved from OCI. PostgreSQL with pgvector and
+# pgcrypto on the shared server (role and database "affine"), the shared Redis,
+# blobs on nfs-zfs. The signing key moved with it (SOPS), so existing links and
+# tokens stay valid.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../../_components/app-defaults
+labels:
+  - pairs: { app.kubernetes.io/name: affine }
+    includeSelectors: true
+generators:
+  - ksops-affine.yaml
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml

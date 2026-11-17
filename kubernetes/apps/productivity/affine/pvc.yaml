@@ -1,0 +1,10 @@
+# ~/.affine/storage: workspace blobs (images, attachments). 3.6 MB on OCI.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: affine-storage
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-zfs
+  resources:
+    requests: { storage: 5Gi }
