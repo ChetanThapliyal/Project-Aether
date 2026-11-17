@@ -1,0 +1,23 @@
+# Phase 04 task 4.18: shared PostgreSQL 16 (pgvector) and Redis for the cluster apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: databases
+  namespace: argocd
+  annotations:
+    # GOP-06: a GitHub webhook refreshes only apps whose source path changed (INC-2026-013)
+    argocd.argoproj.io/manifest-generate-paths: .
+    argocd.argoproj.io/sync-wave: "2"   # after the network policies (wave 1)
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
+    targetRevision: main
+    path: kubernetes/platform/databases
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: databases
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

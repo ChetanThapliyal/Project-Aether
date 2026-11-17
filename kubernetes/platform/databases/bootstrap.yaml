@@ -1,0 +1,85 @@
+# Phase 04 task 4.18: make sure every app has its login role, its database and its
+# extensions. Runs after every sync and is idempotent; adding an app means adding
+# its password to app-db-passwords (SOPS) and, if needed, a line in db-extensions.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-extensions
+  namespace: databases
+data:
+  # <app>: space-separated extensions, created by the admin role in that app's database
+  affine: "vector pgcrypto"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-bootstrap-script
+  namespace: databases
+data:
+  ensure.sh: |
+    #!/bin/sh
+    set -eu
+    until pg_isready -q; do sleep 2; done
+    for f in /secrets/apps/*; do
+      app=$(basename "$f")
+      case "$app" in *[!a-z0-9_]*) echo "skip invalid name $app"; continue;; esac
+      psql -q -v ON_ERROR_STOP=1 -v app="$app" -v pw="$(cat "$f")" <<'SQL'
+    SELECT format('CREATE ROLE %I LOGIN', :'app') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app') \gexec
+    SELECT format('ALTER ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L', :'app', :'pw') \gexec
+    SELECT format('CREATE DATABASE %I OWNER %I', :'app', :'app') WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'app') \gexec
+    SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', :'app') \gexec
+    SQL
+      if [ -f "/config/extensions/$app" ]; then
+        for ext in $(cat "/config/extensions/$app"); do
+          psql -q -v ON_ERROR_STOP=1 -d "$app" -c "CREATE EXTENSION IF NOT EXISTS \"$ext\""
+        done
+      fi
+      echo "ok: $app"
+    done
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-bootstrap
+  namespace: databases
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: db-bootstrap }
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: ensure
+          image: pgvector/pgvector:0.8.7-pg16-trixie@sha256:c28c0b700f3f1b5eec14082b31ad6e7c8a566d14386323609c615315e7c0ffc8
+          command: [sh, /scripts/ensure.sh]
+          env:
+            - { name: PGHOST, value: postgres.databases.svc.cluster.local }
+            - { name: PGUSER, value: postgres }
+            - { name: PGDATABASE, value: postgres }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-admin, key: password } }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: script, mountPath: /scripts }
+            - { name: apps, mountPath: /secrets/apps, readOnly: true }
+            - { name: extensions, mountPath: /config/extensions }
+      volumes:
+        - { name: script, configMap: { name: db-bootstrap-script } }
+        - { name: apps, secret: { secretName: app-db-passwords } }
+        - { name: extensions, configMap: { name: db-extensions } }

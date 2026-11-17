@@ -1,0 +1,65 @@
+# Phase 04 task 4.18: one shared Redis for queues and caches (Paperless broker,
+# AFFiNE). No persistence: nothing in it is the only copy of anything. Apps share
+# it by database number: 0 paperless, 1 affine (record new ones here).
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: databases
+  labels: { app.kubernetes.io/name: redis }
+spec:
+  selector: { app.kubernetes.io/name: redis }
+  ports:
+    - { name: redis, port: 6379, targetPort: 6379 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: databases
+  labels: { app.kubernetes.io/name: redis }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: redis }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: redis }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3s-worker-01 }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: redis
+          image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+          command: [sh, -c]
+          args:
+            # noeviction: queues must not silently lose jobs; the limit is a backstop
+            - exec redis-server --save "" --appendonly no --maxmemory 96mb --maxmemory-policy noeviction --requirepass "$REDIS_PASSWORD"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: redis, key: password } }
+          ports:
+            - { name: redis, containerPort: 6379 }
+          readinessProbe:
+            exec: { command: [sh, -c, 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping | grep -q PONG'] }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 6379 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { cpu: 250m, memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - { name: data, emptyDir: { sizeLimit: 64Mi } }
