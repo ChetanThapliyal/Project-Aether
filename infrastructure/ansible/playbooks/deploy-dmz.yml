@@ -581,6 +581,7 @@
           # 4.20: the cluster's app gateway over the tailnet (Envoy answers ping.lab itself:
           # DNS, tailnet path, certificate and gateway in one check). Apps get their own rows.
           - ["Cluster — app gateway", "https://ping.lab.chetan-thapliyal.cloud/"]
+          - ["Cluster — IT-Tools", "https://it-tools.lab.chetan-thapliyal.cloud/healthz"]
         public_monitors:
           - "OCI Nightly Restic Backup"
           - "Watchdog — OCI Alertmanager"
