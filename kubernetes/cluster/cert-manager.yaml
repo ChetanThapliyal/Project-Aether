@@ -17,6 +17,11 @@ spec:
       valuesObject:
         crds:
           enabled: true
+        # 4.16: check DNS-01 records against public resolvers, not the LAN/cluster
+        # forwarders, so a local override for lab. can never stall issuance
+        extraArgs:
+          - --dns01-recursive-nameservers-only
+          - --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53
         nodeSelector:
           kubernetes.io/hostname: k3s-worker-02
         resources:

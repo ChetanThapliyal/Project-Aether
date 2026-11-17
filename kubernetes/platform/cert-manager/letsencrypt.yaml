@@ -1,0 +1,58 @@
+# Phase 04 task 4.16 (ADR-021 decision 3): publicly trusted certificates for
+# *.lab.chetan-thapliyal.cloud through ACME DNS-01 against Cloudflare. DNS-01 needs
+# no inbound access, so nothing internal is exposed to validate a name.
+# No account email: Let's Encrypt stopped sending expiry mail in 2025, and expiry
+# is watched by Prometheus (certmanager_certificate_expiration_timestamp_seconds).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging   # for debugging issuance without touching production rate limits
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging-account
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones: ["chetan-thapliyal.cloud"]
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones: ["chetan-thapliyal.cloud"]
+---
+# One wildcard keeps individual app names out of Certificate Transparency logs.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lab-wildcard
+  namespace: gateway-system
+spec:
+  secretName: lab-wildcard-tls
+  dnsNames:
+    - "*.lab.chetan-thapliyal.cloud"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
