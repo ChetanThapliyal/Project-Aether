@@ -3,7 +3,7 @@
 ADR-021: Internal Service Naming and Certificate Strategy
 ================================================================================
 ```
-- **Status:** Accepted (root CA lifetime fixed November 2026; naming implemented in Phase 04)
+- **Status:** Accepted (root CA lifetime fixed November 2026; naming and certificates implemented 17 Nov 2026, Phase 04 task 4.16, see the addendum)
 - **Date:** November 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** The K3s Gateway serves HTTPS with a wildcard certificate for `*.aether.local`, signed by an internal root CA (`aether-root-ca`) that cert-manager created with its defaults: a 90-day lifetime, and since cert-manager v1.18 a private-key rotation policy of `Always`. On its first renewal (25 Dec 2026) the root would have been reissued with a new key, invalidating every client that trusted the old one. No client trusts it yet, and no HTTPRoute serves real traffic, so both the CA lifetime and the naming scheme can still be changed for free.
@@ -31,3 +31,13 @@ ADR-021: Internal Service Naming and Certificate Strategy
   - `aether-root-ca`'s key hash is the same before and after every renewal.
   - The Gateway's HTTPS listener reports `Programmed=True`.
   - In Phase 04, `curl https://<service>.lab.chetan-thapliyal.cloud` from a fresh device, with no root installed, succeeds without `-k`.
+
+### Addendum: Names Resolve to the Gateway's Tailnet Address (2026-11-17, Phase 04 task 4.16)
+Decision 2 said the `lab.` names would resolve only on internal DNS, to the Gateway's LAN address. As built, they resolve publicly, to the Gateway's tailnet address. The rule changes from "no public records" to "no public records that point at anything reachable from the internet".
+
+- **Tailnet entry.** The Tailscale operator publishes the Envoy data plane as one tailnet node, `lab-gateway` (role `tag:k8s`), through a `LoadBalancer` Service of class `tailscale`. The proxy pod runs on worker-01 next to Envoy, so losing the controller node does not cut access to apps. It forwards TCP only; Envoy terminates TLS. Operator devices reach it through the existing grant `autogroup:member → tag:k8s:443`, the DMZ through `tag:gcp-dmz → tag:k8s:443`. No policy change was needed, and no subnet route is involved.
+- **DNS.** One Cloudflare record, `*.lab` A, DNS only (not proxied), points at that node's tailnet address (a CGNAT `100.64.0.0/10` address). Anyone can resolve it; only tailnet members can connect to it. It works on every operator device without split DNS or a resolver to run. At home the LAN address still works for anyone who pins it.
+- **Certificates.** `ClusterIssuer` `letsencrypt-prod` (and `letsencrypt-staging` for debugging) solve ACME DNS-01 through Cloudflare with a token limited to DNS edit and zone read on this one zone, stored with SOPS and delivered by KSOPS. cert-manager checks the challenge record against public resolvers only (`--dns01-recursive-nameservers-only`), so a local DNS override can never stall issuance. The Gateway's HTTPS listener now serves only `*.lab.chetan-thapliyal.cloud` with an ECDSA wildcard; the `*.aether.local` leaf is retired. The internal CA stays (decision 4).
+- **Probe.** `ping.lab.chetan-thapliyal.cloud` is answered by Envoy itself (a direct-response filter, no backend pod). One request tests DNS, the tailnet path, the certificate and the Gateway, so it is the target for the outside check in task 4.20.
+- **Risk accepted.** If the proxy's state Secret is lost, the node rejoins with a new tailnet address and the record must be updated by hand. Recovery: read the new address from `kubectl -n gateway-system get svc aether-gateway-tailnet` and edit the record.
+- **Fitness function, met 17 Nov 2026.** `curl https://ping.lab.chetan-thapliyal.cloud` succeeds without `-k` over the tailnet, from a device with no private root installed.
