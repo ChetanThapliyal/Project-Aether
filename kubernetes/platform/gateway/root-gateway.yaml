@@ -27,11 +27,12 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
+      hostname: "*.lab.chetan-thapliyal.cloud"   # 4.16 / ADR-021: replaces *.aether.local
       tls:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: aether-wildcard-cert
+            name: lab-wildcard-tls   # Let's Encrypt via DNS-01 (cert-manager/letsencrypt.yaml)
       allowedRoutes:
         namespaces:
           from: All

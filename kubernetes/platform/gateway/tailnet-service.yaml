@@ -1,0 +1,29 @@
+# 4.16 (ADR-021 addendum): publish the Envoy data plane on the tailnet as one node,
+# "lab-gateway" (tag:k8s), so apps work away from home without a subnet route.
+# *.lab.chetan-thapliyal.cloud has a public A record pointing at this node's 100.x
+# address (P4-D6): resolvable by anyone, reachable only from the tailnet.
+# TLS is not terminated here; the proxy forwards TCP and Envoy serves the certificate.
+# If this proxy's state Secret is lost the tailnet address changes: update the DNS record.
+apiVersion: v1
+kind: Service
+metadata:
+  name: aether-gateway-tailnet
+  namespace: gateway-system
+  annotations:
+    tailscale.com/hostname: lab-gateway
+    tailscale.com/proxy-class: data-plane-proxies
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app.kubernetes.io/component: proxy
+    app.kubernetes.io/name: envoy
+    gateway.envoyproxy.io/owning-gateway-name: aether-gateway
+    gateway.envoyproxy.io/owning-gateway-namespace: gateway-system
+  ports:
+    - name: https
+      port: 443
+      targetPort: 10443
+    - name: http
+      port: 80
+      targetPort: 10080

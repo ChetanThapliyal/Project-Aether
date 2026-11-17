@@ -33,20 +33,5 @@ metadata:
 spec:
   ca:
     secretName: aether-root-ca-secret
----
-# Consumed by the Gateway's HTTPS listener (PLAT-04). Without this Certificate
-# the listener stays ResolvedRefs=False forever.
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: aether-wildcard-cert
-  namespace: gateway-system
-spec:
-  secretName: aether-wildcard-cert
-  dnsNames:
-    - "*.aether.local"   # replace with your internal DNS domain
-    - "aether.local"
-  issuerRef:
-    name: aether-ca-issuer
-    kind: ClusterIssuer
-    group: cert-manager.io
+# The internal CA stays for non-HTTP uses (ADR-021 decision 4). The Gateway's
+# HTTPS certificate now comes from Let's Encrypt: see letsencrypt.yaml (4.16).

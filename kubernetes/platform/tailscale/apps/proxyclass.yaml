@@ -15,3 +15,23 @@ spec:
           limits:
             cpu: 100m
             memory: 64Mi
+---
+# 4.16: the gateway's tailnet proxy sits on worker-01 next to Envoy, so app traffic
+# stays on one node and losing worker-02 (controllers) does not cut access to apps.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: data-plane-proxies
+spec:
+  statefulSet:
+    pod:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker-01
+      tailscaleContainer:
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m      # carries all app traffic, unlike the admin-only proxies
+            memory: 96Mi
