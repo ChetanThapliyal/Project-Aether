@@ -1,0 +1,143 @@
+---
+# =============================================================================
+# Phase 04 task 4.17 — NFS storage for app files (ADR-016 addendum)
+# =============================================================================
+# ZFS dataset aether-pool/k8s-apps on the Proxmox host, exported over NFSv4 to
+# the three K3s nodes only, with sanoid snapshots (hourly x48, daily x14).
+# Databases stay on local-path (node-local, fast); app files (documents,
+# archives, blobs, render output) live here so they survive a worker loss.
+# The cluster side is csi-driver-nfs with StorageClass nfs-zfs
+# (kubernetes/cluster/csi-driver-nfs.yaml, kubernetes/platform/storage/).
+#
+# Run: ansible-playbook -i inventory/hosts.yml playbooks/proxmox-nfs.yml
+# =============================================================================
+
+- name: Proxmox NFS export for Kubernetes app files
+  hosts: proxmox
+  become: true
+  vars:
+    k8s_apps_dataset: aether-pool/k8s-apps
+    k8s_apps_path: /mnt/aether-pool/k8s-apps
+    k8s_apps_quota: 200G          # leaves room on the pool for the etcd backup chain
+    k8s_nfs_clients: "{{ groups['k3s_cluster'] | map('extract', hostvars, 'ansible_host') | list }}"
+
+  tasks:
+    - name: Install the NFS server and sanoid
+      ansible.builtin.apt:
+        name: [nfs-kernel-server, sanoid]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Create the app-files dataset
+      community.general.zfs:
+        name: "{{ k8s_apps_dataset }}"
+        state: present
+        extra_zfs_properties:
+          mountpoint: "{{ k8s_apps_path }}"
+          compression: lz4
+          atime: "off"
+          xattr: sa
+          quota: "{{ k8s_apps_quota }}"
+
+    - name: Serve NFSv4 only (one TCP port, no rpcbind dependency for clients)
+      community.general.ini_file:
+        path: /etc/nfs.conf
+        section: nfsd
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        mode: "0644"
+      loop:
+        - { key: vers3, value: "n" }
+        - { key: vers4.0, value: "n" }
+        - { key: vers4.1, value: "y" }
+        - { key: vers4.2, value: "y" }
+      notify: Restart NFS server
+
+    - name: Create the config directories (neither package ships them on PVE 9)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: [/etc/exports.d, /etc/sanoid]
+
+    # no_root_squash: csi-driver-nfs creates and chowns one subdirectory per
+    # PVC as root. Each pod mounts only its own subdirectory, and only the
+    # three node addresses can mount at all.
+    - name: Export the dataset to the K3s nodes only
+      ansible.builtin.copy:
+        dest: /etc/exports.d/k8s-apps.exports
+        mode: "0644"
+        content: |
+          # Managed by Ansible (proxmox-nfs.yml, task 4.17)
+          {{ k8s_apps_path }} {{ k8s_nfs_clients | map('regex_replace', '$', '(rw,sync,no_subtree_check,no_root_squash,sec=sys)') | join(' ') }}
+      notify: Reload exports
+
+    - name: Snapshot policy for the dataset
+      ansible.builtin.copy:
+        dest: /etc/sanoid/sanoid.conf
+        mode: "0644"
+        content: |
+          # Managed by Ansible (proxmox-nfs.yml, task 4.17)
+          # Restore a file: copy it back from
+          #   {{ k8s_apps_path }}/.zfs/snapshot/<snapshot>/<namespace>/<pvc>/
+          [{{ k8s_apps_dataset }}]
+                  use_template = k8s_apps
+
+          [template_k8s_apps]
+                  frequently = 0
+                  hourly = 48
+                  daily = 14
+                  monthly = 0
+                  yearly = 0
+                  autosnap = yes
+                  autoprune = yes
+
+    - name: Enable the NFS server and the sanoid timer
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop: [nfs-server.service, sanoid.timer]
+
+    - name: Flush handlers before checking
+      ansible.builtin.meta: flush_handlers
+
+    # Check live state rather than trust handlers: a failed earlier run drops
+    # queued handlers, and the rerun then sees no change and never fires them.
+    - name: Read the NFS versions the kernel server is offering
+      ansible.builtin.slurp:
+        src: /proc/fs/nfsd/versions
+      register: nfsd_versions
+
+    - name: Restart the NFS server if it still offers NFSv3 or v4.0
+      ansible.builtin.systemd_service:
+        name: nfs-server.service
+        state: restarted
+      when: (nfsd_versions.content | b64decode).split() | intersect(['+3', '+4.0']) | length > 0
+
+    - name: Re-export (idempotent; applies /etc/exports.d)
+      ansible.builtin.command: exportfs -ra
+      changed_when: false
+
+    - name: Read the live export list
+      ansible.builtin.command: exportfs -s
+      register: nfs_exports
+      changed_when: false
+
+    - name: Assert the dataset is exported to exactly the K3s nodes
+      ansible.builtin.assert:
+        that:
+          - nfs_exports.stdout_lines | select('search', '^' ~ k8s_apps_path ~ '\\s') | list | length == k8s_nfs_clients | length
+        fail_msg: "Unexpected exports: {{ nfs_exports.stdout_lines }}"
+        quiet: true
+
+  handlers:
+    - name: Restart NFS server
+      ansible.builtin.systemd_service:
+        name: nfs-server.service
+        state: restarted
+
+    - name: Reload exports
+      ansible.builtin.command: exportfs -ra
+      changed_when: true

@@ -1,0 +1,43 @@
+# Phase 04 task 4.17 (ADR-016 addendum): NFS CSI driver for app files on the
+# Proxmox ZFS dataset aether-pool/k8s-apps (exported by proxmox-nfs.yml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csi-driver-nfs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+    chart: csi-driver-nfs
+    targetRevision: 4.13.6
+    helm:
+      valuesObject:
+        controller:
+          logLevel: 2
+          enableSnapshotter: false   # snapshots are ZFS's job (sanoid on the host)
+          nodeSelector:
+            kubernetes.io/hostname: k3s-worker-02   # with the other platform controllers
+          resources:
+            csiProvisioner: { requests: { cpu: 10m, memory: 20Mi }, limits: { memory: 96Mi } }
+            csiResizer: { requests: { cpu: 10m, memory: 20Mi }, limits: { memory: 96Mi } }
+            livenessProbe: { requests: { cpu: 5m, memory: 16Mi }, limits: { memory: 48Mi } }
+            nfs: { requests: { cpu: 10m, memory: 20Mi }, limits: { memory: 128Mi } }
+        node:
+          logLevel: 2
+          tolerations: []   # chart default tolerates everything; keep it off the control plane
+          resources:
+            livenessProbe: { requests: { cpu: 5m, memory: 16Mi }, limits: { memory: 48Mi } }
+            nodeDriverRegistrar: { requests: { cpu: 5m, memory: 16Mi }, limits: { memory: 48Mi } }
+            nfs: { requests: { cpu: 10m, memory: 20Mi }, limits: { memory: 160Mi } }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

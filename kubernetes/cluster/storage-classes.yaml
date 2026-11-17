@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage-classes
+  namespace: argocd
+  annotations:
+    # GOP-06: a GitHub webhook refreshes only apps whose source path changed (INC-2026-013)
+    argocd.argoproj.io/manifest-generate-paths: .
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
+    targetRevision: main
+    path: kubernetes/platform/storage
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

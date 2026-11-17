@@ -1,0 +1,25 @@
+# Phase 04 task 4.17 (ADR-016 addendum). App FILES go here (documents, archives,
+# blobs, render output); databases stay on local-path.
+# - One directory per PVC: <namespace>/<pvc-name> under the export, so the tree
+#   on the host reads like the cluster and a restore needs no PV lookup.
+# - onDelete: retain keeps the directory when a PVC is deleted. Recreating a PVC
+#   with the same name (a GitOps rebuild) picks the data up again.
+# - Snapshots: sanoid on the host, hourly x48 and daily x14 for the whole dataset.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-zfs
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.1.200
+  share: /mnt/aether-pool/k8s-apps
+  subDir: ${pvc.metadata.namespace}/${pvc.metadata.name}
+  onDelete: retain
+  mountPermissions: "0750"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.2
+  - hard
+  - noatime
