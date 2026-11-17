@@ -578,12 +578,17 @@
           - ["Public site — Portfolio", "https://chetan-thapliyal.cloud/"]
           - ["Public site — Lexicon", "https://base.chetan-thapliyal.cloud/"]
           - ["Public site — Status page", "https://status.chetan-thapliyal.cloud/"]
+          # 4.20: the cluster's app gateway over the tailnet (Envoy answers ping.lab itself:
+          # DNS, tailnet path, certificate and gateway in one check). Apps get their own rows.
+          - ["Cluster — app gateway", "https://ping.lab.chetan-thapliyal.cloud/"]
         public_monitors:
           - "OCI Nightly Restic Backup"
           - "Watchdog — OCI Alertmanager"
           - "DR-02 etcd sync (Proxmox)"
           - "DR-03 etcd restic (Proxmox)"
           - "DR-04 etcd → B2 (Proxmox)"
+          - "APP-01 app database dumps (K3s)"
+          - "APP-02 app data → B2 (Proxmox)"
           - "OCI — Bookorbit"
       register: uk_public_feed
       changed_when: "'OK:' in uk_public_feed.stdout"

@@ -1,0 +1,79 @@
+# Phase 04 task 4.20: PostgreSQL and Redis metrics for the OCI Prometheus, which
+# scrapes them over the tailnet on NodePorts 30085 and 30086 (the tailnet policy
+# admits tag:oci to exactly these ports on tag:k3s). Metrics only: no queries or
+# keys are exposed, and PostgreSQL is read through the pg_monitor-only role
+# "metrics" (created by the db-bootstrap Job).
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-exporters
+  namespace: databases
+  labels: { app.kubernetes.io/name: db-exporters }
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: db-exporters }
+  ports:
+    - { name: postgres-metrics, port: 9187, targetPort: 9187, nodePort: 30085 }
+    - { name: redis-metrics, port: 9121, targetPort: 9121, nodePort: 30086 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-exporters
+  namespace: databases
+  labels: { app.kubernetes.io/name: db-exporters }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: db-exporters }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: db-exporters }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3s-worker-01 }
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres-exporter
+          image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+          env:
+            - { name: DATA_SOURCE_URI, value: "postgres.databases.svc.cluster.local:5432/postgres?sslmode=disable" }
+            - { name: DATA_SOURCE_USER, value: metrics }
+            - name: DATA_SOURCE_PASS
+              valueFrom: { secretKeyRef: { name: db-metrics, key: password } }
+          ports:
+            - { name: pg-metrics, containerPort: 9187 }
+          readinessProbe:
+            httpGet: { path: /metrics, port: pg-metrics }
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.97.0-alpine@sha256:ae30be386ab25600a8b222538a868d1b156b7e411073f7d2d5208fe79cc98d81
+          env:
+            - { name: REDIS_ADDR, value: "redis://redis.databases.svc.cluster.local:6379" }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: redis, key: password } }
+          ports:
+            - { name: redis-metrics, containerPort: 9121 }
+          readinessProbe:
+            httpGet: { path: /metrics, port: redis-metrics }
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 48Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }

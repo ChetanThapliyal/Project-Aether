@@ -58,6 +58,23 @@ scrape_configs:
         labels:
           cluster: 'project-aether'
 
+  # ─── App platform: shared PostgreSQL and Redis (4.20, NodePorts via Tailscale) ───
+  - job_name: 'k3s-postgres'
+    static_configs:
+      - targets:
+          - 'k3s-worker-01:30085'
+        labels:
+          environment: 'homelab-k3s'
+          cluster: 'project-aether'
+
+  - job_name: 'k3s-redis'
+    static_configs:
+      - targets:
+          - 'k3s-worker-01:30086'
+        labels:
+          environment: 'homelab-k3s'
+          cluster: 'project-aether'
+
   # ─── ArgoCD GitOps Metrics (via Tailscale) ────────────────────
   - job_name: 'argocd-metrics'
     static_configs:

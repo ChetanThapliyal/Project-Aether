@@ -141,3 +141,98 @@ groups:
         annotations:
           summary: "GCP DMZ node exporter is unreachable"
           description: "OCI Prometheus can't scrape aether-gcp-dmz:9100 for 5m. Check the node-exporter container on the DMZ and the tailnet grant tag:oci -> tag:gcp-dmz:9100."
+
+  # Phase 04 task 4.20: the app platform (shared databases, app pods, app files)
+  - name: app-platform-alerts
+    rules:
+      - alert: AppPodNotReady
+        # Completed and failed Job pods are never "ready"; only running pods count.
+        expr: |
+          (kube_pod_status_ready{namespace=~"apps|databases", condition="true"} == 0)
+          unless on (namespace, pod) (kube_pod_status_phase{phase=~"Succeeded|Failed"} == 1)
+        for: 10m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} not ready for 10 minutes"
+
+      - alert: AppDatabaseExporterDown
+        expr: up{job=~"k3s-postgres|k3s-redis"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "{{ $labels.job }} metrics unreachable for 10 minutes"
+          description: "OCI Prometheus can't scrape {{ $labels.instance }}. Check the db-exporters pod in the databases namespace and the tailnet grant tag:oci -> tag:k3s:30085,30086."
+
+      - alert: AppPostgresDown
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          tier: apps
+        annotations:
+          summary: "Shared PostgreSQL is down: every app that uses it is down"
+
+      - alert: AppRedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          tier: apps
+        annotations:
+          summary: "Shared Redis is down: app queues and caches are unavailable"
+
+      - alert: AppPostgresConnectionsHigh
+        expr: sum(pg_stat_activity_count) / max(pg_settings_max_connections) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "PostgreSQL connections above 80% of max_connections ({{ $value | humanizePercentage }})"
+          description: "One app is probably leaking connections or its pool is too large; the next app to connect will be refused."
+
+      - alert: AppRedisMemoryHigh
+        # noeviction: a full Redis refuses writes (queued jobs fail) instead of dropping keys
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8 and redis_memory_max_bytes > 0
+        for: 10m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "Redis at {{ $value | humanizePercentage }} of its 96 MB cap; writes fail when full"
+
+      - alert: AppFilesDatasetFilling
+        expr: |
+          aether_zfs_dataset_used_bytes{dataset="aether-pool/k8s-apps"}
+            / aether_zfs_dataset_quota_bytes{dataset="aether-pool/k8s-apps"} > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "App files dataset at {{ $value | humanizePercentage }} of its quota"
+          description: "Every nfs-zfs volume shares this dataset's quota. Raise it in proxmox-nfs.yml (check the pool first) or clean up. Above 20 GB the nightly offsite copy also stops (ADR-022)."
+
+      - alert: AppSnapshotsStale
+        expr: time() - aether_zfs_newest_snapshot_timestamp_seconds{dataset="aether-pool/k8s-apps"} > 3 * 3600
+        for: 15m
+        labels:
+          severity: warning
+          tier: apps
+        annotations:
+          summary: "No ZFS snapshot of the app files for {{ $value | humanizeDuration }}"
+          description: "sanoid takes one every hour. Check sanoid.timer on the Proxmox host."
+
+      - alert: ZFSMetricsStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*aether_zfs.prom"} > 900
+        for: 10m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "ZFS dataset metrics on the Proxmox host have not refreshed for 15 minutes"
+          description: "The app dataset alerts above are blind. Check zfs-textfile-metrics.timer on the Proxmox host."

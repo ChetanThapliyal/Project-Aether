@@ -100,6 +100,70 @@
         state: started
       loop: [nfs-server.service, sanoid.timer]
 
+    # 4.20: Debian's node exporter skips /mnt, so the app dataset's fill is invisible
+    # to Prometheus. Publish ZFS facts through the textfile collector instead.
+    - name: Deploy the ZFS metrics script (textfile collector)
+      ansible.builtin.copy:
+        dest: /usr/local/bin/zfs-textfile-metrics.sh
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          # Managed by Ansible (proxmox-nfs.yml, task 4.20)
+          set -euo pipefail
+          out=/var/lib/prometheus/node-exporter/aether_zfs.prom
+          tmp=$(mktemp "${out}.XXXXXX")
+          trap 'rm -f "$tmp"' EXIT
+          {
+            echo "# HELP aether_zfs_dataset_used_bytes Bytes referenced by the dataset (what its quota counts)."
+            echo "# TYPE aether_zfs_dataset_used_bytes gauge"
+            echo "# HELP aether_zfs_dataset_quota_bytes The dataset's quota, 0 when it has none."
+            echo "# TYPE aether_zfs_dataset_quota_bytes gauge"
+            echo "# HELP aether_zfs_dataset_available_bytes Bytes the dataset can still take."
+            echo "# TYPE aether_zfs_dataset_available_bytes gauge"
+            echo "# HELP aether_zfs_newest_snapshot_timestamp_seconds Creation time of the dataset's newest snapshot, 0 when none."
+            echo "# TYPE aether_zfs_newest_snapshot_timestamp_seconds gauge"
+            zfs list -Hp -o name,referenced,quota,available -r -t filesystem aether-pool | while read -r ds ref quota avail; do
+              echo "aether_zfs_dataset_used_bytes{dataset=\"$ds\"} $ref"
+              echo "aether_zfs_dataset_quota_bytes{dataset=\"$ds\"} $quota"
+              echo "aether_zfs_dataset_available_bytes{dataset=\"$ds\"} $avail"
+              newest=$(zfs list -Hp -t snapshot -o creation -s creation -d 1 "$ds" 2>/dev/null | tail -1)
+              echo "aether_zfs_newest_snapshot_timestamp_seconds{dataset=\"$ds\"} ${newest:-0}"
+            done
+          } > "$tmp"
+          chmod 0644 "$tmp"
+          mv "$tmp" "$out"
+
+    - name: Deploy the ZFS metrics service and 5-minute timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: zfs-textfile-metrics.service
+          content: |
+            [Unit]
+            Description=ZFS dataset metrics for node exporter (4.20)
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/zfs-textfile-metrics.sh
+        - name: zfs-textfile-metrics.timer
+          content: |
+            [Unit]
+            Description=Refresh ZFS dataset metrics every 5 minutes (4.20)
+            [Timer]
+            OnBootSec=1min
+            OnUnitActiveSec=5min
+            [Install]
+            WantedBy=timers.target
+      register: zfs_metrics_units
+
+    - name: Reload systemd and enable the ZFS metrics timer
+      ansible.builtin.systemd_service:
+        name: zfs-textfile-metrics.timer
+        enabled: true
+        state: started
+        daemon_reload: "{{ zfs_metrics_units.changed }}"
+
     - name: Flush handlers before checking
       ansible.builtin.meta: flush_handlers
 

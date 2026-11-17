@@ -36,6 +36,15 @@ data:
       fi
       echo "ok: $app"
     done
+    # 4.20: read-only monitoring login for postgres-exporter
+    if [ -f /secrets/metrics/password ]; then
+      psql -q -v ON_ERROR_STOP=1 -v pw="$(cat /secrets/metrics/password)" <<'SQL'
+    SELECT 'CREATE ROLE metrics LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'metrics') \gexec
+    SELECT format('ALTER ROLE metrics WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L', :'pw') \gexec
+    GRANT pg_monitor TO metrics;
+    SQL
+      echo "ok: metrics role"
+    fi
 ---
 apiVersion: batch/v1
 kind: Job
@@ -79,7 +88,9 @@ spec:
             - { name: script, mountPath: /scripts }
             - { name: apps, mountPath: /secrets/apps, readOnly: true }
             - { name: extensions, mountPath: /config/extensions }
+            - { name: metrics, mountPath: /secrets/metrics, readOnly: true }
       volumes:
         - { name: script, configMap: { name: db-bootstrap-script } }
         - { name: apps, secret: { secretName: app-db-passwords } }
         - { name: extensions, configMap: { name: db-extensions } }
+        - { name: metrics, secret: { secretName: db-metrics } }
