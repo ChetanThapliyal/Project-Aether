@@ -120,13 +120,14 @@ Recovery targets are shown next to what has been proven. The live version, with 
 |---|---|---|---|
 | Kubernetes cluster | 30 min | 24 h | Restore from the offsite copy: API ready 54 s after reset. In-place reset: about 18 min |
 | Applications on Oracle Cloud | 45 min | 24 h | One app restored and its database compared with live: 29 s for 1 GB and 176 tables. Full instance rebuild not yet timed |
+| Applications on the cluster | 30 min | 24 h | Every app database loaded from its nightly dump and matched against the dump-time counts: 22 s for 4 databases. Offsite copy downloaded and decrypted. No apps live yet |
 | DMZ observer | 15 min plus data restore | 24 h | Monitor data restored from the backup bucket and checked. VM rebuild not yet timed |
 | Secrets access | 15 min | none lost | Each key decrypts alone |
 | Infrastructure state | 10 min | none lost | Versioned bucket |
 
-**Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first. The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
+**Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first. The cluster's app databases are dumped nightly onto the ZFS pool; the hypervisor then snapshots app files and dumps together and ships them, age-encrypted, to the same locked bucket ([ADR-022](docs/adr/022-app-data-storage-and-backups.md)). The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
 
-**Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` restores an application into a throwaway database and compares it with the live one, without touching production.
+**Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` and `task dr:drill:k8s` restore application databases into throwaway databases and compare them with the live ones, without touching production.
 
 **Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 13 so far. When an alert caught the problem, the median time to detect was 2 minutes. Problems found by audit instead had been latent for a median of 3 days, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
 
@@ -199,11 +200,12 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 | [013](docs/adr/013-tailnet-microsegmentation.md) | Role tags, grants and policy tests on the mesh |
 | [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | One environment, isolated by namespace, with VM rollback |
 | [015](docs/adr/015-ci-validation-pipeline.md) | Validation on every push, keyless nightly drift detection |
-| [016](docs/adr/016-kubernetes-storage-strategy.md) | `local-path` by default, NFS for media, Longhorn rejected |
+| [016](docs/adr/016-kubernetes-storage-strategy.md) | `local-path` for databases, NFS from ZFS for app files, Longhorn rejected |
 | [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | 3-2-1 backups with an Object-Locked offsite copy |
 | [019](docs/adr/019-centralized-logging-architecture.md) | Loki on the cloud host, Alloy agents on the cluster |
 | [020](docs/adr/020-public-observability-data-diode.md) | The public status page and its one-way data feed |
-| [021](docs/adr/021-internal-dns-and-pki.md) | Internal names and certificates |
+| [021](docs/adr/021-internal-dns-and-pki.md) | Internal names and certificates: a Let's Encrypt wildcard on names only the mesh can reach |
+| [022](docs/adr/022-app-data-storage-and-backups.md) | App data: one shared database, files on NFS, nightly dumps to the Object-Locked bucket, drilled |
 
 **Also in the repository:**
 

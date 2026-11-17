@@ -175,6 +175,23 @@ tasks:
     cmds:
       - ssh ubuntu@bookorbit 'sudo bash -s' < scripts/dr-drill-oci.sh
 
+  dr:drill:k8s:
+    desc: "4.15 drill: load every app database from last night's dump into a throwaway PostgreSQL pod, compare with dump-time and live counts (read-only to production)"
+    cmds:
+      - bash scripts/dr-drill-k8s.sh
+
+  ansible:apps:offsite:
+    desc: "Deploy the nightly app data offsite copy to the Object Lock bucket on Proxmox (4.15)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook -i inventory/hosts.yml playbooks/proxmox-apps-offsite.yml
+
+  ansible:nfs:
+    desc: "Deploy the NFS app-files dataset, export and snapshots on Proxmox (4.17)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook -i inventory/hosts.yml playbooks/proxmox-nfs.yml
+
   ansible:etcd:sync:
     desc: "Deploy automated off-node etcd snapshot sync to Proxmox (DR-02)"
     dir: infrastructure/ansible

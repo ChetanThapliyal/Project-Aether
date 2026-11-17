@@ -1,0 +1,156 @@
+---
+# =============================================================================
+# Phase 04 task 4.15 — App data offsite (ADR-022)
+# =============================================================================
+# Nightly at 04:00 (after the 02:00–03:30 etcd chain): snapshot the app dataset
+# (aether-pool/k8s-apps: app files plus the 01:30 database dumps), stream it as
+# tar → zstd → age into the Object Lock bucket under apps/. Same upload-only key
+# and age recipient as the etcd copy (HARD-12): this host can't read, delete or
+# shorten the lock on what it uploads. Each object is locked for 30 days.
+#
+# Two heartbeats to DMZ Uptime Kuma, both on success only:
+#   app_dumps  the cluster's dump Job wrote LAST_SUCCESS within 26 h
+#   apps_b2    tonight's object is in the bucket
+# A stale dump marker still uploads the files, then fails the run.
+#
+# Needs proxmox-etcd-b2.yml first (it deploys rclone, age and b2-offsite.env).
+# Run: ansible-playbook -i inventory/hosts.yml playbooks/proxmox-apps-offsite.yml
+# =============================================================================
+
+- name: App data offsite copy on the Proxmox host
+  hosts: proxmox
+  become: true
+  vars:
+    apps_dataset: aether-pool/k8s-apps
+    apps_path: /mnt/aether-pool/k8s-apps
+    dump_marker: /mnt/aether-pool/k8s-apps/databases/db-dumps/LAST_SUCCESS
+    apps_offsite_max_gb: 20   # above this, nightly full copies get costly: move to restic (ADR-022)
+
+  tasks:
+    - name: Load SOPS-encrypted secrets
+      community.sops.load_vars:
+        file: ../../secrets/ansible-secrets.sops.yaml
+
+    - name: Require the heartbeat tokens and the offsite environment
+      ansible.builtin.assert:
+        that:
+          - kuma_push_base is defined
+          - kuma_push_tokens.app_dumps is defined
+          - kuma_push_tokens.apps_b2 is defined
+        quiet: true
+
+    - name: Check the offsite environment file from proxmox-etcd-b2.yml exists
+      ansible.builtin.stat:
+        path: /etc/restic/b2-offsite.env
+      register: offsite_env
+      failed_when: not offsite_env.stat.exists
+
+    - name: Install zstd
+      ansible.builtin.apt:
+        name: zstd
+        state: present
+
+    - name: Deploy /usr/local/bin/apps-offsite.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/apps-offsite.sh
+        owner: root
+        group: root
+        mode: "0750"
+        content: |
+          #!/usr/bin/env bash
+          # 4.15 / ADR-022: app data → Object Lock bucket. Managed by Ansible (proxmox-apps-offsite.yml).
+          set -euo pipefail
+          LOG=/var/log/apps-offsite.log
+          log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
+          push() { curl -fsS -m 10 --retry 3 "{{ kuma_push_base }}/$1?status=up&msg=OK" >/dev/null || log "WARN: heartbeat push failed"; }
+
+          # HARD-23 pattern: never read an unmounted path (it would back up an empty directory)
+          [ "$(findmnt -n -o SOURCE --target {{ apps_path }} 2>/dev/null)" = "{{ apps_dataset }}" ] \
+            || { log "ERROR: {{ apps_path }} is not the {{ apps_dataset }} dataset"; exit 1; }
+          source /etc/restic/b2-offsite.env
+
+          # 1. The cluster's dump Job: fresh marker → its heartbeat
+          dumps_ok=0
+          if [ -f {{ dump_marker }} ] && [ $(( $(date +%s) - $(stat -c %Y {{ dump_marker }}) )) -lt 93600 ]; then
+            dumps_ok=1; log "dumps fresh: $(cat {{ dump_marker }})"; push "{{ kuma_push_tokens.app_dumps }}"
+          else
+            log "ERROR: no database dump in the last 26 h ({{ dump_marker }}); uploading the files anyway"
+          fi
+
+          # 2. Size guard
+          used=$(zfs get -Hp -o value referenced {{ apps_dataset }})
+          if [ "$used" -gt $(( {{ apps_offsite_max_gb }} * 1024 * 1024 * 1024 )) ]; then
+            log "ERROR: dataset holds $((used / 1024 / 1024)) MiB, above {{ apps_offsite_max_gb }} GiB: nightly full copies need replacing (ADR-022)"; exit 1
+          fi
+
+          # 3. One consistent point in time, streamed straight to the bucket (no temp file)
+          day=$(date +%F)
+          snap="{{ apps_dataset }}@offsite-$day"
+          obj="apps/apps-$day.tar.zst.age"
+          zfs list -H "$snap" >/dev/null 2>&1 && zfs destroy "$snap"
+          zfs snapshot "$snap"
+          trap 'zfs destroy "$snap" 2>/dev/null || true' EXIT
+          in_bucket() { rclone lsf ":b2:${B2_LOCKED_BUCKET}/apps/" 2>>"$LOG" | grep -xF "$(basename "$obj")" >/dev/null; }
+          if in_bucket; then
+            log "$obj is already in the bucket; not uploading again"
+          else
+            log "uploading $obj ($((used / 1024)) KiB on disk)"
+            tar -C "{{ apps_path }}/.zfs/snapshot/offsite-$day" --numeric-owner -cf - . \
+              | zstd -q -T2 -10 \
+              | age -r "${DR_AGE_RECIPIENT}" \
+              | rclone rcat ":b2:${B2_LOCKED_BUCKET}/$obj" 2>>"$LOG"
+          fi
+          in_bucket || { log "ERROR: $obj is not in ${B2_LOCKED_BUCKET} after upload"; exit 1; }
+          log "offsite copy ok: $obj"
+          push "{{ kuma_push_tokens.apps_b2 }}"
+
+          [ "$dumps_ok" -eq 1 ] || exit 1
+      no_log: true   # the rendered script contains push tokens
+
+    - name: Deploy the systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/apps-offsite.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Project Aether - app data to the Object Lock bucket (4.15)
+          After=network-online.target k3s-etcd-b2.service
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/apps-offsite.sh
+          Nice=10
+          IOSchedulingClass=idle
+      notify: Reload systemd
+
+    - name: Deploy the nightly timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/apps-offsite.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Nightly app data offsite copy (4.15)
+
+          [Timer]
+          OnCalendar=*-*-* 04:00:00
+          Persistent=true
+          RandomizedDelaySec=300
+
+          [Install]
+          WantedBy=timers.target
+      notify: Reload systemd
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable the timer
+      ansible.builtin.systemd_service:
+        name: apps-offsite.timer
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true

@@ -485,7 +485,7 @@
           {{ (telegram_bot_token is defined and telegram_bot_token | string | length > 0) and
              (telegram_chat_id is defined and telegram_chat_id | string | length > 0) and
              (uptime_kuma_admin_password is defined and uptime_kuma_admin_password | string | length > 0) }}
-      tags: [ops-02, notifications]
+      tags: [always]   # every Kuma step below checks it, so --tags <one step> must still set it
 
     - name: OPS-02 | Skip notice — Telegram secrets not found in SOPS
       debug:
@@ -548,6 +548,8 @@
           - { name: "DR-02 etcd sync (Proxmox)",    token: "{{ kuma_push_tokens.etcd_sync }}",   interval: 93600 }
           - { name: "DR-03 etcd restic (Proxmox)",  token: "{{ kuma_push_tokens.etcd_restic }}", interval: 93600 }
           - { name: "DR-04 etcd → B2 (Proxmox)",    token: "{{ kuma_push_tokens.etcd_b2 }}",     interval: 93600 }
+          - { name: "APP-01 app database dumps (K3s)", token: "{{ kuma_push_tokens.app_dumps }}", interval: 93600 }   # 4.15, pushed by the Proxmox host when the dump marker is fresh
+          - { name: "APP-02 app data → B2 (Proxmox)",  token: "{{ kuma_push_tokens.apps_b2 }}",   interval: 93600 }   # 4.15
       register: uk_push_provision
       changed_when: "'OK:' in uk_push_provision.stdout"
       delegate_to: localhost
