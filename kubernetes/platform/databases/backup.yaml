@@ -1,0 +1,103 @@
+# Phase 04 task 4.15 (ADR-022): nightly logical dumps of every app database onto
+# the NFS dataset. The hypervisor snapshots that dataset and ships it, age-encrypted,
+# to the Object Lock bucket at 04:00 (proxmox-apps-offsite.yml), and pushes the
+# heartbeats: this Job writes LAST_SUCCESS, which the host checks for freshness.
+# Restore drill: task dr:drill:k8s.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-dumps   # on the host: /mnt/aether-pool/k8s-apps/databases/db-dumps
+  namespace: databases
+spec:
+  storageClassName: nfs-zfs
+  accessModes: [ReadWriteMany]
+  resources: { requests: { storage: 5Gi } }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-dump-script
+  namespace: databases
+data:
+  dump.sh: |
+    #!/bin/sh
+    # One directory per night; a night only becomes visible (renamed from .tmp)
+    # once every database has dumped and its archive has been read back.
+    set -eu
+    day=$(date +%F)
+    out=/dumps/$day
+    tmp=/dumps/.tmp-$day
+    rm -rf "$tmp"; mkdir -p "$tmp"
+    COUNTS_SQL="SELECT table_schema || '.' || table_name || '|' || (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY 1"
+    pg_dumpall --globals-only --no-role-passwords > "$tmp/globals.sql"
+    total=0
+    for f in /secrets/apps/*; do
+      db=$(basename "$f")
+      pg_dump -Fc -d "$db" -f "$tmp/$db.dump"
+      pg_restore --list "$tmp/$db.dump" > /dev/null     # the archive reads back
+      psql -At -d "$db" -c "$COUNTS_SQL" > "$tmp/$db.counts"
+      total=$((total + 1))
+    done
+    rm -rf "$out"; mv "$tmp" "$out"
+    # keep seven nights; ZFS snapshots and the offsite copies reach further back
+    ls -1d /dumps/20??-??-?? | sort | head -n -7 | xargs -r rm -rf
+    printf '%s %s databases=%s size=%s\n' "$(date -u +%FT%TZ)" "$day" "$total" "$(du -sh "$out" | cut -f1)" > /dumps/LAST_SUCCESS.tmp
+    mv /dumps/LAST_SUCCESS.tmp /dumps/LAST_SUCCESS
+    cat /dumps/LAST_SUCCESS
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-dump
+  namespace: databases
+spec:
+  schedule: "30 1 * * *"
+  timeZone: Asia/Kolkata          # before the 02:00 etcd chain and the 04:00 offsite copy
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: db-dump }
+        spec:
+          restartPolicy: Never
+          nodeSelector: { kubernetes.io/hostname: k3s-worker-01 }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: dump
+              image: pgvector/pgvector:0.8.7-pg16-trixie@sha256:c28c0b700f3f1b5eec14082b31ad6e7c8a566d14386323609c615315e7c0ffc8
+              command: [sh, /scripts/dump.sh]
+              env:
+                - { name: PGHOST, value: postgres.databases.svc.cluster.local }
+                - { name: PGUSER, value: postgres }
+                - { name: PGDATABASE, value: postgres }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: postgres-admin, key: password } }
+              resources:
+                requests: { cpu: 20m, memory: 64Mi }
+                limits: { cpu: 500m, memory: 256Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: dumps, mountPath: /dumps }
+                - { name: script, mountPath: /scripts }
+                - { name: apps, mountPath: /secrets/apps, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - { name: dumps, persistentVolumeClaim: { claimName: db-dumps } }
+            - { name: script, configMap: { name: db-dump-script } }
+            - { name: apps, secret: { secretName: app-db-passwords } }   # the list of app databases
+            - { name: tmp, emptyDir: { sizeLimit: 64Mi } }

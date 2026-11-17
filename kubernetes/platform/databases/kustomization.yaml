@@ -4,5 +4,6 @@ resources:
   - postgres.yaml
   - redis.yaml
   - bootstrap.yaml
+  - backup.yaml
 generators:
   - ksops-secrets.yaml
