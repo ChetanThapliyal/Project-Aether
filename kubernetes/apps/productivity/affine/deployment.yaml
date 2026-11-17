@@ -45,6 +45,9 @@ spec:
           volumeMounts: &mounts
             - { name: home, mountPath: /home/affine }
             - { name: storage, mountPath: /home/affine/.affine/storage }
+            # ~/.affine is a root-owned mount point; config needs its own writable volume.
+            # Nothing persistent lives there: the private key comes from the Secret.
+            - { name: config, mountPath: /home/affine/.affine/config }
             - { name: tmp, mountPath: /tmp }
       containers:
         - name: affine
@@ -72,6 +75,8 @@ spec:
       volumes:
         - name: home
           emptyDir: { sizeLimit: 64Mi }
+        - name: config
+          emptyDir: { sizeLimit: 16Mi }
         - name: storage
           persistentVolumeClaim: { claimName: affine-storage }
         - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
