@@ -108,3 +108,6 @@ The guidance above, to allow inbound management connections from the Tailscale I
 
 ### Addendum: The DMZ Forwards GitHub Webhooks to ArgoCD (2026-11-16, GOP-04)
 GITOPS-10 is delivered over the existing grant `tag:gcp-dmz → tag:k8s:443`; no policy change was needed. `cloudflared` on the DMZ forwards one public path, ArgoCD's `/api/webhook`, to ArgoCD's Tailscale ingress. The traffic enters the `argocd` namespace from the `tailscale` namespace, which the `allow-argocd-traffic` NetworkPolicy already permits. See the ADR-004 addendum of the same date for the public side.
+
+### Addendum: Database Exporters for the Cloud Prometheus (2026-11-17, Phase 04 task 4.20)
+The cloud host's metrics grant to `tag:k3s` gains two NodePorts: 30085 (PostgreSQL exporter) and 30086 (Redis exporter). Both exporters run in the `databases` namespace and log in with a read-only `pg_monitor` role or the Redis password; neither database port is reachable over the tailnet. Policy tests accept `tag:k3s:30085` and `:30086` from `tag:oci` and still deny `:30087`, so the grant can't quietly widen to the rest of the NodePort range.

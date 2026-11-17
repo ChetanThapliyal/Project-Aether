@@ -3,7 +3,7 @@
 ADR-022: App Data on the Cluster: Storage, Databases and Backups
 ================================================================================
 ```
-- **Status:** Accepted (implemented 17 Nov 2026, Phase 04 tasks 4.15, 4.17 and 4.18)
+- **Status:** Accepted (implemented 17 Nov 2026, Phase 04 tasks 4.15, 4.17, 4.18 and 4.20)
 - **Date:** November 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Phase 04 moves user-facing apps onto the K3s cluster (Blinko, AFFiNE, IT-Tools) and adds new ones (Linkwarden, Paperless-ngx). Some of their data can't be recreated: notes, documents, bookmarks with their archived pages. Until now the cluster held nothing like that. Its backups cover etcd only (ADR-018), because everything else was rebuilt from Git. The cluster runs on two workers with about 3.5 GB of memory each, behind one laptop hypervisor with a single HDD for bulk data.
@@ -19,6 +19,8 @@ ADR-022: App Data on the Cluster: Storage, Databases and Backups
   3. *Backups (4.15):* a CronJob dumps every app database nightly (01:30) onto that same NFS dataset, reads each archive back, records row counts, and writes a completion marker. At 04:00 the hypervisor snapshots the dataset, so dumps and files come from one moment. It streams the snapshot as tar → zstd → age into the existing Object Lock bucket under `apps/`. It uses the same upload-only key and the same age recipient as the etcd copy, so nothing in the homelab can read, delete or shorten the lock on what it uploads. Each copy is locked for 30 days.
   4. *Monitoring:* two push heartbeats from the hypervisor to the edge Uptime Kuma: APP-01 when the dump marker is under 26 hours old, APP-02 when tonight's object is in the bucket. Both are sent on success only, so silence pages.
   5. *Proof:* `task dr:drill:k8s` loads every dump into a throwaway PostgreSQL pod with no network, and compares tables and row counts with the dump-time counts (exact) and live (table list). App-specific exports (Paperless's document exporter, for instance) join the nightly Job as each app lands.
+  6. *Watching the platform (4.20):* PostgreSQL and Redis exporters feed the cloud Prometheus, and the hypervisor publishes the dataset's fill and newest-snapshot age. Alerts cover a pod not ready, either database down, PostgreSQL connections near the limit, Redis near its memory cap (a full Redis refuses writes), the dataset above 85% of its quota and snapshots older than 3 hours. The edge Uptime Kuma checks a fixed response through the app gateway over public DNS and HTTPS.
+  7. *Bootstrap ordering:* the role-and-database Job runs as an ArgoCD Sync hook between PostgreSQL (wave 0) and its clients (wave 2). As a PostSync hook it deadlocked: PostSync waits for every resource to be healthy, and the exporter can't be healthy until the hook has created its role.
 - **Alternatives Considered:**
   - *A database per app (each chart's bundled PostgreSQL):* rejected for memory (about 200 MB more for four apps) and for four backup paths instead of one. Trade-off accepted: one database outage takes every app down, and a noisy app can slow the others. The backup and drill make that outage short.
   - *CloudNativePG:* deferred. Point-in-time recovery and replicas are worth having, but the operator and its sidecars cost memory this cluster doesn't have. Revisit with more RAM or a second database server.
