@@ -49,6 +49,8 @@ spec:
             # Nothing persistent lives there: the private key comes from the Secret.
             - { name: config, mountPath: /home/affine/.affine/config }
             - { name: tmp, mountPath: /tmp }
+            # The server writes its generated GraphQL schema to /app/src/schema.gql on start.
+            - { name: gql, mountPath: /app/src }
       containers:
         - name: affine
           image: ghcr.io/toeverything/affine:0.27.4@sha256:b649f5ce2384ffdf13c23bccf81d759e15973d59d0b0058af65d895a84373099
@@ -80,3 +82,4 @@ spec:
         - name: storage
           persistentVolumeClaim: { claimName: affine-storage }
         - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
+        - { name: gql, emptyDir: { sizeLimit: 16Mi } }
