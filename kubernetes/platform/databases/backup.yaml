@@ -24,6 +24,9 @@ data:
     # One directory per night; a night only becomes visible (renamed from .tmp)
     # once every database has dumped and its archive has been read back.
     set -eu
+    # A new pod's NetworkPolicy can take a moment to admit it: wait up to 30 s
+    # instead of failing the first connection and burning a Job retry.
+    for i in $(seq 30); do pg_isready -q && break; sleep 1; done
     day=$(date +%F)
     out=/dumps/$day
     tmp=/dumps/.tmp-$day
