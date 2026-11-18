@@ -29,6 +29,7 @@ Each review says how the problem was found. Five of the first seven came from au
 | [INC-2026-011](INC-2026-011-worker-stuck-on-relay.md) | 2026-11-08 | One worker's tailnet link to the cloud monitoring host fell back to a relay and kept dropping out | SEV3 | Alert | Fixed and verified |
 | [INC-2026-012](INC-2026-012-hypervisor-hung-after-kernel-panic.md) | 2026-11-11 | The hypervisor panicked overnight and stayed frozen for nine hours | SEV3 | Alert | Fixed and verified |
 | [INC-2026-013](INC-2026-013-webhook-refresh-burst.md) | 2026-11-16 | The new GitHub webhook refreshed every app at once, and five apps went Unknown | SEV3 | Verification check | Fixed and verified |
+| [INC-2026-014](INC-2026-014-power-cut-outlasted-the-inverter.md) | 2026-11-17 | A power cut outlasted the inverter and took the home lab down for 15 hours | SEV3 | Alert | Fixed and verified (backup gap); power open |
 
 ## Conventions
 
