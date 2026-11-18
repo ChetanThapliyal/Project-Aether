@@ -890,6 +890,26 @@ pages:
     columns:
       - size: full
         widgets:
+          # Heading and the four counts first; the lists stay below the carousel
+          # and read the same file.
+          - type: custom-api
+            title: Docs
+            frameless: true
+            hide-header: true
+            url: http://127.0.0.1:8080/assets/docs-index.json
+            cache: 5m
+            template: |
+              <div class="ae-live-head">
+                <span class="ae-live-title">Docs</span>
+                <a class="vitals-badge ae-badge-link" href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs" target="_blank" rel="noreferrer">ALL IN THE REPOSITORY ↗</a>
+              </div>
+              <div class="ae-hero">
+                <div class="ae-stat"><div class="ae-stat-label">Architecture decisions</div><div class="ae-stat-num">{{ .JSON.Int "counts.adrs" }}</div><div class="ae-stat-sub">why each part is built the way it is</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Incident reviews</div><div class="ae-stat-num">{{ .JSON.Int "counts.incidents" }}</div><div class="ae-stat-sub">blameless, with root cause and guardrails</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Recovery scenarios</div><div class="ae-stat-num">{{ .JSON.Int "counts.dr" }}</div><div class="ae-stat-sub">each with a restore runbook and a drill</div></div>
+                <div class="ae-stat"><div class="ae-stat-label">Runbooks</div><div class="ae-stat-num">{{ .JSON.Int "counts.runbooks" }}</div><div class="ae-stat-sub">step by step, kept next to the code</div></div>
+              </div>
+
           - type: html
             title: How it works
             hide-header: true
@@ -1018,23 +1038,12 @@ pages:
               </div>
 
           - type: custom-api
-            title: Docs
+            title: Docs lists
             frameless: true
             hide-header: true
             url: http://127.0.0.1:8080/assets/docs-index.json
             cache: 5m
             template: |
-              <div class="ae-live-head">
-                <span class="ae-live-title">Docs</span>
-                <a class="vitals-badge ae-badge-link" href="https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs" target="_blank" rel="noreferrer">ALL IN THE REPOSITORY ↗</a>
-              </div>
-              <div class="ae-hero">
-                <div class="ae-stat"><div class="ae-stat-label">Architecture decisions</div><div class="ae-stat-num">{{ .JSON.Int "counts.adrs" }}</div><div class="ae-stat-sub">why each part is built the way it is</div></div>
-                <div class="ae-stat"><div class="ae-stat-label">Incident reviews</div><div class="ae-stat-num">{{ .JSON.Int "counts.incidents" }}</div><div class="ae-stat-sub">blameless, with root cause and guardrails</div></div>
-                <div class="ae-stat"><div class="ae-stat-label">Recovery scenarios</div><div class="ae-stat-num">{{ .JSON.Int "counts.dr" }}</div><div class="ae-stat-sub">each with a restore runbook and a drill</div></div>
-                <div class="ae-stat"><div class="ae-stat-label">Runbooks</div><div class="ae-stat-num">{{ .JSON.Int "counts.runbooks" }}</div><div class="ae-stat-sub">step by step, kept next to the code</div></div>
-              </div>
-
               <div class="vitals-card">
                 <div class="section-title">Architecture decisions</div>
                 <ul class="ae-doclist ae-doclist-cols">
