@@ -64,7 +64,7 @@ Proxmox VE runs three Ubuntu VMs cloned from a cloud-init template: one K3s cont
 
 The control plane uses embedded etcd on a single server. A three-server quorum would need about 4 GB more memory than the host has. The trade-off is explicit: after a control-plane loss the cluster is restored from a snapshot or rebuilt from Git, not failed over. The backup chain below exists to make that fast.
 
-On the cluster, MetalLB provides a layer-2 address for Envoy Gateway, cert-manager issues certificates from an internal CA, and the Tailscale operator publishes ArgoCD on the mesh. Storage is `local-path`. Longhorn was rejected for its memory footprint, and NFS from the ZFS pool is reserved for media ([ADR-016](docs/adr/016-kubernetes-storage-strategy.md)).
+On the cluster, the Tailscale operator publishes Envoy Gateway and ArgoCD on the mesh, and cert-manager issues a Let's Encrypt wildcard certificate for app names that resolve only on the mesh ([ADR-021](docs/adr/021-internal-dns-and-pki.md)). Databases use `local-path`; app files use NFS from the ZFS pool, and Longhorn was rejected for its memory footprint ([ADR-016](docs/adr/016-kubernetes-storage-strategy.md)).
 
 ### GitOps delivery
 
@@ -78,7 +78,7 @@ KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` fil
 
 The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened ([INC-2026-012](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
 
-Kestra is the operations scheduler, with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
+Kestra is the operations scheduler ([ADR-017](docs/adr/017-automation-and-scheduling.md)), with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
 
 ### The DMZ observer
 
@@ -201,6 +201,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 | [014](docs/adr/014-infrastructure-environment-isolation-strategy.md) | One environment, isolated by namespace, with VM rollback |
 | [015](docs/adr/015-ci-validation-pipeline.md) | Validation on every push, keyless nightly drift detection |
 | [016](docs/adr/016-kubernetes-storage-strategy.md) | `local-path` for databases, NFS from ZFS for app files, Longhorn rejected |
+| [017](docs/adr/017-automation-and-scheduling.md) | One scheduler per job: Kestra on the cloud host, CronJobs on the cluster, timers on the hypervisor |
 | [018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md) | 3-2-1 backups with an Object-Locked offsite copy |
 | [019](docs/adr/019-centralized-logging-architecture.md) | Loki on the cloud host, Alloy agents on the cluster |
 | [020](docs/adr/020-public-observability-data-diode.md) | The public status page and its one-way data feed |

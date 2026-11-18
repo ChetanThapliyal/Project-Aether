@@ -62,7 +62,7 @@ pages:
                   - title: GitHub monorepo
                     url: https://github.com/ChetanThapliyal/Project-Aether
                     icon: si:github
-                  - title: Architecture decisions (21)
+                  - title: Architecture decisions (22)
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
                     icon: si:markdown
                   - title: Incident reviews
