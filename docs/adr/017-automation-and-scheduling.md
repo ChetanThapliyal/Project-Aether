@@ -29,13 +29,13 @@ ADR-017: Automation and Scheduling: Kestra on the Cloud Host, Jobs Where They Li
 - **Consequences:**
   - *Positive:* each job has one scheduler, defined in Git next to what it touches. No new tailnet grants were needed for automation. Home lab jobs survive a cloud outage and the reverse.
   - *Negative:* three scheduling mechanisms to know, each with its own logs: the Kestra UI, `kubectl get cronjobs`, `systemctl list-timers`. Kestra uses about 1.3 GB of memory on the cloud host, plus its own PostgreSQL.
-  - *Risks:* Kestra mounts the Docker socket, so it has root-equivalent access to the cloud host. Its UI is reachable only on the mesh under the `oci-admin` role with basic auth. A flow without a heartbeat fails silently: the prune flow has none, which is why its 8 Nov failure went unnoticed.
+  - *Risks:* Kestra mounts the Docker socket, so it has root-equivalent access to the cloud host. Its UI is reachable only on the mesh under the `oci-admin` role with basic auth. A flow without a heartbeat fails silently, which is how the prune flow's 8 Nov failure went unnoticed. Every scheduled flow now has one.
 - **Security Considerations:** Kestra's credentials and the backup repository's credentials are in SOPS and rendered by Ansible. The restic flow mounts the backup configuration read-only. Flows sync from the repository over HTTPS with a token kept as a Kestra secret; the sync only reads.
 - **Validation / Fitness Functions (18 Nov 2026):**
   - The root crontab on the cloud host has no jobs (`crontab -l` empty after 4.13; the Ansible task is idempotent).
   - The Kestra backup flow's heartbeat is green on the edge Uptime Kuma, and its last run saved a snapshot.
   - The cloud host's tailnet grant to the home lab lists metrics ports only, and its policy tests deny the next port up.
   - Hypervisor timers recovered on their own after the power cut, apart from the missed-snapshot gap fixed in INC-2026-014.
-- **Follow-ups:** give the prune flow a heartbeat, or a Kestra failure notification to Telegram, so a failed flow pages like the backup does.
+- **Follow-up done (18 Nov 2026):** the prune flow now pushes a success heartbeat (edge Uptime Kuma monitor OCI-01, 8-day window) and sends a Telegram message on failure, like the backup flow.
 - **Dependencies:** ADR-008 (operational toolchain), ADR-012 (cloud host monorepo), ADR-013 (tailnet segmentation), ADR-018 and ADR-022 (backup jobs), ADR-020 (edge Uptime Kuma).
 - **Review Conditions:** a job needs to coordinate across sites (for example a restore drill spanning the cloud host and the cluster); Kestra's memory becomes a problem on the cloud host; or n8n starts carrying anything that must not fail silently.
