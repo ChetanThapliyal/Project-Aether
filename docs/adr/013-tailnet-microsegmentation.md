@@ -111,3 +111,7 @@ GITOPS-10 is delivered over the existing grant `tag:gcp-dmz → tag:k8s:443`; no
 
 ### Addendum: Database Exporters for the Cloud Prometheus (2026-11-17, Phase 04 task 4.20)
 The cloud host's metrics grant to `tag:k3s` gains two NodePorts: 30085 (PostgreSQL exporter) and 30086 (Redis exporter). Both exporters run in the `databases` namespace and log in with a read-only `pg_monitor` role or the Redis password; neither database port is reachable over the tailnet. Policy tests accept `tag:k3s:30085` and `:30086` from `tag:oci` and still deny `:30087`, so the grant can't quietly widen to the rest of the NodePort range.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-tailnet.svg" alt="Mesh segmentation: every device carries a role tag, access is granted between roles and never by location, everything else is denied, and policy tests run on every save." width="100%">

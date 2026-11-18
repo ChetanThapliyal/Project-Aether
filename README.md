@@ -66,6 +66,8 @@ The control plane uses embedded etcd on a single server. A three-server quorum w
 
 On the cluster, the Tailscale operator publishes Envoy Gateway and ArgoCD on the mesh, and cert-manager issues a Let's Encrypt wildcard certificate for app names that resolve only on the mesh ([ADR-021](docs/adr/021-internal-dns-and-pki.md)). Databases use `local-path`; app files use NFS from the ZFS pool, and Longhorn was rejected for its memory footprint ([ADR-016](docs/adr/016-kubernetes-storage-strategy.md)).
 
+<img src="docs/diagrams/flow-app-request.svg" alt="How a request reaches an app: a wildcard DNS name returns an address that works only on the mesh, Envoy Gateway terminates HTTPS with a Let's Encrypt wildcard certificate, and default-deny network policies let each app reach only what it opts in to." width="100%">
+
 ### GitOps delivery
 
 GitHub is the source of truth. `root-apps` is the only Application applied by hand. It watches `kubernetes/cluster/` and creates the 16 child Applications, ordered by sync waves so namespaces, operators and secrets land before the things that need them.
@@ -74,11 +76,15 @@ A push triggers a signed GitHub webhook. It enters through Cloudflare, which adm
 
 KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` files while rendering. The bootstrap itself (the ArgoCD Helm release) is installed by `task k8s:bootstrap-argocd`, and `task argocd:drift` fails when the live release differs from Git. The layout and the rules for adding an app are in [`kubernetes/README.md`](kubernetes/README.md).
 
+<img src="docs/diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys." width="100%">
+
 ### Monitoring and automation core
 
 The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened ([INC-2026-012](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
 
 Kestra is the operations scheduler ([ADR-017](docs/adr/017-automation-and-scheduling.md)), with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
+
+<img src="docs/diagrams/flow-monitoring.svg" alt="Monitoring and alerting: Prometheus, Loki, Alertmanager and Grafana run on the cloud host, scrape and collect from every site over the mesh, alert to Telegram, and prove the alert path works with an always-firing Watchdog sent to the edge VM." width="100%">
 
 ### The DMZ observer
 
@@ -87,6 +93,8 @@ The Google Cloud VM is the least-trusted machine and is treated that way. It run
 It watches the other two sites from outside, and they watch it. If either side loses its network, the other still has an alert path. The backup jobs report heartbeats to it, and so does Alertmanager, so a silent backup or a dead alert pipeline raises an alarm of its own.
 
 The public status page reads a sanitised, numbers-only summary from the monitoring core over the mesh. Visitors reach the page through Cloudflare and never touch the private network ([ADR-020](docs/adr/020-public-observability-data-diode.md)).
+
+<img src="docs/diagrams/flow-status-page.svg" alt="The status page's one-way data path: a sanitised numbers-only summary leaves the cloud host, the edge VM pulls it over its single mesh grant, Glance draws the page, Cloudflare serves it through an outbound tunnel, and nothing flows back." width="100%">
 
 ### The mesh
 
@@ -101,6 +109,8 @@ Tailscale provides the WireGuard overlay. Every machine and every published serv
 | Hypervisor | DMZ observer | Backup heartbeats |
 
 The policy carries tests. Saving a change that would let the DMZ reach an admin tool is rejected by the control plane before it takes effect ([ADR-013](docs/adr/013-tailnet-microsegmentation.md)).
+
+<img src="docs/diagrams/flow-tailnet.svg" alt="Mesh segmentation: every device carries a role tag, access is granted between roles and never by location, everything else is denied, and policy tests run on every save." width="100%">
 
 ## Security
 
@@ -126,6 +136,8 @@ Recovery targets are shown next to what has been proven. The live version, with 
 | Infrastructure state | 10 min | none lost | Versioned bucket |
 
 **Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first. The cluster's app databases are dumped nightly onto the ZFS pool; the hypervisor then snapshots app files and dumps together and ships them, age-encrypted, to the same locked bucket ([ADR-022](docs/adr/022-app-data-storage-and-backups.md)). The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
+
+<img src="docs/diagrams/flow-backups.svg" alt="Backups and recovery: the cluster's etcd snapshot, the app databases and files, and the cloud host's data each take a nightly path to a second disk and an Object-Locked offsite bucket, and every stage reports a heartbeat only when it succeeds." width="100%">
 
 **Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` and `task dr:drill:k8s` restore application databases into throwaway databases and compare them with the live ones, without touching production.
 

@@ -516,6 +516,35 @@ pages:
                 </ul>
               </div>
 
+          # Hypervisor disks and ZFS pool as one line, from the public feed's
+          # "storage" block (counts and yes/no only, no disk or pool names). A null
+          # field reads as "" and is shown as unknown, never as healthy. Amber when a
+          # disk is unhealthy, the pool isn't online or there are errors.
+          - type: custom-api
+            title: Storage
+            frameless: true
+            hide-header: true
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 5m
+            template: |
+              {{ $s := .JSON.Get "storage" }}
+              {{ $total := $s.String "disks_total" }}{{ $pool := $s.String "pool_online" }}{{ $age := $s.String "scrub_age_days" }}{{ $err := $s.String "errors" }}
+              {{ $warn := false }}
+              {{ if and (ne $total "") (ne ($s.Int "disks_healthy") ($s.Int "disks_total")) }}{{ $warn = true }}{{ end }}
+              {{ if eq $pool "false" }}{{ $warn = true }}{{ end }}
+              {{ if and (ne $err "") (gt ($s.Int "errors") 0) }}{{ $warn = true }}{{ end }}
+              <div class="ae-banner {{ if $warn }}ae-banner-warn{{ else }}ae-banner-plain{{ end }} ae-storage" role="status">
+                <span class="ae-dot{{ if $warn }} ae-warn{{ end }}"></span>
+                <span class="ae-banner-title">Storage</span>
+                <span class="ae-sep-clip"><span class="ae-sep-list">
+                  <span>{{ if eq $total "" }}disks unknown{{ else if eq ($s.Int "disks_healthy") ($s.Int "disks_total") }}{{ $s.Int "disks_total" }} disk{{ if ne ($s.Int "disks_total") 1 }}s{{ end }} healthy{{ else }}{{ $s.Int "disks_healthy" }} of {{ $s.Int "disks_total" }} disks healthy{{ end }}</span>
+                  <span>{{ if eq $pool "" }}ZFS pool unknown{{ else if eq $pool "true" }}ZFS pool online{{ else }}ZFS pool not online{{ end }}</span>
+                  <span>{{ if eq $age "" }}last scrub unknown{{ else if eq ($s.Int "scrub_age_days") 0 }}scrubbed today{{ else }}scrubbed {{ $s.Int "scrub_age_days" }} day{{ if ne ($s.Int "scrub_age_days") 1 }}s{{ end }} ago{{ end }}</span>
+                  <span>{{ if eq $err "" }}errors unknown{{ else }}{{ $s.Int "errors" }} error{{ if ne ($s.Int "errors") 1 }}s{{ end }}{{ end }}</span>
+                  {{ if not (.JSON.Bool "fresh") }}<span>data delayed</span>{{ end }}
+                </span></span>
+              </div>
+
           - type: html
             source: |
               <div class="vitals-card ae-gap-top">
@@ -874,9 +903,9 @@ pages:
                 </div>
                 <div class="ae-carousel" tabindex="0" role="region" aria-label="Flow diagrams">
                   <figure class="ae-carousel-slide" id="ae-slide-1">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 1 of 2">
-                      <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">1 / 2</span>
+                    <nav class="ae-carousel-nav" aria-label="Diagram 1 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-8" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">1 / 8</span>
                       <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -888,10 +917,10 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-2">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 2 of 2">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 2 of 8">
                       <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">2 / 2</span>
-                      <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Next diagram">Next ›</a>
+                      <span class="ae-carousel-count">2 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-3" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
                       <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-monitoring.svg" width="1600" height="890" loading="lazy" alt="Monitoring and alerting. Prometheus, Loki, Alertmanager and Grafana run on the cloud host, off the cluster. Prometheus scrapes node exporters, kube-state-metrics, ArgoCD and the database exporters over the private mesh, and Grafana Alloy on each cluster node ships logs to Loki. Alertmanager sends alerts to Telegram. A Watchdog alert that always fires goes to Uptime Kuma on the edge VM, which also receives backup heartbeats and checks the apps from outside.">
@@ -899,6 +928,90 @@ pages:
                     <figcaption>
                       <span>Monitoring and alerting: it runs off the cluster, and a Watchdog alert shows the alert path still works.</span>
                       <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md" target="_blank" rel="noreferrer">ADR-019 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer">ADR-020 ↗</a> <a href="/assets/aether-flow-monitoring.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-3">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 3 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">3 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-4" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-tailnet.svg" width="1600" height="920" loading="lazy" alt="Mesh segmentation. Every device on the private mesh carries a role tag, and access is granted between roles, never by location. The operator reaches every role; signed-in devices reach the apps and admin tools. The cloud host scrapes metrics from the cluster nodes, the hypervisor and the edge VM, the cluster nodes send logs to it, and the hypervisor sends heartbeats to the edge VM. The edge VM may only check the monitored services, the public feed and the cluster&#x27;s web ports. Everything else is denied, and policy tests run on every save.">
+                    </div>
+                    <figcaption>
+                      <span>Mesh segmentation: access goes by role, never by location, and policy tests run on every save.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/013-tailnet-microsegmentation.md" target="_blank" rel="noreferrer">ADR-013 ↗</a> <a href="/assets/aether-flow-tailnet.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-4">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 4 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-3" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">4 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-5" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-gitops.svg" width="1600" height="910" loading="lazy" alt="How a change is delivered. A push to main runs the same checks as the local hooks in GitHub Actions. GitHub sends a signed webhook through Cloudflare and the edge VM&#x27;s outbound tunnel to ArgoCD on the cluster, which refreshes only the apps whose files changed. Secrets stay encrypted in Git for two keys, and are decrypted inside the cluster with one of them. Hosts and machines are changed by hand with Ansible and Terraform, and a nightly job reports drift.">
+                    </div>
+                    <figcaption>
+                      <span>Delivery: a push is checked, then ArgoCD applies only what changed; secrets stay encrypted in Git.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/007-secrets-management.md" target="_blank" rel="noreferrer">ADR-007 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/009-gitops-controller.md" target="_blank" rel="noreferrer">ADR-009 ↗</a> <a href="/assets/aether-flow-gitops.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-5">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 5 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-4" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">5 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-6" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-app-request.svg" width="1600" height="810" loading="lazy" alt="How a request reaches an app. A device on the mesh asks public DNS for the app&#x27;s name, and a wildcard record answers with an address that only works on the mesh. The device connects over the mesh to a proxy that hands the connection to Envoy Gateway, which terminates HTTPS with a wildcard Let&#x27;s Encrypt certificate and routes to the app. The app reaches the shared PostgreSQL and Redis. Network policies deny everything by default, and each app opts in to the access it needs.">
+                    </div>
+                    <figcaption>
+                      <span>How a request reaches an app: the name resolves publicly but only works on the mesh, and every hop inside the cluster is denied by default.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/021-internal-dns-and-pki.md" target="_blank" rel="noreferrer">ADR-021 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/022-app-data-storage-and-backups.md" target="_blank" rel="noreferrer">ADR-022 ↗</a> <a href="/assets/aether-flow-app-request.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-6">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 6 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-5" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">6 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-7" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-status-page.svg" width="1600" height="830" loading="lazy" alt="This page&#x27;s one-way data path. On the cloud host, a small service turns Prometheus metrics into a summary of counts and plain numbers every five minutes, and a check blocks any summary that contains a name or an address. The edge VM pulls that file over its single grant on the mesh, Glance draws the page from it, and Cloudflare serves the page through a tunnel opened from inside. Uptime Kuma alerts if the summary is more than 15 minutes old. Nothing flows back from the edge or from visitors.">
+                    </div>
+                    <figcaption>
+                      <span>This page: one sanitised file leaves the cloud host, the edge pulls it, and nothing flows back.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer">ADR-020 ↗</a> <a href="/assets/aether-flow-status-page.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-7">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 7 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-6" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">7 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-8" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-cloudinit-template.svg" width="1600" height="690" loading="lazy" alt="How a cluster node is built. An Ubuntu cloud image is imported once into a virtual machine and frozen as a template, with nothing node-specific inside. Each node is a full clone of that template and gets its own user, SSH key, network settings and hostname from cloud-init on first boot. A broken node is destroyed and cloned again, and Terraform does the cloning today.">
+                    </div>
+                    <figcaption>
+                      <span>How a node is built: one image, frozen as a template; each clone gets its identity at first boot.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/006-proxmox-vm-provisioning-strategy.md" target="_blank" rel="noreferrer">ADR-006 ↗</a> <a href="/assets/aether-flow-cloudinit-template.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-8">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 8 of 8">
+                      <a class="ae-carousel-btn" href="#ae-slide-7" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">8 / 8</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-replicas-vs-backup.svg" width="1600" height="700" loading="lazy" alt="Why the cluster has backups instead of replicated storage. All three cluster nodes run on one laptop with one disk, one power supply and one hypervisor, so a replica on each node fails together with the others. Instead, databases and app files are dumped and snapshotted nightly and copied, encrypted, to a locked bucket offsite. After a power cut took every node down, a restore drill matched every database row count.">
+                    </div>
+                    <figcaption>
+                      <span>Replicas or backups: on one physical host replicas share every failure, so the redundancy is a copy somewhere else.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/016-kubernetes-storage-strategy.md" target="_blank" rel="noreferrer">ADR-016 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/022-app-data-storage-and-backups.md" target="_blank" rel="noreferrer">ADR-022 ↗</a> <a href="/assets/aether-flow-replicas-vs-backup.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
                     </figcaption>
                   </figure>
                 </div>

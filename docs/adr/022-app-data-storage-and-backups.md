@@ -40,3 +40,9 @@ ADR-022: App Data on the Cluster: Storage, Databases and Backups
   - Heartbeat negative test: a stale dump marker fails the run and withholds APP-01.
 - **Dependencies:** ADR-016 (storage), ADR-018 (3-2-1 and the Object Lock bucket), ADR-007 (SOPS), ADR-013 (heartbeat path), ADR-020 (edge Uptime Kuma).
 - **Review Conditions:** the dataset passes 20 GB; a second database server or more RAM makes CloudNativePG affordable; an app needs a recovery point under 24 hours.
+
+### Addendum: Diagrams (2026-11-18)
+
+<img src="../diagrams/flow-backups.svg" alt="Backups and recovery: the cluster's etcd snapshot, the app databases and files, and the cloud host's data each take a nightly path to a second disk and an Object-Locked offsite bucket, and every stage reports a heartbeat only when it succeeds." width="100%">
+
+<img src="../diagrams/flow-app-request.svg" alt="How a request reaches an app: a wildcard DNS name returns an address that works only on the mesh, Envoy Gateway terminates HTTPS with a Let's Encrypt wildcard certificate, and default-deny network policies let each app reach only what it opts in to." width="100%">

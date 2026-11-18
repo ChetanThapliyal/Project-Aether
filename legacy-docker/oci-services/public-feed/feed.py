@@ -85,6 +85,18 @@ SERIES = {
     "cluster_net": (SCALARS["cluster_net_mbs"], 0, None, 0.5, " MB/s"),
 }
 
+# Hypervisor disks and ZFS pool, as one line on the page: counts and yes/no only,
+# never disk, pool or host names. Aggregated over every disk and pool.
+STORAGE = {
+    "disks_total": "count(smartmon_device_smart_healthy)",
+    "disks_healthy": "count(smartmon_device_smart_healthy == 1)",  # empty, not 0, when none is
+    "pools_total": 'count(node_zfs_zpool_state{state="online"})',
+    "pools_online": 'count(node_zfs_zpool_state{state="online"} == 1)',
+    "oldest_scrub_ts": "min(aether_zfs_pool_last_scrub_timestamp_seconds)",  # 0: never scrubbed
+    "device_errors": "sum(aether_zfs_pool_device_errors)",
+    "scrub_errors": "sum(aether_zfs_pool_scrub_errors)",
+}
+
 GAUGES = [  # (label, scalar key, group shown under the gauge)
     ("Cluster CPU", "cluster_cpu_pct", "K3s, 3 nodes"),
     ("Cluster memory", "cluster_mem_pct", "K3s, 3 nodes"),
@@ -185,6 +197,22 @@ def versions():
     return [{"image": n, "tag": t} for n, t in sorted(seen.items())]
 
 
+def storage():
+    """Missing metrics give null, which the page shows as "unknown": a healthy
+    value is never assumed."""
+    v = {k: scalar(q) for k, q in STORAGE.items()}
+    total, pools = v["disks_total"], v["pools_total"]
+    ts = v["oldest_scrub_ts"]
+    errs = None if v["device_errors"] is None or v["scrub_errors"] is None else v["device_errors"] + v["scrub_errors"]
+    return {
+        "disks_total": None if total is None else int(total),
+        "disks_healthy": None if total is None else int(v["disks_healthy"] or 0),
+        "pool_online": None if pools is None else int(v["pools_online"] or 0) == int(pools),
+        "scrub_age_days": None if ts is None or ts <= 0 else max(0, int((time.time() - ts) // 86400)),
+        "errors": None if errs is None else int(errs),
+    }
+
+
 def build():
     s = {k: scalar(q) for k, q in SCALARS.items()}
     r = lambda v, n=1: None if v is None else round(v, n)
@@ -211,6 +239,7 @@ def build():
         "gauges": [],
         "charts": {},
         "versions": versions(),
+        "storage": storage(),
     }
     for label, key, group in GAUGES:
         v = s[key]

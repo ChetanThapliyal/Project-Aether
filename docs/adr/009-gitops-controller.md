@@ -45,3 +45,7 @@ The status line said "Proposed" long after ArgoCD went into service. It was corr
 - **Version history:** ArgoCD v2.14.10 on chart 7.8.26 from 20 October. That release links the Kubernetes client libraries at v0.31, which predate fields the cluster (Kubernetes 1.36) fills in, such as `.status.terminatingReplicas`. ArgoCD couldn't build a diff for the four apps that use server-side apply, so they showed `Unknown` while it could no longer manage them ([INC-2026-005](../incidents/INC-2026-005-gitops-blind-to-drift.md)). Upgraded on 10 Nov 2026 to **v3.5.7 on chart 10.11.7** (Kubernetes libraries v0.36), with an etcd snapshot taken first; `task argocd:drift` now fails when the live release differs from Git.
 - **New review condition:** whenever K3s moves to a new Kubernetes minor version, check that the running ArgoCD release links `k8s.io/*` libraries at least that new (its `go.mod`), and upgrade ArgoCD first if not.
 - **Open question resolved:** secrets are decrypted by **KSOPS**, run as a config management plugin sidecar on the repo server. Encrypted `ksops-secret.yaml` generators sit next to the manifests that use them. See ADR-007.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys." width="100%">

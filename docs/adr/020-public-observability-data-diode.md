@@ -97,3 +97,9 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
 The DMZ ran Hawser, the Dockhand agent, so the OCI Dockhand could manage its containers. Hawser mounted the Docker socket, which made it root-equivalent on the host, and it listened on port 2376 on every address. The internet couldn't reach that port (the VPC allows only IAP SSH and ICMPv6 in), and on the tailnet only `tag:oci` could. But every container on the host could, including Glance and cloudflared, the two that face the internet. Only Hawser's token separated a compromised public container from root on the host.
 
 Hawser is removed. The DMZ is managed by Ansible only, and the tailnet grant `tag:oci → tag:gcp-dmz:2376` is gone; a policy test now denies it. Dockhand no longer shows the DMZ. Container health there is still watched: OCI Uptime Kuma probes Glance and Kuma, and OCI Prometheus scrapes the node exporter.
+
+### Addendum: Diagrams (2026-11-18)
+
+<img src="../diagrams/flow-monitoring.svg" alt="Monitoring and alerting: Prometheus, Loki, Alertmanager and Grafana run on the cloud host, scrape and collect from every site over the mesh, alert to Telegram, and prove the alert path works with an always-firing Watchdog sent to the edge VM." width="100%">
+
+<img src="../diagrams/flow-status-page.svg" alt="The status page's one-way data path: a sanitised numbers-only summary leaves the cloud host, the edge VM pulls it over its single mesh grant, Glance draws the page, Cloudflare serves it through an outbound tunnel, and nothing flows back." width="100%">

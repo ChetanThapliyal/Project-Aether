@@ -165,6 +165,13 @@
         - { src: "../../docker/gcp-dmz/glance/assets/aether-architecture.svg", dest: "{{ dmz_dir }}/glance/assets/aether-architecture.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-backups.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-backups.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-monitoring.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-monitoring.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-tailnet.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-tailnet.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-gitops.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-gitops.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-app-request.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-app-request.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-status-page.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-status-page.svg" }
+        # Built in the blog repo (build_all.py BLOG_COPIES); the committed copies here are what ships
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-cloudinit-template.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-cloudinit-template.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-replicas-vs-backup.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-replicas-vs-backup.svg" }
       register: glance_files
 
     # ─── Docker Compose File ──────────────────────────────

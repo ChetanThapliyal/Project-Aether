@@ -41,3 +41,7 @@ Decision 2 said the `lab.` names would resolve only on internal DNS, to the Gate
 - **Probe.** `ping.lab.chetan-thapliyal.cloud` is answered by Envoy itself (a direct-response filter, no backend pod). One request tests DNS, the tailnet path, the certificate and the Gateway, so it is the target for the outside check in task 4.20.
 - **Risk accepted.** If the proxy's state Secret is lost, the node rejoins with a new tailnet address and the record must be updated by hand. Recovery: read the new address from `kubectl -n gateway-system get svc aether-gateway-tailnet` and edit the record.
 - **Fitness function, met 17 Nov 2026.** `curl https://ping.lab.chetan-thapliyal.cloud` succeeds without `-k` over the tailnet, from a device with no private root installed.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-app-request.svg" alt="How a request reaches an app: a wildcard DNS name returns an address that works only on the mesh, Envoy Gateway terminates HTTPS with a Let's Encrypt wildcard certificate, and default-deny network policies let each app reach only what it opts in to." width="100%">

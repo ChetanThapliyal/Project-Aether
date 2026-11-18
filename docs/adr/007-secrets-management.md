@@ -53,3 +53,7 @@ ADR-007: Secrets Management with SOPS, Age, and GCP Cloud KMS
 - **Existing files migrated:** Re-encrypted all repository secret files with `sops updatekeys` to include both recipients.
 - **Cost:** GCP free tier covers 2,000 active key versions and 10,000 operations per month. With 1 active key version and ~50 monthly operations, effective cost is ₹0.00.
 - **Risk after amendment:** Risk of key loss is low, requiring simultaneous loss of both GCP project access and the offline age backup.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys." width="100%">

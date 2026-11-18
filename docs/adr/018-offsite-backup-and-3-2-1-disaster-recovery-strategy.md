@@ -113,3 +113,7 @@ Until now the homelab key could delete anything in the offsite bucket, and hidde
   | B2 `aether-restic-etcd-offsite` (transitional) | restic's policy; retired after a cold-restore drill from the locked bucket |
 
   The locked bucket's 30-night window is the offsite RPO ceiling and the reason the DR heartbeat matters: 30 nights without a working upload leaves nothing offsite.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-backups.svg" alt="Backups and recovery: the cluster's etcd snapshot, the app databases and files, and the cloud host's data each take a nightly path to a second disk and an Object-Locked offsite bucket, and every stage reports a heartbeat only when it succeeds." width="100%">

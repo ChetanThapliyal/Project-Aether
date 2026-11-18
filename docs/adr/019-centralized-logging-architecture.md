@@ -87,3 +87,7 @@ ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
 - **Memory:** limit 256 MiB, request 64 MiB, plus a 48 MiB limit on the config-reload sidecar. Measured shortly after the cut-over: Alloy used 45–88 MiB per node and the sidecar 6 MiB. Promtail used 100–112 MiB on the same nodes. The original "< 30 MiB" fitness function was never met by Promtail either, and is replaced by the limit above.
 - **Cut-over:** Promtail and Alloy were swapped in one ArgoCD sync. Alloy started with no saved positions and re-read each log file. Loki refused the lines older than its one-hour window, which Promtail had already shipped, and accepted the rest. No gap and no duplicate streams.
 - **Known behaviour:** kube-router programs a pod's firewall a few seconds after the pod starts. A test pod that runs its check immediately can get through before the policy exists. Test egress from a pod that has been running for a few seconds.
+
+### Addendum: Diagram (2026-11-18)
+
+<img src="../diagrams/flow-monitoring.svg" alt="Monitoring and alerting: Prometheus, Loki, Alertmanager and Grafana run on the cloud host, scrape and collect from every site over the mesh, alert to Telegram, and prove the alert path works with an always-firing Watchdog sent to the edge VM." width="100%">
