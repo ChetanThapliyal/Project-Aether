@@ -1,0 +1,55 @@
+# openGym: self-hosted workout and body-weight tracker (AGPL-3.0,
+# github.com/DuarteSantos8/openGym). Two containers from the upstream compose file:
+# the API (Node, data as JSON files in ./data) and the web container (nginx serving
+# the React app and proxying /api), one origin as passkeys require.
+#
+# Reached only on the tailnet, through tsdproxy (tag:oci-app, HTTPS):
+#   https://opengym.tail7067ab.ts.net
+# Passkeys are bound to that exact hostname (RP_ID/ORIGIN below); renaming it means
+# everyone registers a new passkey.
+#
+# Data: ./data holds accounts, passkeys, per-user state, the session-signing secret
+# and uploads. It is under app_base_dir, so the nightly restic backup covers it.
+services:
+  api:
+    image: ghcr.io/duartesantos8/opengym-api:1.4.5@sha256:397c83e9ac33a413bc8f21e66b2e55038100fc7f9da900d80be28b30fbb12ea8
+    container_name: opengym-api
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - TRUST_PROXY=1            # only the web container reaches the API, and it overwrites X-Forwarded-For
+      - RP_ID=opengym.tail7067ab.ts.net
+      - ORIGIN=https://opengym.tail7067ab.ts.net
+      - RP_NAME=openGym
+      - FIRST_USER_ADMIN=1       # the first profile created becomes the admin: register before sharing
+      - MEDIA_QUOTA_MB=200
+    volumes:
+      - ./data:/data
+    networks:
+      - default
+
+  web:
+    image: ghcr.io/duartesantos8/opengym-web:1.4.5@sha256:e621677554302a0e1745e3b8c90acddc7d7149e118c4d683d51c13aa88f47d27
+    container_name: opengym-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      - NGINX_PORT=8080          # the image runs as uid 101, so no privileged port
+      - BACKEND=api
+      - PORT=3000
+      - RESOLVER=127.0.0.11
+      - MEDIA_UPLOAD_MAX=112m
+    networks:
+      - default
+      - proxied-net
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "opengym"
+      tsdproxy.container_port: "8080"
+
+networks:
+  proxied-net:
+    external: true

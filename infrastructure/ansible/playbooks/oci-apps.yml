@@ -190,6 +190,35 @@
         pull: missing   # images are pinned by digest (FND-09)
       tags: [it-tools, apps]
 
+    # ─── openGym (workout tracker) ──────────────────────────
+    # Data lives in ./data as JSON files (accounts, passkeys, sessions secret,
+    # uploads); the nightly restic backup of app_base_dir covers it.
+    - name: Create opengym directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      loop:
+        - "{{ app_base_dir }}/opengym"
+        - "{{ app_base_dir }}/opengym/data"
+      tags: [opengym, apps]
+
+    - name: Copy opengym compose file
+      copy:
+        src: ../../../legacy-docker/oci-services/opengym.yml
+        dest: "{{ app_base_dir }}/opengym/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+      tags: [opengym, apps]
+
+    - name: Start opengym
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_base_dir }}/opengym"
+        state: present
+        pull: missing   # images are pinned by digest (FND-09)
+      tags: [opengym, apps]
+
     # ─── Dozzle (Log Viewer) ────────────────────────────────
     - name: Create dozzle directories
       file:
