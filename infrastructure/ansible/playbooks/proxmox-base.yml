@@ -10,6 +10,9 @@
 #   lockup is promoted to a panic so it reboots as well.
 # - Disable services a headless hypervisor doesn't need: CUPS crash-looped
 #   every 90 s under AppArmor, and OpenIPMI fails at boot (no BMC on a laptop).
+# - Keep the journal through a power cut (INC-2026-014). The old hand-set 50 MB
+#   cap was full, so journald kept deleting files, and the one in use at the
+#   power loss was gone after the reboot: the last 6.5 hours of logs were lost.
 #
 # Examples:
 #   ansible-playbook playbooks/proxmox-base.yml
@@ -35,6 +38,23 @@
         group: root
         mode: "0644"
       notify: Apply sysctl
+
+    - name: Journal sized to keep weeks of logs, synced to disk every minute
+      ansible.builtin.copy:
+        dest: /etc/systemd/journald.conf.d/00-limits.conf
+        content: |
+          # Managed by Ansible (proxmox-base.yml, INC-2026-014).
+          [Journal]
+          Storage=persistent
+          SystemMaxUse=500M
+          SystemKeepFree=5G
+          RuntimeMaxUse=30M
+          # Default is 5 min: at most a minute of logs is lost when the power goes.
+          SyncIntervalSec=1m
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart journald
 
     - name: Stop and mask CUPS (no printing on the hypervisor)
       ansible.builtin.systemd:
@@ -78,6 +98,11 @@
       when: not ansible_check_mode   # the sysctl isn't applied in check mode
 
   handlers:
+    - name: Restart journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+
     - name: Apply sysctl
       ansible.builtin.command: sysctl -p /etc/sysctl.d/90-aether-panic.conf
       changed_when: true

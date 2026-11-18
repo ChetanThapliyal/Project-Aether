@@ -84,12 +84,14 @@ The home lab runs from an inverter with about six and a half hours of runtime at
 - The sync stage takes its own snapshot when the scheduled one was missed, so one night of downtime no longer blocks the next day's offsite copy.
 - The sync stage will not run on an unsynchronised clock.
 - ArgoCD (18 Nov, `kubernetes/bootstrap/argocd/values.yaml`): the SOPS plugin's CPU limit went from 100m to 500m (request unchanged), the controller's repo-server timeout from 60 to 180 seconds, and the repo server's pause after failed builds from 60 to 5 minutes. Rehearsed: with the repo server restarted, all seven SOPS apps refreshed at once were Synced in 63 seconds, with builds of 2 to 8 seconds instead of 14 to 27.
+- The hypervisor's journal (`proxmox-base.yml`, 18 Nov): the hand-set 50 MB cap was full, so journald deleted files all the time, and the file in use at the power loss did not survive the reboot. It is now managed by Ansible: 500 MB, synced to disk every minute instead of every five.
+- Disk and pool alerts (18 Nov, `alert-rules.yml`, group `hypervisor-hardware-alerts`): pool not online, pool errors, overdue scrub, SMART failing, bad sectors growing (not the old baseline), stale SMART data, and the host running hot. Unit-tested with promtool in CI. smartd had been mailing its warnings to a local mailbox nobody reads.
+- Runbook (`docs/disaster-recovery/scenarios/03-homelab-hardware.md`, Branch A): a BIOS reset turns virtualisation off; how to confirm it and the setting to change.
 
 Still open:
 
 - Power: a UPS sized for the hypervisor and router, or a battery in the laptop, and a warning before the inverter runs out.
-- Logs: flush the hypervisor's journal to disk more often and send kernel messages to another machine, so the next unexplained outage leaves evidence.
-- Runbook: note in the hypervisor recovery runbook that a BIOS reset turns virtualisation off, with the kernel line that confirms it.
+- Logs off the box: ship the hypervisor's journal to Loki on the cloud host, as the cluster nodes already do, so the next outage leaves evidence somewhere else. Needs a tailnet grant.
 
 ## Lessons
 

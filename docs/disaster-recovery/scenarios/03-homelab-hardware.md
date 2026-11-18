@@ -50,14 +50,16 @@
 1. Power on the laptop. Wait about 2 minutes for Proxmox VE to boot.
 2. `ssh root@192.168.1.200`
 3. Check the ZFS pool: `zpool status aether-pool`. If it's missing, run `zpool import aether-pool`. Then `zfs list -o name,mounted -r aether-pool`: both DR datasets must say `yes`. If one doesn't, the nightly jobs stop with `ERROR: ... is not the aether-pool ZFS dataset`; run `zfs mount -a`.
-4. Start the VMs in order:
+4. Start the VMs in order. They have `onboot: 1`, so check `qm list` first; they may already be running.
    ```bash
    qm start 101                                   # k3s-control-01
    sleep 90; ssh owl@192.168.1.51 "sudo systemctl is-active k3s"
    qm start 102; qm start 103                     # workers
    ```
+   **If a VM fails with "KVM virtualisation configured, but not available":** the BIOS has lost its settings (a flat or removed CMOS battery resets them), and the default turns hardware virtualisation off. Confirm with `dmesg | grep -i "vmx.*disabled by bios"`, and check the clock: `journalctl -b | grep -i "clock wrong"`. Fix: reboot into the BIOS (HP: F10), set System Configuration → Virtualization Technology to Enabled, F10 to save. The VMs start on their own after the reboot (INC-2026-014).
 5. `ssh owl@192.168.1.51 "sudo k3s kubectl get nodes"`: all three are `Ready`.
-6. The DR timers use `Persistent=true`, so they run any job missed overnight. Check: `systemctl list-timers 'k3s-etcd*'` and `systemctl --failed`.
+6. The DR timers use `Persistent=true`, so they run any job missed overnight. Since INC-2026-014 the etcd sync waits up to 15 minutes for the clock and the control VM, and takes a fresh snapshot if the cluster missed its 02:00 one. Check: `systemctl list-timers 'k3s-etcd*'` and `systemctl --failed`.
+7. ArgoCD: all apps should be `Synced`/`Healthy` within a few minutes of the nodes being Ready. If the apps that use SOPS stay `Unknown`, restart the repo server and refresh them one at a time (`docs/runbooks/argocd-recovery.md`).
 
 ---
 
