@@ -841,6 +841,39 @@ pages:
     columns:
       - size: full
         widgets:
+          - type: html
+            title: How it works
+            hide-header: true
+            frameless: true
+            source: |
+              <div class="ae-section-head" id="how-it-works">How it works</div>
+              <div class="vitals-card">
+                <div class="ae-carousel-head">
+                  <div class="section-title">Flow diagrams · one part of the system each</div>
+                  <span class="ae-carousel-hint">swipe or scroll sideways →</span>
+                </div>
+                <div class="ae-carousel" tabindex="0" role="region" aria-label="Flow diagrams">
+                  <figure class="ae-carousel-slide">
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-backups.svg" width="1600" height="1006" loading="lazy" alt="Backups and recovery. A K3s etcd snapshot at 02:00 is pulled to the hypervisor's ZFS disk, kept in a local restic repository and copied, age-encrypted, to an Object-Locked Backblaze B2 bucket. App databases are dumped at 01:30, snapshotted and streamed into the same bucket at 04:00. The cloud host runs restic nightly to object storage. Every stage sends a heartbeat to Uptime Kuma on the edge VM only when it succeeds, so silence raises an alert.">
+                    </div>
+                    <figcaption>
+                      <span>Backups and recovery: three nightly paths, three copies, and a heartbeat sent only on success.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md" target="_blank" rel="noreferrer">ADR-018 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/022-app-data-storage-and-backups.md" target="_blank" rel="noreferrer">ADR-022 ↗</a> <a href="/assets/aether-flow-backups.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide">
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-monitoring.svg" width="1600" height="890" loading="lazy" alt="Monitoring and alerting. Prometheus, Loki, Alertmanager and Grafana run on the cloud host, off the cluster. Prometheus scrapes node exporters, kube-state-metrics, ArgoCD and the database exporters over the private mesh, and Grafana Alloy on each cluster node ships logs to Loki. Alertmanager sends alerts to Telegram. A Watchdog alert that always fires goes to Uptime Kuma on the edge VM, which also receives backup heartbeats and checks the apps from outside.">
+                    </div>
+                    <figcaption>
+                      <span>Monitoring and alerting: it runs off the cluster, and a Watchdog alert shows the alert path still works.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/019-centralized-logging-architecture.md" target="_blank" rel="noreferrer">ADR-019 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer">ADR-020 ↗</a> <a href="/assets/aether-flow-monitoring.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                </div>
+              </div>
+
           - type: custom-api
             title: Docs
             frameless: true

@@ -811,3 +811,23 @@ code,
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ─── Flow-diagram carousel (Docs page). CSS only: the page's CSP allows no inline script. ───────── */
+.ae-carousel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.ae-carousel-hint { font-size: 1.1rem; color: var(--ae-stone-400); }
+.ae-carousel {
+  display: flex;
+  gap: var(--widget-gap);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ae-stone-600) transparent;
+}
+.ae-carousel-slide { flex: 0 0 100%; min-width: 0; margin: 0; scroll-snap-align: center; }
+.ae-carousel-slide figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin-top: 10px; font-size: 1.2rem; color: var(--ae-stone-300); }
+.ae-carousel-links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.ae-carousel-links a { color: var(--ae-orange-light); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ae-carousel { scroll-behavior: auto; } }
