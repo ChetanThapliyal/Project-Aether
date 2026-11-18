@@ -30,6 +30,7 @@ Each review says how the problem was found. Five of the first seven came from au
 | [INC-2026-012](INC-2026-012-hypervisor-hung-after-kernel-panic.md) | 2026-11-11 | The hypervisor panicked overnight and stayed frozen for nine hours | SEV3 | Alert | Fixed and verified |
 | [INC-2026-013](INC-2026-013-webhook-refresh-burst.md) | 2026-11-16 | The new GitHub webhook refreshed every app at once, and five apps went Unknown | SEV3 | Verification check | Fixed and verified |
 | [INC-2026-014](INC-2026-014-power-cut-outlasted-the-inverter.md) | 2026-11-17 | A power cut outlasted the inverter and took the home lab down for 15 hours | SEV3 | Alert | Fixed and verified (backup gap); power open |
+| [INC-2026-015](INC-2026-015-cutover-withheld-cloud-backup-heartbeat.md) | 2026-11-18 | Moving two apps off the cloud host made its nightly backup report failure | SEV3 | Alert | Fixed and verified |
 
 ## Conventions
 
