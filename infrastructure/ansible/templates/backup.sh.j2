@@ -14,9 +14,11 @@ dump() {  # container user db outfile
   docker exec "$1" pg_dump -U "$2" "$3" > "$4.tmp" && mv "$4.tmp" "$4" \
     || { echo "ERROR: pg_dump $1/$3 failed"; rm -f "$4.tmp"; failed=1; }
 }
-dump blinko-postgres postgres  postgres  {{ app_base_dir }}/blinko/db.sql
+# Blinko and AFFiNE moved to the cluster on 17 Nov 2026 (M2, M1); their OCI databases are
+# stopped until 4.23 removes them. A stopped container can't be dumped, so they are left out:
+# restic still copies their data directories, which are consistent while stopped, and the last
+# db.sql files (17 Nov 03:00) stay in place. Dumping them failed and withheld the heartbeat.
 dump bookorbit-db    bookorbit bookorbit {{ app_base_dir }}/bookorbit/db.sql
-dump affine-postgres affine    affine    {{ app_base_dir }}/affine/db.sql
 dump kestra-postgres kestra    kestra    {{ app_base_dir }}/kestra/db.sql
 # Anytype coordinator metadata (MongoDB); sync-node and Garage data are files.
 out={{ app_base_dir }}/anytype/mongo.archive
