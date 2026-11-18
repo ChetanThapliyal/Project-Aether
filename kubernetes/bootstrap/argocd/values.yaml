@@ -34,6 +34,12 @@ repoServer:
       cpu: 400m
       memory: 384Mi
 
+  # INC-2026-014: after 3 failed builds the repo server stops trying for 60 minutes and
+  # the app stays Unknown. Five minutes lets a cold start heal on its own.
+  env:
+    - name: ARGOCD_PAUSE_GEN_MINUTES
+      value: "5"
+
   # --- KSOPS CMP sidecar wiring ---
   volumes:
     - name: cmp-ksops-config
@@ -55,7 +61,10 @@ repoServer:
           cpu: 20m
           memory: 32Mi
         limits:
-          cpu: 100m
+          # INC-2026-014: at 100m one manifest build took ~8.5 s, so six SOPS apps queued
+          # after a cold start ran past the controller's deadline and went Unknown.
+          # Only the limit rises; the request (what the node reserves) is unchanged.
+          cpu: 500m
           memory: 128Mi
       securityContext:
         runAsNonRoot: true
@@ -110,6 +119,9 @@ configs:
   params:
     server.insecure: true
     reposerver.parallelism.limit: 2
+    # INC-2026-014: 60 s (default) is too short for SOPS apps queued behind each other
+    # after a cold start; 180 s still fails a genuinely stuck build within minutes.
+    controller.repo.server.timeout.seconds: 180
     controller.status.processors: 10
     controller.operation.processors: 5
   cm:

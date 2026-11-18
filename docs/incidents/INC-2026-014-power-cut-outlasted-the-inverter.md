@@ -83,11 +83,11 @@ The home lab runs from an inverter with about six and a half hours of runtime at
 
 - The sync stage takes its own snapshot when the scheduled one was missed, so one night of downtime no longer blocks the next day's offsite copy.
 - The sync stage will not run on an unsynchronised clock.
+- ArgoCD (18 Nov, `kubernetes/bootstrap/argocd/values.yaml`): the SOPS plugin's CPU limit went from 100m to 500m (request unchanged), the controller's repo-server timeout from 60 to 180 seconds, and the repo server's pause after failed builds from 60 to 5 minutes. Rehearsed: with the repo server restarted, all seven SOPS apps refreshed at once were Synced in 63 seconds, with builds of 2 to 8 seconds instead of 14 to 27.
 
 Still open:
 
 - Power: a UPS sized for the hypervisor and router, or a battery in the laptop, and a warning before the inverter runs out.
-- ArgoCD: a longer repo-server timeout in the controller and more parallelism for the SOPS plugin, so a cold start does not leave apps `Unknown`.
 - Logs: flush the hypervisor's journal to disk more often and send kernel messages to another machine, so the next unexplained outage leaves evidence.
 - Runbook: note in the hypervisor recovery runbook that a BIOS reset turns virtualisation off, with the kernel line that confirms it.
 
