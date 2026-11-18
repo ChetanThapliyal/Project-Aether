@@ -440,16 +440,13 @@
       register: couchdb_runtime_cleanup
       tags: [couchdb, apps]
 
-    - name: Start couchdb
+    # M4 (18 Nov 2026): CouchDB moved to the cluster (couchdb.lab), fresh: the OCI copy
+    # held only system databases. Kept stopped for 7 days, then this block, the compose
+    # file, the directory and the oci_couchdb_* SOPS keys go (4.23).
+    - name: Keep couchdb stopped (moved to the cluster)
       community.docker.docker_compose_v2:
         project_src: "{{ app_base_dir }}/couchdb"
-        state: present
-        pull: missing   # images are pinned by digest (FND-09)
-      tags: [couchdb, apps]
-
-    - name: Restart couchdb when its settings changed (it reads ini files only at start)
-      ansible.builtin.command: docker restart couchdb
-      when: couchdb_settings.changed or couchdb_runtime_cleanup.changed
+        state: stopped
       tags: [couchdb, apps]
 
     # ─── AFFiNE (Knowledge Management) ─────────────────────
