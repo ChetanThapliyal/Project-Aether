@@ -27,40 +27,62 @@
   --ae-stone-600: #57534E;
   --ae-stone-400: #A8A29E;       /* muted text */
   --ae-stone-300: #D6D3D1;       /* body text on dark */
-  --ae-stone-100: #F5F5F4;       /* headings on dark */
+  --ae-stone-100: #F5F5F4;       /* headings on dark; light page background */
 
-  --ae-gradient: linear-gradient(135deg, var(--ae-orange) 0%, var(--ae-amber-light) 55%, var(--ae-rose-light) 100%);
-  --ae-glow: rgba(234, 88, 12, 0.10);
-  --ae-orange-wash: rgba(234, 88, 12, 0.12);
-  --ae-orange-edge: rgba(234, 88, 12, 0.45);
-  --ae-area-top: rgba(234, 88, 12, 0.32);
+  /* Light-theme additions. Text colours are the -700 shades: the brand's
+     #EA580C is 3.3:1 on #F5F5F4, under the 4.5:1 that body-size text needs. */
+  --ae-white: #FFFFFF;           /* light card surface */
+  --ae-stone-50: #FAFAF9;        /* light inset tiles */
+  --ae-stone-200: #E7E5E4;       /* light borders */
+  --ae-stone-550: #6B6560;       /* light muted text (#78716C is 4.4:1 on the page) */
+  --ae-orange-dark: #C2410C;     /* accent text on light, 4.8:1 */
+  --ae-amber-dark: #B45309;
+  --ae-rose-dark: #BE123C;
+  --ae-lime: #84CC16;
+  --ae-lime-dark: #3F6212;       /* ok text on light, 5.7:1 on a tinted badge */
+
+  /* ── Theme ─────────────────────────────────────────────────────────────
+     Every role and status token is light-dark(<light>, <dark>). The
+     color-scheme on <html> picks the side: dark by default, "light dark"
+     (follow the OS) for Auto, light for the Light preset; see below :root.
+     Rules use only these tokens: never a palette name or a literal colour. */
+  color-scheme: dark;
+
+  --ae-bg: light-dark(var(--ae-stone-100), var(--ae-stone-900));            /* page */
+  --ae-surface: light-dark(var(--ae-white), var(--ae-stone-800));           /* cards, widgets */
+  --ae-surface-hover: light-dark(var(--ae-stone-100), var(--ae-stone-700)); /* Glance's highlighted rows */
+  --ae-inset: light-dark(var(--ae-stone-50), var(--ae-stone-900));          /* tiles inside a card: gauges, charts */
+  --ae-border: light-dark(var(--ae-stone-200), var(--ae-stone-700));        /* card edges, row dividers, grid lines */
+  --ae-border-strong: light-dark(var(--ae-stone-300), var(--ae-stone-600)); /* table heads, buttons, neutral dot */
+  --ae-text-strong: light-dark(var(--ae-stone-900), var(--ae-stone-100));   /* headings, names, big numbers */
+  --ae-text: light-dark(var(--ae-stone-600), var(--ae-stone-300));          /* body */
+  --ae-text-muted: light-dark(var(--ae-stone-550), var(--ae-stone-400));    /* labels, captions, meta */
+  --ae-accent-text: light-dark(var(--ae-orange-dark), var(--ae-orange-light)); /* links, code, accent labels */
+  --ae-accent-line: var(--ae-orange);                                       /* lines, gauges, hover edges, nav underline */
+  /* Light badge fills are opaque tints on white, so a badge reads the same on the page and on a card. */
+  --ae-accent-wash: light-dark(color-mix(in srgb, var(--ae-orange) 7%, var(--ae-white)), rgba(234, 88, 12, 0.12)); /* accent badge fill */
+  --ae-accent-edge: light-dark(rgba(194, 65, 12, 0.40), rgba(234, 88, 12, 0.45)); /* accent badge edge */
+  --ae-plate: var(--ae-stone-900);                                          /* behind the dark diagrams, both themes */
+  --ae-swatch-dark: var(--ae-stone-900);                                    /* theme picker chips */
+  --ae-swatch-light: var(--ae-stone-100);
+
+  --ae-gradient: linear-gradient(135deg,
+    light-dark(var(--ae-orange-dark), var(--ae-orange)) 0%,
+    light-dark(var(--ae-amber-dark), var(--ae-amber-light)) 55%,
+    light-dark(var(--ae-rose-dark), var(--ae-rose-light)) 100%);
+  --ae-glow: light-dark(rgba(234, 88, 12, 0.06), rgba(234, 88, 12, 0.10));
+  --ae-area-top: light-dark(rgba(234, 88, 12, 0.22), rgba(234, 88, 12, 0.32));
   --ae-area-bottom: rgba(234, 88, 12, 0.02);
 
   /* Status (semantic, separate from the accent) */
-  --ae-ok: #84CC16;
-  --ae-warn: var(--ae-amber-light);
-  --ae-bad: var(--ae-rose-light);
-  --ae-ok-wash: rgba(132, 204, 22, 0.12);
-  --ae-ok-edge: rgba(132, 204, 22, 0.45);
-  --ae-bad-wash: rgba(251, 113, 133, 0.12);
-  --ae-warn-wash: rgba(251, 191, 36, 0.10);
-  --ae-bad-edge: rgba(251, 113, 133, 0.45);
-
-  /* Roles: rules below use only these (plus the status tokens above), so a
-     theme is one block that re-points them. Never use a palette name in a rule. */
-  --ae-bg: var(--ae-stone-900);              /* page */
-  --ae-surface: var(--ae-stone-800);         /* cards, widgets */
-  --ae-surface-hover: var(--ae-stone-700);   /* Glance's highlighted rows */
-  --ae-inset: var(--ae-stone-900);           /* tiles inside a card: gauges, charts */
-  --ae-border: var(--ae-stone-700);          /* card edges, row dividers, grid lines */
-  --ae-border-strong: var(--ae-stone-600);   /* table heads, buttons, neutral dot */
-  --ae-text-strong: var(--ae-stone-100);     /* headings, names, big numbers */
-  --ae-text: var(--ae-stone-300);            /* body */
-  --ae-text-muted: var(--ae-stone-400);      /* labels, captions, meta */
-  --ae-accent-text: var(--ae-orange-light);  /* links, code, accent labels */
-  --ae-accent-line: var(--ae-orange);        /* lines, gauges, hover edges, nav underline */
-  --ae-accent-wash: var(--ae-orange-wash);   /* accent badge fill */
-  --ae-accent-edge: var(--ae-orange-edge);   /* accent badge edge */
+  --ae-ok: light-dark(var(--ae-lime-dark), var(--ae-lime));
+  --ae-warn: light-dark(var(--ae-amber-dark), var(--ae-amber-light));
+  --ae-bad: light-dark(var(--ae-rose-dark), var(--ae-rose-light));
+  --ae-ok-wash: light-dark(color-mix(in srgb, var(--ae-lime-dark) 8%, var(--ae-white)), rgba(132, 204, 22, 0.12));
+  --ae-ok-edge: light-dark(rgba(63, 98, 18, 0.40), rgba(132, 204, 22, 0.45));
+  --ae-bad-wash: light-dark(color-mix(in srgb, var(--ae-rose-dark) 7%, var(--ae-white)), rgba(251, 113, 133, 0.12));
+  --ae-warn-wash: light-dark(color-mix(in srgb, var(--ae-amber-dark) 7%, var(--ae-white)), rgba(251, 191, 36, 0.10));
+  --ae-bad-edge: light-dark(rgba(190, 18, 60, 0.40), rgba(251, 113, 133, 0.45));
 
   --ae-font-head: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --ae-font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -80,6 +102,28 @@
   --color-primary: var(--ae-accent-text);
   --color-negative: var(--ae-bad);
   --border-radius: 10px;
+}
+
+/* Which side of light-dark() applies. Glance sets data-theme from the theme
+   cookie: "default" = Auto (no choice yet, follows the OS), a preset with
+   light: true sets data-scheme="light". */
+:root[data-theme="default"] { color-scheme: light dark; }
+:root[data-scheme="light"] { color-scheme: light; }
+
+/* Auto on a light OS: Glance still renders data-scheme="dark", so give its
+   own derived colours (selection, popovers, the widget shadow) the inputs its
+   light preset would. Keep in step with theme.presets.default-light in glance.yml. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="default"] {
+    --scheme: 100% -;
+    --bgh: 60;
+    --bgs: 5%;
+    --bgl: 96%;
+    --cm: 1.3;
+    --tsm: 0.5;
+  }
+  /* Glance inverts monochrome bookmark icons unless data-scheme is light. */
+  :root[data-theme="default"] .flat-icon { filter: none; }
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────── */
@@ -733,7 +777,8 @@ code,
 }
 
 /* Traffic diagram (GIF rendered from a private HTML source) */
-.ae-diagram { display: block; width: 100%; height: auto; border-radius: 8px; }
+/* The diagrams are drawn dark; in the light theme they sit on the page as dark plates. */
+.ae-diagram { display: block; width: 100%; height: auto; border-radius: 8px; background: var(--ae-plate); }
 /* The architecture diagram is dense: on narrow screens it keeps a readable width and scrolls sideways inside its card. */
 .ae-diagram-scroll { overflow-x: auto; }
 .ae-diagram-wide { min-width: 900px; }
@@ -853,3 +898,38 @@ code,
 .ae-carousel-links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .ae-carousel-links a { color: var(--ae-accent-text); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ae-carousel { scroll-behavior: auto; } }
+
+/* ─── Theme picker ──────────────────────────────────────────────────────── */
+/* Glance draws each chip as the theme's background with three colour dots and
+   no text. The Auto chip ("default") is split dark/light, and the popover
+   names each chip underneath. */
+
+.theme-preset[data-key="default"] {
+  background: linear-gradient(135deg, var(--ae-swatch-dark) 50%, var(--ae-swatch-light) 50%);
+  box-shadow: inset 0 0 0 1px var(--ae-border-strong);
+}
+
+.theme-preset[data-key="default-light"] { box-shadow: inset 0 0 0 1px var(--ae-border); }
+
+.theme-choices { padding-bottom: 1.8rem; }
+
+.theme-choices .theme-preset::after {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--ae-font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  color: var(--ae-text-muted);
+  pointer-events: none;
+}
+
+.theme-choices .theme-preset-light::after { top: calc(100% + 0.8rem); } /* light chips are 0.2rem shorter */
+.theme-choices .theme-preset[data-key="default"]::after { content: "Auto"; }
+.theme-choices .theme-preset[data-key="default-dark"]::after { content: "Dark"; }
+.theme-choices .theme-preset[data-key="default-light"]::after { content: "Light"; }
+.theme-choices .theme-preset.current::after { color: var(--ae-text-strong); }

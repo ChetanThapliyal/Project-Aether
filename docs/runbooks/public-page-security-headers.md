@@ -9,7 +9,7 @@
 
 Glance can't set response headers, and the Cloudflare zone isn't managed in Terraform. The headers are set by a single Cloudflare **Response Header Transform Rule**, added by hand from the values in the YAML file. Every DMZ deploy compares the live page with that file, so the dashboard and the repository can't drift apart without the deploy failing.
 
-The Content-Security-Policy allows scripts only from the site itself plus one hash per page. Glance renders a short inline script on each page that differs only by the page slug, so there are five hashes. Styles allow `'unsafe-inline'`, because Glance writes its theme into an inline `<style>` block. Glance escapes every value it renders, so allowing inline styles doesn't open a script path.
+The Content-Security-Policy allows scripts only from the site itself plus one hash per page and theme. Glance renders a short inline script on each page that differs only by the page slug and the theme key (from the visitor's `theme` cookie: `default` for Auto, `default-dark`, `default-light`), so there are fifteen hashes: five pages times three themes. The check fetches every page once per theme with that cookie. Styles allow `'unsafe-inline'`, because Glance writes its theme into an inline `<style>` block. Glance escapes every value it renders, so allowing inline styles doesn't open a script path.
 
 ## 1. Print the values
 
@@ -49,10 +49,10 @@ Start in `report-only` mode (`csp_mode: report-only`). The browser reports viola
 
 ## When a Glance upgrade fails the deploy
 
-A Glance version bump can change the inline script, and the deploy then stops with `MISMATCH ... inline script hash sha256-... is not in csp_script_hashes`.
+A Glance version bump can change the inline script, and the deploy then stops with `MISMATCH /<page> (theme <key>): inline script hash sha256-... != csp_script_hashes.<key>.<page>`.
 
-1. Put the printed hashes in `csp_script_hashes`, one per page.
+1. Put the printed hashes in `csp_script_hashes`, one per page under each theme.
 2. Commit, print the values (step 1) and update the CSP value in the Cloudflare rule.
 3. Rerun the check.
 
-The same applies when a page is added to `glance.yml`: it needs its own hash entry, under its slug.
+The same applies when a page is added to `glance.yml`: it needs a hash entry under its slug in every theme. Adding a theme preset adds a block of five.

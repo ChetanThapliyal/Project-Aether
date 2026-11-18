@@ -8,6 +8,7 @@
 #   1. each inline script Glance renders has its hash in script-src, and
 #   2. the live headers equal this file once the rule exists.
 # A Glance upgrade changes the per-page hashes: the check fails and prints them.
+# The check fetches every page once per theme (sending the theme cookie).
 #
 # csp_mode: report-only sends Content-Security-Policy-Report-Only (violations
 # show in the browser console, nothing is blocked); enforce sends
@@ -16,14 +17,29 @@
 
 csp_mode: report-only
 
-# One sha256 per Glance page: its inline pageData script differs only by slug.
-# "/" serves the overview page.
+# One sha256 per Glance page and theme: the inline pageData script differs
+# only by slug and by the theme key from the visitor's "theme" cookie (Auto is
+# "default", the picker's presets are "default-dark" and "default-light").
+# "/" serves the overview page. Adding a page or a preset adds hashes here.
 csp_script_hashes:
-  overview: sha256-nOdHQpxeoOEnO9KqohUMPxEFL7Tzzff36k1shaVjCK8=
-  observability: sha256-tJ+GUp2wYhKRV1yioieQsoZr8jynfHHcGaS2uQlRwG8=
-  infrastructure: sha256-Nqf6EDEthvuBARwhdL6fV54LezaDisCAtKS4cMWKVhY=
-  networking: sha256-ZQOZHLMzwm7+tkkNP/t7sACI/lGrSCDp22epZu5Cyeo=
-  docs: sha256-S3pG3Xd+4Lx5iZCzzd5tpRit//rziwGU23WO/QInCOg=
+  default:
+    overview: sha256-nOdHQpxeoOEnO9KqohUMPxEFL7Tzzff36k1shaVjCK8=
+    observability: sha256-tJ+GUp2wYhKRV1yioieQsoZr8jynfHHcGaS2uQlRwG8=
+    infrastructure: sha256-Nqf6EDEthvuBARwhdL6fV54LezaDisCAtKS4cMWKVhY=
+    networking: sha256-ZQOZHLMzwm7+tkkNP/t7sACI/lGrSCDp22epZu5Cyeo=
+    docs: sha256-S3pG3Xd+4Lx5iZCzzd5tpRit//rziwGU23WO/QInCOg=
+  default-dark:
+    overview: sha256-hmAji/+WCcDwYLJfPT4XoKogNXUTwIE5nzAh9NCso+c=
+    observability: sha256-WxSzwDh3FHXrFVexNHPkaxxpSkn1QeXGsUqJnwNgGRA=
+    infrastructure: sha256-RVDjaqJmf5lYQLY0I3SYkHm8S4gjHZy7RnICLUKnasI=
+    networking: sha256-3D9LqIZF1AY/TU8/JSmFSCTYEyqUu/iSYcYE1kIWOeg=
+    docs: sha256-KdwlfmYGGFINiyCZT42lBjJWEmqzSKSCpeFA7MoFL+c=
+  default-light:
+    overview: sha256-k9c9lUXWJM4nyx6z0E7l1SUY61UMDDmYrTcIR2YtgIc=
+    observability: sha256-KIkVFbH9KJ+cvQZXXTtNf97jyy86f0+ju+e2Er7jjw8=
+    infrastructure: sha256-5Li0MF4fAkl5mlIuND2tl0bpQpxJ4g4zTaCqU9DX4Uo=
+    networking: sha256-sgRS6aiCzweymg+421eiJqFElca0MABe1K593wHn5IY=
+    docs: sha256-uoSf1thA48sWYwMz4F64I4RNnYaEPzcsZnWNzWVyYvk=
 
 # Cloudflare Web Analytics: the edge injects its beacon script
 # (static.cloudflareinsights.com), which reports to cloudflareinsights.com.
