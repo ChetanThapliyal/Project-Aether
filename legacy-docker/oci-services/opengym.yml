@@ -22,7 +22,8 @@ services:
       - RP_ID=opengym.tail7067ab.ts.net
       - ORIGIN=https://opengym.tail7067ab.ts.net
       - RP_NAME=openGym
-      - FIRST_USER_ADMIN=1       # the first profile created becomes the admin: register before sharing
+      - FIRST_USER_ADMIN=1       # the first profile created became the admin (18 Nov)
+      - INVITE_ONLY=1            # new profiles need a code from the admin dashboard
       - MEDIA_QUOTA_MB=200
     volumes:
       - ./data:/data
