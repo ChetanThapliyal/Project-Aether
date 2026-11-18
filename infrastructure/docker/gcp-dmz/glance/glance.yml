@@ -62,7 +62,7 @@ pages:
                   - title: GitHub monorepo
                     url: https://github.com/ChetanThapliyal/Project-Aether
                     icon: si:github
-                  - title: Architecture decisions (20)
+                  - title: Architecture decisions (21)
                     url: https://github.com/ChetanThapliyal/Project-Aether/tree/main/docs/adr
                     icon: si:markdown
                   - title: Incident reviews
@@ -241,17 +241,31 @@ pages:
               </div>
 
           - type: html
+            title: Architecture
+            hide-header: true
+            frameless: true
+            source: |
+              <div class="ae-section-head" id="architecture">Architecture</div>
+              <div class="vitals-card">
+                <div class="section-title">The whole project · dashed boxes are planned</div>
+                <div class="ae-diagram-scroll">
+                  <img class="ae-diagram ae-diagram-wide" src="/assets/aether-architecture.svg" width="1600" height="1040" loading="lazy" alt="Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private mesh, the on-prem Kubernetes home lab, the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned for the next two phases.">
+                </div>
+              </div>
+
+          - type: html
             source: |
               <div class="vitals-card">
                 <div class="vitals-header">
                   <span class="vitals-title">How it is built</span>
-                  <span class="vitals-badge">DESIGN FACTS · 15 NOV 2026</span>
+                  <span class="vitals-badge">DESIGN FACTS · 18 NOV 2026</span>
                 </div>
-                <div class="bar-row"><span class="bar-name">Delivery</span><span class="ae-fact">ArgoCD app-of-apps tracking <code>main</code>; Helm charts pinned; values linted in CI</span></div>
-                <div class="bar-row"><span class="bar-name">Edge</span><span class="ae-fact">Envoy Gateway on a MetalLB address, internal PKI from cert-manager</span></div>
+                <div class="bar-row"><span class="bar-name">Delivery</span><span class="ae-fact">ArgoCD app-of-apps tracking <code>main</code>; images and Helm charts pinned and kept current by Renovate; values linted in CI</span></div>
+                <div class="bar-row"><span class="bar-name">Edge</span><span class="ae-fact">Envoy Gateway; each app gets a public DNS name that resolves only on the mesh, with a Let's Encrypt certificate</span></div>
+                <div class="bar-row"><span class="bar-name">Apps</span><span class="ae-fact">Three apps moved over from the cloud host so far; one shared PostgreSQL and Redis, files on NFS from a snapshotted ZFS pool; non-root, read-only filesystems, outbound access opt-in per app</span></div>
                 <div class="bar-row"><span class="bar-name">Security</span><span class="ae-fact">Tailnet roles with policy tests, default-deny NetworkPolicies, Secrets encrypted at rest, no public SSH, a strict content policy on this page</span></div>
-                <div class="bar-row"><span class="bar-name">Observability</span><span class="ae-fact">Prometheus, Loki (Grafana Alloy agents) and Alertmanager to Telegram, plus a dead-man's switch</span></div>
-                <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots to ZFS, restic, then an Object-Locked offsite bucket; cold restore drilled</span></div>
+                <div class="bar-row"><span class="bar-name">Observability</span><span class="ae-fact">Prometheus, Loki (Grafana Alloy agents) and Alertmanager to Telegram, database exporters, an outside HTTPS check per app, plus a dead-man's switch</span></div>
+                <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots and app database dumps to ZFS, then an Object-Locked offsite bucket; restores of both drilled</span></div>
               </div>
 
   # ---------------------------------------------------------------------------
@@ -643,12 +657,7 @@ pages:
             frameless: true
             source: |
               <div class="ae-section-head">Architecture</div>
-              <div class="vitals-card">
-                <div class="section-title">The whole project · dashed boxes are planned</div>
-                <div class="ae-diagram-scroll">
-                  <img class="ae-diagram ae-diagram-wide" src="/assets/aether-architecture.svg" width="1600" height="1040" loading="lazy" alt="Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private mesh, the on-prem Kubernetes home lab, the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned for the next two phases.">
-                </div>
-              </div>
+              <p class="ae-muted">The full architecture diagram is on the <a href="/">Overview</a> page, below the live status.</p>
 
           - type: html
             title: Decisions
@@ -685,7 +694,7 @@ pages:
             source: |
               <div class="ae-live-head">
                 <span class="ae-live-title">Network &amp; access</span>
-                <span class="vitals-badge">DESIGN · 16 NOV 2026</span>
+                <span class="vitals-badge">DESIGN · 18 NOV 2026</span>
               </div>
               <div class="ae-hero">
                 <div class="ae-stat"><div class="ae-stat-label">Sites on one mesh</div><div class="ae-stat-num">3</div><div class="ae-stat-sub">home lab, Oracle Cloud and Google Cloud, joined by WireGuard (Tailscale)</div></div>
@@ -722,7 +731,7 @@ pages:
                   </div>
                   <p class="ae-note">The hypervisor and the three cluster VMs sit on the home LAN behind carrier-grade NAT, so nothing at home can be reached from outside.</p>
                   <div class="ae-chips"><span>no port forwards</span><span>MetalLB layer 2</span><span>Envoy Gateway</span></div>
-                  <div class="bar-row"><span class="bar-name">Ingress</span><span class="ae-fact">Envoy Gateway on a MetalLB address, certificates from an internal CA</span></div>
+                  <div class="bar-row"><span class="bar-name">Ingress</span><span class="ae-fact">Envoy Gateway, reachable on the mesh only; public DNS names for the apps point at its mesh address, with Let's Encrypt certificates issued over DNS</span></div>
                   <div class="bar-row"><span class="bar-name">In-cluster</span><span class="ae-fact">default-deny NetworkPolicies in the platform, apps, monitoring and ArgoCD namespaces; only the Envoy proxy may reach app pods</span></div>
                   <div class="bar-row"><span class="bar-name">Admin</span><span class="ae-fact">the ArgoCD UI is published on the mesh by the Tailscale operator, not on the LAN</span></div>
                 </div>
@@ -808,7 +817,7 @@ pages:
                   <span class="vitals-badge">ROADMAP</span>
                 </div>
                 <ul class="ae-changes">
-                  <li><span class="ae-change-id">Apps</span><div><div class="ae-change-title">Apps on the cluster</div><div class="ae-change-text">Routes for migrated apps on Envoy Gateway, and media storage over NFS from the home lab's ZFS pool.</div></div></li>
+                  <li><span class="ae-change-id">Apps</span><div><div class="ae-change-title">More apps on the cluster</div><div class="ae-change-text">Three apps already run behind the gateway with files on NFS from the home lab's ZFS pool. The rest follow in Phase 04, each with its own route and outside check.</div></div></li>
                 </ul>
               </div>
 
