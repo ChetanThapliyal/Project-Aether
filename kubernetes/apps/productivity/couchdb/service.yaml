@@ -3,5 +3,6 @@ kind: Service
 metadata:
   name: couchdb
 spec:
+  selector: { app.kubernetes.io/name: couchdb }
   ports:
     - { name: http, port: 80, targetPort: http }

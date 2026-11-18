@@ -1,0 +1,31 @@
+# The apps namespace is default-deny (network-policies/default-deny.yaml). Only the
+# backup Job may reach CouchDB from inside the cluster; clients come through the gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: couchdb-backup-egress
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: couchdb-backup }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: couchdb }
+      ports:
+        - { protocol: TCP, port: 5984 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: couchdb-from-backup
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: couchdb }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: couchdb-backup }
+      ports:
+        - { protocol: TCP, port: 5984 }

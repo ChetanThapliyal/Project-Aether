@@ -63,6 +63,7 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: data
+        labels: { app.kubernetes.io/name: couchdb }   # immutable on a live StatefulSet: keep as first created
       spec:
         accessModes: [ReadWriteOnce]
         storageClassName: local-path

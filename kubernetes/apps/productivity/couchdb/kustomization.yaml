@@ -1,15 +1,17 @@
 # M4 CouchDB (Phase 04): backend for Obsidian Self-hosted LiveSync. Fresh install:
 # the OCI copy held only system databases (P4-D7, 18 Nov), so nothing was migrated.
-# Data on local-path (databases never go on NFS). NOT backed up yet: add a nightly
-# copy before real vaults sync to it (tracker M4).
+# Data on local-path (databases never go on NFS); a nightly JSON export goes to
+# nfs-zfs and offsite with the other app data (backup.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: apps
 components:
   - ../../_components/app-defaults
+# Metadata only: injecting this into selectors and pod templates would also label
+# the backup Job's pods "couchdb", and the Service would send traffic to them.
+# The StatefulSet and Service carry their selectors explicitly.
 labels:
   - pairs: { app.kubernetes.io/name: couchdb }
-    includeSelectors: true
 generators:
   - ksops-couchdb.yaml
 resources:
@@ -17,3 +19,5 @@ resources:
   - statefulset.yaml
   - service.yaml
   - httproute.yaml
+  - backup.yaml
+  - networkpolicy.yaml
