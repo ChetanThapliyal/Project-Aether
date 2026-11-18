@@ -53,6 +53,7 @@ services:
       SECRET_GIT_TOKEN: ${SECRET_GIT_TOKEN}
       SECRET_TELEGRAM_TOKEN: ${SECRET_TELEGRAM_TOKEN}
       SECRET_TELEGRAM_CHAT_ID: ${SECRET_TELEGRAM_CHAT_ID}
+      SECRET_KUMA_PRUNE_PUSH_URL: ${SECRET_KUMA_PRUNE_PUSH_URL}   # ADR-017 follow-up: prune heartbeat
     volumes:
       - ./storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock

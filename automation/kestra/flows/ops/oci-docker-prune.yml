@@ -7,16 +7,37 @@ labels:
 tasks:
   - id: prune
     type: io.kestra.plugin.scripts.shell.Commands
+    timeout: PT30M
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
+      # Host networking so the heartbeat reaches the edge Uptime Kuma over the tailnet.
+      networkMode: host
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     containerImage: docker:27-cli
+    env:
+      PUSH_URL: "{{ secret('KUMA_PRUNE_PUSH_URL') }}"
     commands:
+      - set -e
       - docker system prune -f
+      # ADR-017: success-only heartbeat. A failed prune, or a Kestra that stops
+      # scheduling, leaves the edge Uptime Kuma silent and it pages.
+      - wget -q -T 10 -O /dev/null "$PUSH_URL" || echo "WARN heartbeat push failed (prune itself succeeded)"
 
 triggers:
   - id: weekly
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "0 4 * * 0"
     timezone: UTC
+
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.telegram.TelegramSend
+    token: "{{ secret('TELEGRAM_TOKEN') }}"
+    channel: "{{ secret('TELEGRAM_CHAT_ID') }}"
+    parseMode: HTML
+    payload: |
+      <b>Docker prune failed</b>
+      Flow: <code>{{ flow.namespace }}/{{ flow.id }}</code>
+      Execution: <code>{{ execution.id }}</code>
+      Time: {{ now() }}
