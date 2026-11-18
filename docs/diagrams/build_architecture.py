@@ -54,15 +54,15 @@ label(76, y, "PLATFORM · RECONCILED BY ARGOCD FROM GIT")
 y = chips(76, y + 10, 650, ["ArgoCD + KSOPS", "MetalLB", "Envoy Gateway", "cert-manager PKI", "Tailscale operator", "NetworkPolicies"]) + 26
 label(76, y, "OBSERVABILITY")
 y = chips(76, y + 10, 650, ["Alloy (logs out)", "node exporter", "kube-state-metrics"]) + 26
-label(76, y, "APPS · PHASE 04, MOVING FROM ORACLE CLOUD")
-y = chips(76, y + 10, 650, [(a, True) for a in ("AFFiNE", "Blinko", "BookOrbit", "CouchDB", "Navidrome", "IT-Tools", "NextExplorer")]) + 26
-label(76, y, "STORAGE")
-chips(76, y + 10, 650, ["local-path volumes", ("NFS media from ZFS", True)])
+label(76, y, "APPS · PHASE 04, MOVED FROM ORACLE CLOUD OR NEW")
+y = chips(76, y + 10, 650, ["IT-Tools", "Blinko", "AFFiNE", ("CouchDB", True), ("Paperless", True), ("Linkwarden", True)]) + 26
+label(76, y, "DATA AND STORAGE")
+chips(76, y + 10, 650, ["PostgreSQL + Redis", "local-path · databases", "nfs-zfs · files"])
 
 rect(680, 468, 212, 300, 10, "none", HOME, 1.5)
 text(696, 494, "ZFS pool · second disk", 15, TEXT, 600)
 yy = 508
-for it in ("etcd snapshots", "restic repository", "nightly to B2", ("app-data backups", True), ("NFS export", True)):
+for it in ("etcd snapshots", "restic repository", "nightly to B2", "app-data backups", "NFS · app files"):
     yy = chips(696, yy, 890, [it]) + 10
 text(696, 800, "VMs built by Terraform", 14, DIM)
 text(696, 820, "and cloud-init;", 14, DIM)
@@ -75,8 +75,8 @@ label(950, y, "MONITORING")
 y = chips(950, y + 10, 1566, ["Prometheus", "Loki", "Alertmanager to Telegram", "Grafana"]) + 26
 label(950, y, "AUTOMATION")
 y = chips(950, y + 10, 1566, ["Kestra", "n8n", ("alert + incident flows", True)]) + 26
-label(950, y, "APPS TODAY · 7 MOVE TO THE CLUSTER IN PHASE 04")
-y = chips(950, y + 10, 1566, ["AFFiNE", "Blinko", "BookOrbit", "CouchDB", "Navidrome", "IT-Tools", "NextExplorer", "Anytype sync"]) + 26
+label(950, y, "APPS · STAYING ON THE CLOUD HOST")
+y = chips(950, y + 10, 1566, ["BookOrbit", "Navidrome", "NextExplorer", "Anytype sync", "openGym", "CouchDB (until decided)"]) + 26
 label(950, y, "EDGE OF THE HOST")
 y = chips(950, y + 10, 1566, ["tsdproxy · a mesh node per service", "public-feed", "Dockhand"]) + 26
 label(950, y, "STORAGE")
