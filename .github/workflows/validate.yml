@@ -60,3 +60,5 @@ jobs:
         run: |
           docker run --rm -v "$PWD/legacy-docker/oci-services:/w:ro" --entrypoint promtool \
             prom/prometheus:v3.16.0 check rules /w/alert-rules.yml
+          docker run --rm -v "$PWD/legacy-docker/oci-services:/w:ro" -w /w --entrypoint promtool \
+            prom/prometheus:v3.16.0 test rules alert-rules.test.yml

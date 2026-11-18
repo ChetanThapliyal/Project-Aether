@@ -129,6 +129,26 @@
               newest=$(zfs list -Hp -t snapshot -o creation -s creation -d 1 "$ds" 2>/dev/null | tail -1)
               echo "aether_zfs_newest_snapshot_timestamp_seconds{dataset=\"$ds\"} ${newest:-0}"
             done
+            # INC-2026-014 follow-up: scrub results, so a missed or failed scrub alerts.
+            echo "# HELP aether_zfs_pool_last_scrub_timestamp_seconds When the pool's last completed scrub finished, 0 when never."
+            echo "# TYPE aether_zfs_pool_last_scrub_timestamp_seconds gauge"
+            echo "# HELP aether_zfs_pool_scrub_errors Errors the last completed scrub found."
+            echo "# TYPE aether_zfs_pool_scrub_errors gauge"
+            echo "# HELP aether_zfs_pool_device_errors Read, write and checksum errors summed over the pool's devices since import."
+            echo "# TYPE aether_zfs_pool_device_errors gauge"
+            for pool in $(zpool list -H -o name); do
+              scan=$(zpool status "$pool" | sed -n 's/^ *scan: //p')
+              when=0; serr=0
+              case "$scan" in
+                "scrub repaired"*" errors on "*)
+                  serr=$(echo "$scan" | sed -n 's/.* with \([0-9]*\) errors on .*/\1/p')
+                  when=$(date -d "$(echo "$scan" | sed 's/.* errors on //')" +%s 2>/dev/null || echo 0) ;;
+              esac
+              derr=$(zpool status -p "$pool" | awk '/^\t  / && NF>=5 && $3 ~ /^[0-9]+$/ {s += $3 + $4 + $5} END {print s+0}')
+              echo "aether_zfs_pool_last_scrub_timestamp_seconds{pool=\"$pool\"} ${when:-0}"
+              echo "aether_zfs_pool_scrub_errors{pool=\"$pool\"} ${serr:-0}"
+              echo "aether_zfs_pool_device_errors{pool=\"$pool\"} $derr"
+            done
           } > "$tmp"
           chmod 0644 "$tmp"
           mv "$tmp" "$out"

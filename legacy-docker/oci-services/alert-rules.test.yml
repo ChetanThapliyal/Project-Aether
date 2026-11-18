@@ -1,0 +1,38 @@
+# Unit tests for alert-rules.yml (promtool test rules), run in CI next to the syntax check.
+# Samples every minute: a 10-minute interval leaves gaps longer than Prometheus's 5-minute
+# lookback, which resets every `for:` timer and makes alerts look broken.
+rule_files: [alert-rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'smartmon_reallocated_sector_ct_raw_value{disk="/dev/sdb",instance="homelab:9100"}'
+        values: '144x1800'
+      - series: 'smartmon_reallocated_sector_ct_raw_value{disk="/dev/sda",instance="homelab:9100"}'
+        values: '0x1500 6x300'
+    alert_rule_test:
+      - eval_time: 24h
+        alertname: DiskSectorsDegrading
+        exp_alerts: []
+      - eval_time: 26h
+        alertname: DiskSectorsDegrading
+        exp_alerts:
+          - exp_labels: {disk: "/dev/sda", instance: "homelab:9100", severity: warning, tier: homelab}
+            exp_annotations:
+              summary: "/dev/sda on homelab:9100 is gaining bad sectors"
+              description: "Reallocated, uncorrectable or pending sectors went up. A disk in this state can fail suddenly; plan a replacement."
+  - interval: 1m
+    input_series:
+      - series: 'aether_zfs_pool_device_errors{pool="aether-pool"}'
+        values: '0x10 3x20'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ZFSPoolErrors
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ZFSPoolErrors
+        exp_alerts:
+          - exp_labels: {pool: "aether-pool", severity: critical, tier: homelab}
+            exp_annotations:
+              summary: "ZFS pool aether-pool reports read, write or checksum errors"
+              description: "The pool has no redundancy: an error may mean damaged data. Run zpool status -v on the Proxmox host and check the latest offsite copy."

@@ -236,3 +236,86 @@ groups:
         annotations:
           summary: "ZFS dataset metrics on the Proxmox host have not refreshed for 15 minutes"
           description: "The app dataset alerts above are blind. Check zfs-textfile-metrics.timer on the Proxmox host."
+
+  # INC-2026-014 follow-up: the hypervisor's disks and temperatures. The data disk
+  # (a 2014 laptop HDD, sdb) holds every backup and app file; on 18 Nov it showed
+  # 144 reallocated sectors and 526 historic uncorrectable errors, none recent.
+  # These alert on change, not on the old baseline.
+  - name: hypervisor-hardware-alerts
+    rules:
+      - alert: ZFSPoolNotOnline
+        expr: node_zfs_zpool_state{state="online"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "ZFS pool {{ $labels.zpool }} on the Proxmox host is not ONLINE"
+          description: "Backups, app files and database dumps live on this pool. Run zpool status on the Proxmox host."
+
+      - alert: ZFSPoolErrors
+        expr: aether_zfs_pool_device_errors > 0 or aether_zfs_pool_scrub_errors > 0
+        for: 5m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} reports read, write or checksum errors"
+          description: "The pool has no redundancy: an error may mean damaged data. Run zpool status -v on the Proxmox host and check the latest offsite copy."
+
+      - alert: ZFSScrubOverdue
+        expr: time() - aether_zfs_pool_last_scrub_timestamp_seconds > 45 * 86400
+        for: 1h
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} has not completed a scrub for {{ $value | humanizeDuration }}"
+          description: "Debian's zfsutils cron scrubs on the second Sunday of each month (gaps up to 35 days). A missed scrub means silent corruption could go unnoticed."
+
+      - alert: DiskSmartFailing
+        expr: smartmon_device_smart_healthy == 0
+        for: 15m
+        labels:
+          severity: critical
+          tier: homelab
+        annotations:
+          summary: "SMART says {{ $labels.disk }} on {{ $labels.instance }} is failing"
+          description: "Replace the disk. If it is sdb, the ZFS pool with every backup is on it: check the offsite copies first."
+
+      - alert: DiskSectorsDegrading
+        # The raw counters are lifetime totals; alert when they grow, not on the old baseline.
+        expr: |
+          (smartmon_reallocated_sector_ct_raw_value - smartmon_reallocated_sector_ct_raw_value offset 1d > 0)
+          or (smartmon_reported_uncorrect_raw_value - smartmon_reported_uncorrect_raw_value offset 1d > 0)
+          or (smartmon_current_pending_sector_raw_value > 0)
+          or (smartmon_offline_uncorrectable_raw_value > 0)
+        for: 30m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "{{ $labels.disk }} on {{ $labels.instance }} is gaining bad sectors"
+          description: "Reallocated, uncorrectable or pending sectors went up. A disk in this state can fail suddenly; plan a replacement."
+
+      - alert: SmartMetricsStale
+        expr: time() - smartmon_smartctl_run > 7200
+        for: 15m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "SMART data for {{ $labels.disk }} has not refreshed for {{ $value | humanizeDuration }}"
+          description: "The disk alerts are blind. Check prometheus-node-exporter-smartmon.timer on the Proxmox host."
+
+      - alert: HypervisorTemperatureHigh
+        expr: |
+          max by (instance) (node_hwmon_temp_celsius{instance="homelab:9100", chip=~"platform_coretemp.*"}) > 90
+          or max by (instance, disk) (smartmon_temperature_celsius_raw_value) > 55
+        for: 10m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "The Proxmox host is running hot ({{ $value }} °C)"
+          description: "CPU above 90 °C or a disk above 55 °C for 10 minutes. Check the fan and airflow under the laptop."
