@@ -1,0 +1,22 @@
+# M4 CouchDB (Phase 04). From apps/_template/application.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-couchdb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
+    argocd.argoproj.io/sync-wave: "5"   # after platform, databases and guardrails
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ChetanThapliyal/Project-Aether.git
+    targetRevision: main
+    path: kubernetes/apps/productivity/couchdb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

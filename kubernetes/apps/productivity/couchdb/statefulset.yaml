@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: couchdb
+spec:
+  serviceName: couchdb
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: couchdb }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: couchdb
+        aether.dev/postgres: "false"
+        aether.dev/redis: "false"
+        aether.dev/internet: "false"   # clients sync to it; it never calls out
+      annotations:
+        aether.dev/config-rev: "1"     # bump with config.yaml: CouchDB reads ini files only at start
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5984   # the image's couchdb user
+        runAsGroup: 5984
+        fsGroup: 5984
+        fsGroupChangePolicy: OnRootMismatch
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker-01   # local-path pins it there anyway; explicit for readers
+      containers:
+        - name: couchdb
+          image: couchdb:3.5.3@sha256:907eab5b7e55ab7cfd241d39b90b2a335ea40bef82acee5a37388c08bf201dda
+          env:
+            - { name: HOME, value: /tmp }   # Erlang writes its cookie to $HOME
+          envFrom:
+            - secretRef: { name: couchdb }  # COUCHDB_USER, COUCHDB_PASSWORD, COUCHDB_SECRET
+          ports:
+            - { name: http, containerPort: 5984 }
+          startupProbe:
+            httpGet: { path: /_up, port: http }
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet: { path: /_up, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /_up, port: http }
+            periodSeconds: 30
+          resources:   # 77 MiB idle on OCI
+            requests: { cpu: 25m, memory: 96Mi }
+            limits: { cpu: "1", memory: 384Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /opt/couchdb/data, subPath: data }
+            - { name: data, mountPath: /opt/couchdb/etc/local.d, subPath: local.d }
+            - { name: config, mountPath: /opt/couchdb/etc/default.d/20-aether.ini, subPath: 20-aether.ini, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap: { name: couchdb-config }
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests: { storage: 5Gi }

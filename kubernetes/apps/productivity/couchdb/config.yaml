@@ -1,0 +1,31 @@
+# Read from default.d, before local.d/docker.ini (where the entrypoint writes the
+# hashed admin and the server uuid). Settings per the LiveSync setup guide.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: couchdb-config
+data:
+  20-aether.ini: |
+    [couchdb]
+    single_node = true
+    max_document_size = 50000000
+
+    [chttpd]
+    bind_address = 0.0.0.0
+    require_valid_user = true
+    max_http_request_size = 4294967296
+    enable_cors = true
+
+    [chttpd_auth]
+    require_valid_user = true
+    authentication_redirect = /_utils/session.html
+
+    [httpd]
+    WWW-Authenticate = Basic realm="couchdb"
+
+    [cors]
+    credentials = true
+    origins = app://obsidian.md,capacitor://localhost,http://localhost
+    headers = accept, authorization, content-type, origin, referer
+    methods = GET, PUT, POST, HEAD, DELETE
+    max_age = 3600
