@@ -850,10 +850,15 @@ pages:
               <div class="vitals-card">
                 <div class="ae-carousel-head">
                   <div class="section-title">Flow diagrams · one part of the system each</div>
-                  <span class="ae-carousel-hint">swipe or scroll sideways →</span>
+                  <span class="ae-carousel-hint">use Back and Next, or swipe</span>
                 </div>
                 <div class="ae-carousel" tabindex="0" role="region" aria-label="Flow diagrams">
-                  <figure class="ae-carousel-slide">
+                  <figure class="ae-carousel-slide" id="ae-slide-1">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 1 of 2">
+                      <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">1 / 2</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Next diagram">Next ›</a>
+                    </nav>
                     <div class="ae-diagram-scroll">
                       <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-backups.svg" width="1600" height="1006" loading="lazy" alt="Backups and recovery. A K3s etcd snapshot at 02:00 is pulled to the hypervisor's ZFS disk, kept in a local restic repository and copied, age-encrypted, to an Object-Locked Backblaze B2 bucket. App databases are dumped at 01:30, snapshotted and streamed into the same bucket at 04:00. The cloud host runs restic nightly to object storage. Every stage sends a heartbeat to Uptime Kuma on the edge VM only when it succeeds, so silence raises an alert.">
                     </div>
@@ -862,7 +867,12 @@ pages:
                       <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md" target="_blank" rel="noreferrer">ADR-018 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/022-app-data-storage-and-backups.md" target="_blank" rel="noreferrer">ADR-022 ↗</a> <a href="/assets/aether-flow-backups.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
                     </figcaption>
                   </figure>
-                  <figure class="ae-carousel-slide">
+                  <figure class="ae-carousel-slide" id="ae-slide-2">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 2 of 2">
+                      <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">2 / 2</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Next diagram">Next ›</a>
+                    </nav>
                     <div class="ae-diagram-scroll">
                       <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-monitoring.svg" width="1600" height="890" loading="lazy" alt="Monitoring and alerting. Prometheus, Loki, Alertmanager and Grafana run on the cloud host, off the cluster. Prometheus scrapes node exporters, kube-state-metrics, ArgoCD and the database exporters over the private mesh, and Grafana Alloy on each cluster node ships logs to Loki. Alertmanager sends alerts to Telegram. A Watchdog alert that always fires goes to Uptime Kuma on the edge VM, which also receives backup heartbeats and checks the apps from outside.">
                     </div>
