@@ -15,7 +15,7 @@ spec:
         aether.dev/redis: "false"
         aether.dev/internet: "false"   # clients sync to it; it never calls out
       annotations:
-        aether.dev/config-rev: "1"     # bump with config.yaml: CouchDB reads ini files only at start
+        aether.dev/config-rev: "2"     # bump with config.yaml: CouchDB reads ini files only at start
     spec:
       securityContext:
         runAsNonRoot: true

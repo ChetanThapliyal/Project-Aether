@@ -12,12 +12,12 @@ data:
 
     [chttpd]
     bind_address = 0.0.0.0
-    require_valid_user = true
+    # Login required for everything except /_up, so the kubelet's probes need no credentials.
+    require_valid_user_except_for_up = true
     max_http_request_size = 4294967296
     enable_cors = true
 
     [chttpd_auth]
-    require_valid_user = true
     authentication_redirect = /_utils/session.html
 
     [httpd]
