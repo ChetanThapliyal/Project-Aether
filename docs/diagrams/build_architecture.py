@@ -4,68 +4,11 @@ of the whole project. Solid boxes run today; dashed boxes are planned (Phase 04
 moves the apps onto the cluster, Phase 05 finishes CI). Edit the lists below and
 run:  python3 docs/diagrams/build_architecture.py
 Role-level only: no IP addresses or hostnames (the repo is public)."""
-from html import escape
 from pathlib import Path
 
+from aether_style import *   # palette, font, rect/text/chips/label/zone/actor/arrow, wrap
+
 W, H = 1600, 1040
-BG, PANEL, NODE, LINE, TEXT, DIM = "#1C1917", "#231F1D", "#292524", "#57534E", "#F5F5F4", "#A8A29E"
-HOME, OCI, DMZ, MESH, PLAN = "#EA580C", "#D97706", "#E11D48", "#78716C", "#A8A29E"
-FONT = "Inter, 'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif"
-out = []
-
-
-def rect(x, y, w, h, r=8, fill="none", stroke=LINE, sw=1.5, dash=None, opacity=None):
-    d = f' stroke-dasharray="{dash}"' if dash else ""
-    o = f' fill-opacity="{opacity}"' if opacity else ""
-    out.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" fill="{fill}"{o} stroke="{stroke}" stroke-width="{sw}"{d}/>')
-
-
-def text(x, y, s, size=15, fill=TEXT, weight=400, anchor="start", spacing=None):
-    sp = f' letter-spacing="{spacing}"' if spacing else ""
-    out.append(f'<text x="{x}" y="{y}" font-size="{size}" font-weight="{weight}" fill="{fill}" text-anchor="{anchor}"{sp}>{escape(s)}</text>')
-
-
-def chip_w(label):
-    return round(len(label) * 8.0 + 22)
-
-
-def chips(x, y, max_x, items, gap=10, h=34):
-    """Lays chips out left to right, wrapping at max_x. An item is a label or (label, True) for planned."""
-    cx = x
-    for it in items:
-        label, planned = (it, False) if isinstance(it, str) else it
-        w = chip_w(label)
-        if cx + w > max_x and cx > x:
-            cx, y = x, y + h + gap
-        rect(cx, y, w, h, 7, "none" if planned else NODE, PLAN if planned else LINE, 1.5, "6 5" if planned else None)
-        text(cx + w / 2, y + 22, label, 15, DIM if planned else TEXT, 400 if planned else 600, "middle")
-        cx += w + gap
-    return y + h
-
-
-def label(x, y, s):
-    text(x, y, s, 12.5, DIM, 700, spacing="0.08em")
-
-
-def zone(x, y, w, h, color, tag, sub):
-    rect(x, y, w, h, 14, color, color, 3, opacity="0.08")
-    tw = round(len(tag) * 11.5 + 26)
-    out.append(f'<rect x="{x + 16}" y="{y - 15}" width="{tw}" height="30" rx="8" fill="{color}"/>')
-    text(x + 16 + tw / 2, y + 6, tag, 17, BG, 800, "middle")
-    sw = round(len(sub) * 7.6 + 20)   # a strip of background so the border doesn't run through the text
-    out.append(f'<rect x="{x + 16 + tw + 4}" y="{y - 12}" width="{sw}" height="24" fill="{BG}"/>')
-    text(x + 16 + tw + 14, y + 6, sub, 15, TEXT, 600)
-
-
-def actor(x, y, w, name, sub):
-    rect(x, y, w, 64, 9, NODE, LINE)
-    text(x + w / 2, y + 27, name, 16, TEXT, 700, "middle")
-    text(x + w / 2, y + 48, sub, 13, DIM, 400, "middle")
-
-
-def arrow(x1, y1, x2, y2, color=DIM, dash=None):
-    d = f' stroke-dasharray="{dash}"' if dash else ""
-    out.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{color}" stroke-width="2"{d} marker-end="url(#arr)"/>')
 
 
 # ── title and legend ──────────────────────────────────────────────────────────
@@ -145,9 +88,8 @@ label(60, 946, "ONE REPOSITORY, EVERYTHING AS CODE")
 chips(60, 958, 1566, ["Terraform · machines", "Ansible · hosts", "ArgoCD · cluster", "SOPS (age + KMS) · secrets", "GitHub Actions · validate + drift",
                       "Renovate + Dependabot · updates", ("branch protection", True)])
 
-svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FONT}" role="img" '
-       f'aria-label="Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private Tailscale mesh, the on-prem K3s home lab, the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned.">'
-       f'<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="{DIM}"/></marker></defs>'
-       f'<rect width="{W}" height="{H}" fill="{BG}"/>' + "".join(out) + "</svg>\n")
+ARIA = ("Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private Tailscale mesh, the on-prem K3s home lab, "
+        "the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned.")
+svg = wrap(W, H, ARIA)
 Path(__file__).with_name("project-aether-architecture.svg").write_text(svg)
 print("wrote project-aether-architecture.svg", len(svg), "bytes")

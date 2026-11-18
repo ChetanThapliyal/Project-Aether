@@ -216,6 +216,11 @@ tasks:
     cmds:
       - ansible-playbook playbooks/oci-ops.yml {{.CLI_ARGS}}
 
+  diagrams:
+    desc: "Rebuild every diagram in docs/diagrams and copy the status page's SVGs into the Glance assets"
+    cmds:
+      - python3 docs/diagrams/build_all.py
+
   ansible:dmz:
     desc: "Deploy GCP DMZ observability stack (Uptime Kuma, Glance, Cloudflared)"
     dir: infrastructure/ansible
