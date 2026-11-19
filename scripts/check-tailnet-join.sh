@@ -2,7 +2,8 @@
 # Prove a machine could rejoin the tailnet, without rebuilding it (INC-2026-016).
 # Starts an ephemeral, userspace Tailscale node in a container on this workstation,
 # logs it in with the same stored secret and tag the real machine uses, reports the
-# result, then logs out and removes it. Ephemeral nodes leave the tailnet by themselves.
+# result, then logs out and removes the container. The node is ephemeral, but Tailscale
+# can keep listing it offline for a while: delete it under Machines (join-check-*) if it lingers.
 #
 #   scripts/check-tailnet-join.sh dmz    # the edge VM's secret (02-gcp-dmz tfvars), tag:gcp-dmz
 #   scripts/check-tailnet-join.sh k3s    # the cluster nodes' secret (Ansible), tag:k3s
