@@ -58,6 +58,8 @@ def zone(x, y, w, h, color, tag, sub):
     tw = round(len(tag) * 11.5 + 26)
     out.append(f'<rect x="{x + 16}" y="{y - 15}" width="{tw}" height="30" rx="8" fill="{color}"/>')
     text(x + 16 + tw / 2, y + 6, tag, 17, BG, 800, "middle")
+    if not sub:
+        return
     sw = round(len(sub) * 7.6 + 20)   # a strip of background so the border doesn't run through the text
     out.append(f'<rect x="{x + 16 + tw + 4}" y="{y - 12}" width="{sw}" height="24" fill="{BG}"/>')
     text(x + 16 + tw + 14, y + 6, sub, 15, TEXT, 600)

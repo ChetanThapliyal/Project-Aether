@@ -167,6 +167,7 @@
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-monitoring.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-monitoring.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-tailnet.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-tailnet.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-gitops.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-gitops.svg" }
+        - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-secrets.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-secrets.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-app-request.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-app-request.svg" }
         - { src: "../../docker/gcp-dmz/glance/assets/aether-flow-status-page.svg", dest: "{{ dmz_dir }}/glance/assets/aether-flow-status-page.svg" }
         # Built in the blog repo (build_all.py BLOG_COPIES); the committed copies here are what ships

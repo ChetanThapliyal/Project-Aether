@@ -116,11 +116,13 @@ The policy carries tests. Saving a change that would let the DMZ reach an admin 
 
 - **No inbound TCP from the internet** on any machine, and no host with public SSH. Break-glass SSH goes through Google's Identity-Aware Proxy, gated by IAM.
 - **One public path.** A Cloudflare tunnel, opened outbound by the DMZ, serves the status page and accepts signed GitHub webhooks on a single path. [ADR-004](docs/adr/004-network-access.md) lists every public entry point, including one legacy exception that is scheduled for removal.
-- **Secrets** are SOPS-encrypted for two independent recipients, an age key and a Cloud KMS key. Either one alone can decrypt, and that is tested. A pre-commit hook and CI both reject a plaintext secret.
+- **Secrets** are SOPS-encrypted for two independent recipients, an age key and a Cloud KMS key. Either one alone can decrypt, a pre-commit and CI check requires both on every file, and the rotation is written down ([runbook](docs/runbooks/sops-key-rotation.md)). A pre-commit hook and CI both reject a plaintext secret.
 - **Keyless CI.** GitHub Actions gets short-lived cloud credentials through workload identity federation, only from `main`, with read-only access to infrastructure state. The project holds no long-lived service-account keys, and every deploy of the status page counts them.
 - **Least privilege by default.** The DMZ's service account can create backup objects and cannot read, replace or delete them. Platform namespaces are default-deny, and only the Envoy proxy may reach application pods.
 - **Supply chain.** Container images are pinned by tag and digest. Renovate and Dependabot propose updates; database major versions are never proposed automatically.
 - **The public page** sends a strict Content-Security-Policy with per-page script hashes, and a deploy fails if the live headers differ from the repository.
+
+<img src="docs/diagrams/flow-secrets.svg" alt="Where secrets go: sixteen files encrypted in Git for an age key and a Cloud KMS key; ArgoCD decrypts with a copy of the age key for the cluster; Ansible decrypts in memory and writes host configuration; Terraform decrypts to a temporary file deleted on exit; the nightly drift check decrypts with KMS through a keyless login." width="100%">
 
 ## Reliability and recovery
 
@@ -226,7 +228,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 - [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
 - [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
-- [Diagrams](docs/diagrams/): the architecture and six flows, each generated from Python (`task diagrams`).
+- [Diagrams](docs/diagrams/): the architecture and seven flows, each generated from Python (`task diagrams`).
 
 <details>
 <summary>Repository layout</summary>

@@ -63,3 +63,7 @@ ADR-007: Secrets Management with SOPS, Age, and GCP Cloud KMS
 - **Enforced:** `scripts/check-sops-recipients.py` runs in pre-commit and CI. It reads each encrypted file's metadata (no key needed) and fails unless the file has exactly the recipients its `.sops.yaml` rule names: both keys, and no age key that has been rotated out.
 - **What it found on its first run:** the Tailscale operator's OAuth secret had been encrypted for age only since 28 Oct, so the "either key alone" property above didn't hold for it. It was re-keyed with `sops updatekeys`; the value is unchanged.
 - **Rotation:** [SOPS key rotation](../runbooks/sops-key-rotation.md) replaces the age key with the cluster holding both keys during the switch, so ArgoCD never fails to decrypt. It also covers the KMS key's versions (never disable one before every file has been through `sops rotate`), and lists every secret to change at its issuer if a key leaks. The repository is public, so old commits stay readable with a leaked key.
+
+### Addendum: Diagram, where secrets go (2026-11-19, Phase 05 task 5.19)
+
+<img src="../diagrams/flow-secrets.svg" alt="Where secrets live and how each one reaches the place it is used: sixteen files encrypted in Git for an age key and a Cloud KMS key; KSOPS in ArgoCD decrypts with a copy of the age key for the cluster; Ansible decrypts in memory and writes host configuration; Terraform decrypts to a temporary file deleted on exit; the tailnet policy is pasted in by hand; the nightly drift check decrypts with KMS through a keyless login." width="100%">

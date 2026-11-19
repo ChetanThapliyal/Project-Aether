@@ -77,6 +77,7 @@ Every diagram is generated from Python in [`diagrams/`](diagrams/) (`task diagra
 | [Architecture](diagrams/project-aether-architecture.svg) | Every site, what runs there and how they connect |
 | [App request](diagrams/flow-app-request.svg) | How a request reaches an app: mesh-only DNS, the gateway, network policies |
 | [GitOps](diagrams/flow-gitops.svg) | From a push to a running pod: CI, the signed webhook, ArgoCD, encrypted secrets |
+| [Secrets](diagrams/flow-secrets.svg) | Where each secret is encrypted, which key opens it, and how it reaches the cluster, the hosts and Terraform |
 | [Monitoring](diagrams/flow-monitoring.svg) | Metrics, logs and alerts, and the always-firing check that proves alerts get out |
 | [Backups](diagrams/flow-backups.svg) | Each nightly backup path to the second disk and the offsite bucket, with heartbeats |
 | [Mesh](diagrams/flow-tailnet.svg) | Role tags and the only flows the policy allows |
