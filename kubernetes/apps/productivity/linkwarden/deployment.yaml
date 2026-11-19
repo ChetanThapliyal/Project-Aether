@@ -55,9 +55,11 @@ spec:
           livenessProbe:
             tcpSocket: { port: http }
             periodSeconds: 30
-          resources:   # first guess; re-set from measurements with Chromium running
-            requests: { cpu: 50m, memory: 320Mi }
-            limits: { cpu: "1", memory: 1Gi }
+          # Measured 19 Nov: 450 Mi idle; 600-800 Mi while archiving (web ~230, worker
+          # ~260, Chromium up to ~300). A heavy page went past 1 Gi and was OOMKilled.
+          resources:
+            requests: { cpu: 50m, memory: 640Mi }
+            limits: { cpu: "1", memory: 1536Mi }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
