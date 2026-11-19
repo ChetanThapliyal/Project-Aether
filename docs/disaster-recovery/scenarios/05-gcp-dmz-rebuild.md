@@ -66,7 +66,7 @@ Before the new VM boots, I delete the old `aether-gcp-dmz` machine in the Tailsc
 gcloud compute instances get-serial-port-output aether-gcp-dmz --zone=us-central1-a | grep -i -E "tailscale|startup-script" | tail
 ```
 
-`requested tags [tag:gcp-dmz] are invalid or not permitted` means the client can't mint that tag (INC-2026-016). I create a one-time auth key in the console (not reusable, 1 day, tag `tag:gcp-dmz`) and join through IAP, without the key touching the chat or the shell history:
+`requested tags [tag:gcp-dmz] are invalid or not permitted` means the tailnet policy no longer lets the enrollment client mint that tag on its own: `tag:gcp-dmz` must own itself in `tagOwners` (INC-2026-016, fixed 19 Nov). Until that is fixed, the quick way back in is a one-time auth key from the console (not reusable, 1 day, tag `tag:gcp-dmz`), used through IAP so it never lands in the shell history:
 
 ```bash
 read -rs "KEY?Tailscale auth key: " && echo && \
@@ -156,3 +156,11 @@ Without destroying the VM:
 3. `task ansible:dmz` from a **fresh clone** of the repo. This also proves the deploy doesn't depend on untracked files.
 4. Check that every container and monitor recovers, then run the §4 checks.
 5. Record the date in the [DR README](../README.md#4-scenarios--drills).
+
+**Can a rebuilt VM still join the tailnet?** The re-convergence drill keeps the VM, so it never tests this (INC-2026-016). Quarterly, and after any change to the tailnet policy's `tagOwners` or to the enrollment OAuth client:
+
+```bash
+scripts/check-tailnet-join.sh dmz    # an ephemeral container logs in with the DMZ's secret and tag:gcp-dmz
+```
+
+It prints `OK` or the refusal, and leaves nothing behind.

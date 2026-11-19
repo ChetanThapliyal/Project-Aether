@@ -180,6 +180,12 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 
 ## 5. Simulation Drills
 
+**Can a rebuilt node still join the tailnet?** Branches C and D recreate the VMs, and `common.yml` joins each one with the enrollment OAuth client and `tag:k3s`. That join failed for every node until 19 Nov (INC-2026-016) without anything showing it. Quarterly, and after any change to the tailnet policy's `tagOwners` or to the client:
+
+```bash
+scripts/check-tailnet-join.sh k3s    # an ephemeral container logs in with the nodes' secret and tag:k3s
+```
+
 **Snapshot health** (quick, any time):
 
 ```bash
