@@ -10,7 +10,7 @@
 | Detected | 2026-11-17 15:14 |
 | Resolved | 2026-11-18 06:32 (cluster healthy, data checked, backups caught up) |
 | Cause | Platform |
-| Status | Fixed and verified for the backup gap and the lost logs. Power resilience is open |
+| Status | Fixed and verified for the backup gap and the lost logs. Power: risk accepted |
 
 ## Summary
 
@@ -92,8 +92,9 @@ The home lab runs from an inverter with about six and a half hours of runtime at
 
 Still open:
 
-- Power: a UPS sized for the hypervisor and router, or a battery in the laptop, and a warning before the inverter runs out.
 - A memory test on the hypervisor, low priority: nothing points at memory, but a crash with no logs could not rule it out.
+
+Risk accepted (19 Nov): power. The inverter carries the home lab for six to seven hours, which covers most cuts for a one-person lab. A longer cut will take the lab down hard again, and this review shows the recovery: the cloud monitoring pages at once, the backup chain catches up on its own, and the runbook covers the BIOS step. No UPS or laptop battery for now. If the lab grows or starts serving other people, solar is the likely next step.
 
 ## Lessons
 
