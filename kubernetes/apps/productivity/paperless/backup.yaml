@@ -26,7 +26,9 @@ data:
     #!/bin/bash
     set -euo pipefail
     cd /usr/src/paperless/src
-    python3 manage.py document_exporter /usr/src/paperless/export/current \
+    # --skip-checks: the startup checks write a test file into data/, which this
+    # Job mounts read-only; the verify step below is the check that matters here.
+    python3 manage.py document_exporter --skip-checks /usr/src/paperless/export/current \
       --no-archive --no-thumbnail --delete --no-progress-bar
     python3 manage.py shell -c "exec(open('/scripts/verify.py').read())"
   verify.py: |
