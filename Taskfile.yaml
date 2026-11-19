@@ -61,7 +61,7 @@ tasks:
       vars: [DIR]
 
   tf:plan:
-    desc: "Preview infrastructure changes (Usage: task tf:plan DIR=03-homelab)"
+    desc: "Preview infrastructure changes (Usage: task tf:plan DIR=03-homelab [-- -target=...])"
     dir: "infrastructure/terraform/{{.DIR}}"
     cmds:
       - |
@@ -69,12 +69,12 @@ tasks:
           sops -d --config "{{.ROOT_DIR}}/.sops.yaml" terraform.sops.tfvars > .decrypted.auto.tfvars
           trap "rm -f .decrypted.auto.tfvars" EXIT
         fi
-        terraform plan
+        terraform plan {{.CLI_ARGS}}
     requires:
       vars: [DIR]
 
   tf:apply:
-    desc: "Deploy infrastructure (Usage: task tf:apply DIR=03-homelab)"
+    desc: "Deploy infrastructure (Usage: task tf:apply DIR=03-homelab [-- -target=...])"
     dir: "infrastructure/terraform/{{.DIR}}"
     cmds:
       - |
@@ -82,7 +82,7 @@ tasks:
           sops -d --config "{{.ROOT_DIR}}/.sops.yaml" terraform.sops.tfvars > .decrypted.auto.tfvars
           trap "rm -f .decrypted.auto.tfvars" EXIT
         fi
-        terraform apply
+        terraform apply {{.CLI_ARGS}}
     requires:
       vars: [DIR]
 
