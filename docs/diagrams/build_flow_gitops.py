@@ -6,8 +6,11 @@ Role-level only: no IP addresses, hostnames or port numbers (the repo is public)
 from pathlib import Path
 
 from aether_style import *
+import aether_style
 
-W, H = 1600, 910
+aether_style.DATE_STAMP = "as of 19 Nov 2026"   # sync waves added (5.17)
+
+W, H = 1600, 960
 PUSH, HOOK, KEYS, DEPS = SKY, TEAL, VIOLET, SNOW
 
 
@@ -37,26 +40,39 @@ zone(1060, 240, 500, 136, DMZ, "EDGE VM", "Google Cloud")
 edge = node(1080, 284, 460, 76, "cloudflared", ["forwards the webhook path to ArgoCD", "every other path gets a 404"])
 
 # ── the home lab ──────────────────────────────────────────────────────────────
-zone(40, 440, 1520, 260, HOME, "ON-PREM", "home lab · K3s cluster")
+zone(40, 440, 1520, 330, HOME, "ON-PREM", "home lab · K3s cluster")
 D = node(70, 500, 300, 84, "K3s cluster", ["apps and platform,", "kept in sync with main"])
 C = node(456, 500, 300, 84, "Repo server + KSOPS", ["fetches Git, builds manifests,", "decrypts secrets in the sidecar"])
 B = node(842, 500, 300, 84, "Refresh only what changed", ["each app watches its own paths:", "a docs-only push refreshes none"])
 A = node(1228, 500, 300, 84, "ArgoCD server", ["receives the push event"])
-text(70, 630, "Cluster changes deploy when the pull request merges. Cloud host compose", 13, DIM)
-text(70, 649, "files stay manual after a merge: task ansible:oci:apps or :monitoring.", 13, DIM)
+text(640, 630, "Cluster changes deploy when the pull request merges. Cloud host compose", 13, DIM)
+text(640, 649, "files stay manual after a merge: task ansible:oci:apps or :monitoring.", 13, DIM)
+
+# ── sync waves (5.17): on a fresh cluster or a full resync, each wave must be healthy before the next ──
+label(70, 678, "SYNC WAVES")
+text(500, 678, "The root app waits for each wave to be healthy before it starts the next.", 13, DIM)
+WAVES = [("-3 namespaces", "platform namespaces"), ("-2 operators", "cert-manager, MetalLB, NFS"),
+         ("-1 config", "issuers, gateway, storage"), ("0 controllers", "Tailscale, logs, metrics"),
+         ("1 policies", "network policies, ingress"), ("2 databases", "PostgreSQL, Redis"), ("5 apps", "one Application each")]
+wave_boxes = []
+for i, (t, sub) in enumerate(WAVES):
+    x = 70 + i * 210
+    wave_boxes.append(node(x, 692, 190, 62, t, [sub]))
+    if i:
+        route([(x - 20, 723), (x, 723)], DIM)
 
 # ── by hand, and the keys ─────────────────────────────────────────────────────
-rect(40, 750, 380, 140, 14, PANEL, LINE)
-label(60, 776, "BY HAND · FROM THE OPERATOR'S LAPTOP")
-chips(60, 790, 410, ["Ansible · hosts", "Terraform · machines"])
-text(60, 852, "Nightly drift check: a Terraform plan,", 13, DIM)
-text(60, 870, "run by GitHub Actions. It never applies.", 13, DIM)
-rect(456, 750, 1104, 140, 14, PANEL, LINE)
-label(640, 776, "SECRET KEYS · SOPS ENCRYPTS EVERY SECRET FOR BOTH, EITHER ONE OPENS IT")
-age = node(486, 796, 240, 76, "Local age key", ["a copy is a cluster Secret"], stroke=VIOLET)
-kms = node(756, 796, 240, 76, "Cloud KMS key", ["Google Cloud, second recipient"], stroke=VIOLET)
+rect(40, 800, 380, 140, 14, PANEL, LINE)
+label(60, 826, "BY HAND · FROM THE OPERATOR'S LAPTOP")
+chips(60, 840, 410, ["Ansible · hosts", "Terraform · machines"])
+text(60, 902, "Nightly drift check: a Terraform plan,", 13, DIM)
+text(60, 920, "run by GitHub Actions. It never applies.", 13, DIM)
+rect(456, 800, 1104, 140, 14, PANEL, LINE)
+label(640, 826, "SECRET KEYS · SOPS ENCRYPTS EVERY SECRET FOR BOTH, EITHER ONE OPENS IT")
+age = node(486, 846, 240, 76, "Local age key", ["a copy is a cluster Secret"], stroke=VIOLET)
+kms = node(756, 846, 240, 76, "Cloud KMS key", ["Google Cloud, second recipient"], stroke=VIOLET)
 for i, s in enumerate(["Git holds only ciphertext.", "KSOPS in the cluster decrypts with the age key.", "Ansible and Terraform decrypt with either key."]):
-    text(1030, 818 + i * 20, s, 13, DIM)
+    text(1030, 868 + i * 20, s, 13, DIM)
 
 # ── routes ────────────────────────────────────────────────────────────────────
 r_op = route([(260, 160), (320, 160)], tint(PUSH)); text(290, 150, "push", 13, DIM, 400, "middle")
@@ -71,7 +87,7 @@ for x, l1, l2 in ((1185, "path", "changed?"), (799, "changed", "apps only"), (41
     text(x, 509, l1, 13, DIM, 400, "middle")
     if l2: text(x, 524, l2, 13, DIM, 400, "middle")
 r_fetch = route([(606, 500), (606, 352)], tint(HOOK), dash="6 5"); text(618, 392, "git fetch, and a poll", 13, DIM); text(618, 410, "every 3 minutes as backup", 13, DIM)
-r_key = route([(606, 796), (606, 584)], tint(KEYS)); text(618, 730, "decrypts", 13, DIM)
+r_key = route([(606, 846), (606, 788), (480, 788), (480, 604), (606, 604), (606, 584)], tint(KEYS)); text(492, 640, "decrypts", 13, DIM)
 
 # ── animation ─────────────────────────────────────────────────────────────────
 a = Anim()
@@ -84,7 +100,9 @@ layer, style = a.render()
 ARIA = ("How a change is delivered in Project Aether. The operator pushes to main on GitHub, and Renovate opens weekly pull requests. GitHub Actions runs pre-commit, "
         "kubeconform, Helm values lint, promtool and a SOPS check. GitHub sends a signed webhook through Cloudflare and the edge VM's outbound tunnel to ArgoCD on the cluster, "
         "which refreshes only the apps whose paths changed. The repo server fetches Git, and KSOPS decrypts secrets inside it with the local age key. "
-        "Secrets are encrypted for two keys, a local age key and a Cloud KMS key. Ansible for hosts and Terraform for machines are applied by hand.")
+        "Secrets are encrypted for two keys, a local age key and a Cloud KMS key. Ansible for hosts and Terraform for machines are applied by hand. "
+        "The root app applies the cluster in sync waves and waits for each to be healthy: namespaces, then operators, then config, controllers, "
+        "network policies and ingress, databases, and last the apps.")
 svg = wrap(W, H, ARIA, layer, style)
 Path(__file__).with_name("flow-gitops.svg").write_text(svg)
 print("wrote flow-gitops.svg", len(svg), "bytes")
