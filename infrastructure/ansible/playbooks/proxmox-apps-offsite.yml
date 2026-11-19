@@ -9,7 +9,7 @@
 # shorten the lock on what it uploads. Each object is locked for 30 days.
 #
 # Two heartbeats to DMZ Uptime Kuma, both on success only:
-#   app_dumps  the cluster's dump Jobs (PostgreSQL and CouchDB) wrote LAST_SUCCESS within 26 h
+#   app_dumps  the cluster's dump Jobs (PostgreSQL, CouchDB, Paperless) wrote LAST_SUCCESS within 26 h
 #   apps_b2    tonight's object is in the bucket
 # A stale dump marker still uploads the files, then fails the run.
 #
@@ -25,6 +25,7 @@
     apps_path: /mnt/aether-pool/k8s-apps
     dump_marker: /mnt/aether-pool/k8s-apps/databases/db-dumps/LAST_SUCCESS
     couch_marker: /mnt/aether-pool/k8s-apps/apps/couchdb-backup/LAST_SUCCESS   # M4 CouchDB export
+    paperless_marker: /mnt/aether-pool/k8s-apps/apps/paperless-export/LAST_SUCCESS   # M8 Paperless exporter
     apps_offsite_max_gb: 20   # above this, nightly full copies get costly: move to restic (ADR-022)
 
   tasks:
@@ -70,10 +71,10 @@
             || { log "ERROR: {{ apps_path }} is not the {{ apps_dataset }} dataset"; exit 1; }
           source /etc/restic/b2-offsite.env
 
-          # 1. The cluster's dump Jobs (PostgreSQL, CouchDB): both markers fresh → one heartbeat
+          # 1. The cluster's dump Jobs (PostgreSQL, CouchDB, Paperless): every marker fresh → one heartbeat
           fresh() { [ -f "$1" ] && [ $(( $(date +%s) - $(stat -c %Y "$1") )) -lt 93600 ]; }
           dumps_ok=1
-          for m in {{ dump_marker }} {{ couch_marker }}; do
+          for m in {{ dump_marker }} {{ couch_marker }} {{ paperless_marker }}; do
             if fresh "$m"; then log "fresh: $m: $(cat "$m")"
             else dumps_ok=0; log "ERROR: no export in the last 26 h ($m); uploading the files anyway"; fi
           done

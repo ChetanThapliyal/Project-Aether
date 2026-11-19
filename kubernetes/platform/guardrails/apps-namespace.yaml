@@ -24,7 +24,7 @@ metadata:
 spec:
   hard:
     requests.cpu: 1500m
-    requests.memory: 2560Mi   # M8 Paperless: 512 Mi app + 256 Mi nightly export
+    requests.memory: 2560Mi   # M8 Paperless: 640 Mi app + 256 Mi nightly export
     limits.memory: 6Gi
     pods: "40"
     persistentvolumeclaims: "20"

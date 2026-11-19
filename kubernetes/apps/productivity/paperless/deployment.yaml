@@ -69,9 +69,9 @@ spec:
           livenessProbe:
             tcpSocket: { port: http }
             periodSeconds: 30
-          # Estimate before measuring (tracker): ~400 Mi idle, ~1 Gi while OCR runs.
+          # Measured 19 Nov: ~650 Mi settled, 1011 Mi peak OCR'ing a 3-page 300 dpi scan.
           resources:
-            requests: { cpu: 100m, memory: 512Mi }
+            requests: { cpu: 100m, memory: 640Mi }
             limits: { cpu: "2", memory: 1536Mi }
           securityContext:
             allowPrivilegeEscalation: false
