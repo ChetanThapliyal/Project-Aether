@@ -1,0 +1,13 @@
+# One volume, three folders (subPath): data (search index, classifier, logs), media
+# (originals, OCR'd archive PDFs, thumbnails) and consume (the drop folder, polled).
+# These are the only copy of the documents: the dataset is snapshotted and copied
+# offsite nightly, and backup.yaml keeps an exporter copy beside it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-data
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-zfs
+  resources:
+    requests: { storage: 10Gi }

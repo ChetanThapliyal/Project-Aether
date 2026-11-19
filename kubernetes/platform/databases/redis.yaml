@@ -1,6 +1,6 @@
 # Phase 04 task 4.18: one shared Redis for queues and caches (Paperless broker,
 # AFFiNE). No persistence: nothing in it is the only copy of anything. Apps share
-# it by database number: 0 paperless, 1 affine (record new ones here).
+# it by database number: 0 paperless, 4 affine (its queues; record new ones here).
 apiVersion: v1
 kind: Service
 metadata:

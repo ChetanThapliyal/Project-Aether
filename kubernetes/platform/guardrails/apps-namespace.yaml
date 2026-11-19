@@ -2,7 +2,8 @@
 # LimitRange: a container that sets no requests or limits gets these, so nothing
 # runs unbounded. ResourceQuota: a ceiling for the whole namespace, sized so the
 # apps can never take the memory the platform on the same workers needs
-# (each worker has ~3.4 GiB allocatable).
+# (each worker has ~2.5 GiB allocatable since 4.32; the platform requests ~1.8 GiB
+# of the 5 GiB). Limits may overcommit: eviction ranks apps before the platform.
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -23,8 +24,8 @@ metadata:
 spec:
   hard:
     requests.cpu: 1500m
-    requests.memory: 2Gi
-    limits.memory: 4Gi
+    requests.memory: 2560Mi   # M8 Paperless: 512 Mi app + 256 Mi nightly export
+    limits.memory: 6Gi
     pods: "40"
     persistentvolumeclaims: "20"
     services.loadbalancers: "0"   # apps are reached through the gateway only

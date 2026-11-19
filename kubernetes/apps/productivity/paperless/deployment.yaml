@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: paperless }
+  strategy: { type: Recreate }   # one writer to the documents, the index and the migrations
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: paperless
+        aether.dev/postgres: "true"
+        aether.dev/redis: "true"
+        # No internet: OCR, thumbnails and matching all run locally. No mail import
+        # and no AI features (P4-D9), so nothing here needs to leave the cluster.
+        aether.dev/internet: "false"
+    spec:
+      securityContext:
+        # Rootless mode: the image's s6 init sees a non-root uid and skips its chown
+        # and user remapping steps. 1000 is the image's own paperless user.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: paperless
+          # One container, four processes under s6: web server (granian), task
+          # worker (celery, does the OCR), scheduler (celery beat) and the consumer.
+          image: ghcr.io/paperless-ngx/paperless-ngx:3.5.1@sha256:8508853b8a0f8394074260957d0be186c8c64f346973b24a7583de4580f306b9
+          env:
+            - { name: PAPERLESS_URL, value: https://paperless.lab.chetan-thapliyal.cloud }
+            - { name: PAPERLESS_PROXY_SSL_HEADER, value: '["HTTP_X_FORWARDED_PROTO", "https"]' }
+            - { name: PAPERLESS_DBHOST, value: postgres.databases.svc.cluster.local }
+            - { name: PAPERLESS_DBNAME, value: paperless }
+            - { name: PAPERLESS_DBUSER, value: paperless }
+            - { name: PAPERLESS_TIME_ZONE, value: Asia/Kolkata }
+            # P4-D9: English only. More languages need the tesseract package at start,
+            # which rootless mode can't install: that would mean a custom image.
+            - { name: PAPERLESS_OCR_LANGUAGE, value: eng }
+            # One task at a time, two OCR threads (pages in parallel).
+            - { name: PAPERLESS_TASK_WORKERS, value: "1" }
+            - { name: PAPERLESS_THREADS_PER_WORKER, value: "2" }
+            - { name: PAPERLESS_WEBSERVER_WORKERS, value: "1" }
+            # The drop folder is on NFS, where inotify sees nothing: poll it.
+            - { name: PAPERLESS_CONSUMER_POLLING_INTERVAL, value: "60" }
+            - { name: PAPERLESS_ACCOUNT_ALLOW_SIGNUPS, value: "false" }
+            - { name: PAPERLESS_AI_ENABLED, value: "false" }
+            - { name: PAPERLESS_TIKA_ENABLED, value: "false" }
+            # Read-only root: s6 keeps its state in /run (an emptyDir).
+            - { name: S6_READ_ONLY_ROOT, value: "1" }
+            - { name: HOME, value: /tmp }
+          envFrom:
+            - secretRef: { name: paperless }   # PAPERLESS_DBPASS, PAPERLESS_REDIS, PAPERLESS_SECRET_KEY
+          ports:
+            - { name: http, containerPort: 8000 }
+          startupProbe:   # waits for the database and Redis, runs migrations, builds the index
+            tcpSocket: { port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet: { path: /accounts/login/, port: http }
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 30
+          # Estimate before measuring (tracker): ~400 Mi idle, ~1 Gi while OCR runs.
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { cpu: "2", memory: 1536Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /usr/src/paperless/data, subPath: data }
+            - { name: data, mountPath: /usr/src/paperless/media, subPath: media }
+            - { name: data, mountPath: /usr/src/paperless/consume, subPath: consume }
+            - { name: run, mountPath: /run }
+            - { name: tmp, mountPath: /tmp }   # PAPERLESS_SCRATCH_DIR (/tmp/paperless) and HOME
+            - { name: export, mountPath: /usr/src/paperless/export }   # init-folders expects it; the nightly Job writes the real export
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: paperless-data }
+        - { name: run, emptyDir: { medium: Memory, sizeLimit: 16Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 2Gi } }
+        - { name: export, emptyDir: { sizeLimit: 1Mi } }

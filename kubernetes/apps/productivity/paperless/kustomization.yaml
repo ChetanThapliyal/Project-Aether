@@ -1,0 +1,31 @@
+# M8 Paperless-ngx (Phase 04): scanned and uploaded documents with OCR. New, no
+# OCI copy. PostgreSQL on the shared server (database and role "paperless",
+# created by databases/bootstrap.yaml), the shared Redis as its task broker (db 0),
+# documents on nfs-zfs. Scope per P4-D9: English OCR, no Tika or Gotenberg (Office
+# files and email), no mail import. The nightly exporter (backup.yaml) writes a
+# restorable copy that the hypervisor checks before the 04:00 offsite upload.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../../_components/app-defaults
+# Metadata only (as couchdb): in selectors and pod templates it would also label
+# the backup Job's pods "paperless", and the Service would send traffic to them.
+labels:
+  - pairs: { app.kubernetes.io/name: paperless }
+generators:
+  - ksops-paperless.yaml
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml
+  - backup.yaml
+patches:
+  # Prefer worker-02, not the shared default worker-01: OCR is the cluster's
+  # heaviest memory spike, and worker-01 already carries Linkwarden's archiving.
+  - target: { kind: Deployment, name: paperless }
+    patch: |
+      - op: replace
+        path: /spec/template/spec/affinity/nodeAffinity/preferredDuringSchedulingIgnoredDuringExecution/0/preference/matchExpressions/0/values
+        value: [k3s-worker-02]

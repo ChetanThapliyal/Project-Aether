@@ -1,0 +1,130 @@
+# Nightly Paperless export (ADR-022, M8 "exporter in the nightly backup on day one").
+# document_exporter writes every original plus manifest.json (all metadata: tags,
+# correspondents, notes, users, workflows): the format document_importer restores,
+# even into a newer Paperless. Updated in place: only new or changed files are
+# copied, and --delete drops files of deleted documents. Archive PDFs and
+# thumbnails are left out; they are regenerated from the originals after a restore.
+# History comes from the dataset's ZFS snapshots and the nightly offsite copies.
+# The hypervisor's APP-01 heartbeat requires this LAST_SUCCESS to be under 26 h old.
+# Restore: document_importer /usr/src/paperless/export/current into an EMPTY Paperless.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-export   # on the host: /mnt/aether-pool/k8s-apps/apps/paperless-export
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-zfs
+  resources:
+    requests: { storage: 10Gi }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paperless-backup-scripts
+data:
+  export.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    cd /usr/src/paperless/src
+    python3 manage.py document_exporter /usr/src/paperless/export/current \
+      --no-archive --no-thumbnail --delete --no-progress-bar
+    python3 manage.py shell -c "exec(open('/scripts/verify.py').read())"
+  verify.py: |
+    # Refuse to mark success unless the export matches the database: one manifest
+    # entry per document (trashed ones included, as the exporter does), and every
+    # original present with the SHA-256 Paperless recorded when it was consumed.
+    import datetime, hashlib, json, os, pathlib
+    from documents.models import Document
+
+    root = pathlib.Path("/usr/src/paperless/export")
+    cur = root / "current"
+    manifest = json.loads((cur / "manifest.json").read_text())
+    docs = [r for r in manifest if r["model"] == "documents.document"]
+    expected = Document.global_objects.count()
+    if len(docs) != expected:
+        raise SystemExit(f"FAIL: manifest has {len(docs)} documents, database has {expected}")
+    size = 0
+    for r in docs:
+        f = cur / r["__exported_file_name__"]
+        h = hashlib.sha256()
+        with open(f, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        if h.hexdigest() != r["fields"]["checksum"]:
+            raise SystemExit(f"FAIL: {f.name}: checksum differs from the database")
+        size += f.stat().st_size
+    now = datetime.datetime.now(datetime.timezone.utc)
+    marker = f"{now:%Y-%m-%dT%H:%M:%SZ} documents={len(docs)} manifest_rows={len(manifest)} bytes={size}\n"
+    (root / "LAST_SUCCESS.tmp").write_text(marker)
+    os.replace(root / "LAST_SUCCESS.tmp", root / "LAST_SUCCESS")
+    print("OK", marker.strip())
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: paperless-backup
+spec:
+  schedule: "15 1 * * *"          # before the 01:30 database dumps and the 04:00 offsite copy
+  timeZone: Asia/Kolkata
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: paperless-backup   # NOT paperless: the Service must never select this pod
+            aether.dev/postgres: "true"
+        spec:
+          restartPolicy: Never
+          priorityClassName: batch
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: export
+              image: ghcr.io/paperless-ngx/paperless-ngx:3.5.1@sha256:8508853b8a0f8394074260957d0be186c8c64f346973b24a7583de4580f306b9
+              command: ["/bin/bash", "/scripts/export.sh"]   # no s6 init: just the management command
+              env:
+                - { name: PAPERLESS_DBHOST, value: postgres.databases.svc.cluster.local }
+                - { name: PAPERLESS_DBNAME, value: paperless }
+                - { name: PAPERLESS_DBUSER, value: paperless }
+                - { name: PAPERLESS_TIME_ZONE, value: Asia/Kolkata }
+                - { name: PAPERLESS_LOGGING_DIR, value: /tmp/log }   # not the live app's log files
+                - { name: HOME, value: /tmp }
+              envFrom:
+                - secretRef: { name: paperless }
+              resources:
+                requests: { cpu: 20m, memory: 256Mi }
+                limits: { cpu: 500m, memory: 768Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+                - { name: data, mountPath: /usr/src/paperless/data, subPath: data, readOnly: true }
+                # Writable only for media.lock, which the exporter holds so no document
+                # is consumed or deleted while it copies.
+                - { name: data, mountPath: /usr/src/paperless/media, subPath: media }
+                - { name: export, mountPath: /usr/src/paperless/export }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - name: scripts
+              configMap: { name: paperless-backup-scripts }
+            - name: data
+              persistentVolumeClaim: { claimName: paperless-data }
+            - name: export
+              persistentVolumeClaim: { claimName: paperless-export }
+            - { name: tmp, emptyDir: { sizeLimit: 512Mi } }
