@@ -46,3 +46,12 @@ ADR-022: App Data on the Cluster: Storage, Databases and Backups
 <img src="../diagrams/flow-backups.svg" alt="Backups and recovery: the cluster's etcd snapshot, the app databases and files, and the cloud host's data each take a nightly path to a second disk and an Object-Locked offsite bucket, and every stage reports a heartbeat only when it succeeds." width="100%">
 
 <img src="../diagrams/flow-app-request.svg" alt="How a request reaches an app: a wildcard DNS name returns an address that works only on the mesh, Envoy Gateway terminates HTTPS with a Let's Encrypt wildcard certificate, and default-deny network policies let each app reach only what it opts in to." width="100%">
+
+### Addendum: Paperless document exporter (2026-11-19, M8)
+
+Paperless-ngx holds documents that exist nowhere else, so its exporter joined the nightly chain on its first day, as point 5 planned.
+
+- **What runs:** CronJob `paperless-backup` at 01:15, before the 01:30 dumps and the 04:00 offsite copy. `document_exporter` updates one folder on `nfs-zfs` (`paperless-export/current`) in place, with originals and `manifest.json` (all metadata). Archive PDFs and thumbnails are left out because they are regenerated from the originals. The ZFS snapshots and the nightly offsite copies supply the history.
+- **Success means checked:** the Job writes `LAST_SUCCESS` only when the manifest holds one entry per document in the database (trashed ones included) and every exported original matches the SHA-256 that Paperless recorded at consume time. The hypervisor's APP-01 heartbeat now requires this marker, along with the PostgreSQL and CouchDB ones, to be under 26 h old.
+- **Proven (19 Nov 2026):** a 3-page scanned test document was OCR'd, exported and checksum-verified. It was then imported with `document_importer` into a throwaway Paperless running on SQLite in `/tmp`, with the export mounted read-only, and came back with 3 pages, a matching checksum and its OCR text. The test document was then deleted, and the next export removed it.
+- **Cost:** the originals are stored twice on the dataset, once live and once in the export. That counts toward the 20 GB review condition above.
