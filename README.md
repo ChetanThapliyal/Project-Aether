@@ -134,8 +134,8 @@ Recovery targets are shown next to what has been proven. The live version, with 
 |---|---|---|---|
 | Kubernetes cluster | 30 min | 24 h | Restore from the offsite copy: API ready 54 s after reset. In-place reset: about 18 min |
 | Applications on Oracle Cloud | 45 min | 24 h | One app restored and its database compared with live: 29 s for 1 GB and 176 tables. Full instance rebuild not yet timed |
-| Applications on the cluster | 30 min | 24 h | Every app database loaded from its nightly dump and matched against the dump-time counts: 22 s for 4 databases. Offsite copy downloaded and decrypted. No apps live yet |
-| DMZ observer | 15 min plus data restore | 24 h | Monitor data restored from the backup bucket and checked. VM rebuild not yet timed |
+| Applications on the cluster | 30 min | 24 h | Every app database loaded from its nightly dump and matched against the dump-time counts: 29 s for 4 databases. Offsite copy downloaded and decrypted. Paperless export imported into a throwaway instance, checksums matched |
+| DMZ observer | 30 min | 24 h | Full rebuild timed: 48 min from deleting the VM to every monitor green; the three breaks it found are fixed ([INC-2026-016](docs/incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
 | Secrets access | 15 min | none lost | Each key decrypts alone |
 | Infrastructure state | 10 min | none lost | Versioned bucket |
 

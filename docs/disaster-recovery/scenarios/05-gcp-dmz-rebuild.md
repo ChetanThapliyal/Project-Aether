@@ -1,7 +1,7 @@
 # DR Scenario 05: GCP DMZ Node Loss & Zero-Cost Rebuild
 
 **Severity:** SEV2 (my outside observer is blind; a SEV1 elsewhere could go unnoticed)
-**Target RTO:** 15 minutes for the VM and stack; monitors need a manual rebuild on top. **Measured 19 Nov 2026: 48 min** (INC-2026-016): the first deploy on a fresh e2-micro alone takes 16 min.
+**Target RTO:** 30 minutes, Kuma restore included (raised from 15 on 19 Nov 2026). **Measured 19 Nov 2026: 48 min** (INC-2026-016): the first deploy on a fresh e2-micro alone takes 16 min, and the three breaks that cost the rest are fixed.
 **Target RPO:** Uptime Kuma data is **not backed up**. Everything else is in Git.
 
 ---

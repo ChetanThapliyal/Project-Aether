@@ -24,9 +24,9 @@ components:
     backup: "kuma:APP-02 app data → B2 (Proxmox)"
     backup_label: offsite copy
   - name: Edge observer (this page)
-    rto: 15 min + data restore
+    rto: 30 min
     rpo: 24 h
-    proven: "Full rebuild timed 19 Nov 2026: 48 min from deletion to every monitor green, over target; 16 min of it is the first deploy on the small VM, and three breaks it found are fixed (INC-2026-016)"
+    proven: "Full rebuild timed 19 Nov 2026: 48 min from deletion to every monitor green; 16 min of it is the first deploy on the small VM, the rest three breaks it found, all fixed since (INC-2026-016)"
     backup: "systemd:kuma-backup.service"
     backup_label: nightly upload
   - name: Secrets access

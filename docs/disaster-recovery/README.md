@@ -14,7 +14,7 @@ The public status page shows a short form of this table from [`objectives.yml`](
 |---|---|---|---|
 | **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is rebuild time plus about 3 min of restore (HARD-11) | ≤ 24 h | 4-stage etcd pipeline (ADR-018), all IST: K3s snapshot 02:00 → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 03:30 (age-encrypted object in a 30-day Object Lock bucket, plus a transitional `restic copy`) |
 | **OCI applications & databases** | 45 min (instance loss); none if the OCI tenancy is lost (see §5) | ≤ 24 h | Restic to the OCI Object Storage bucket `dr-backups`, 03:00 UTC (08:30 IST), scheduled by the Kestra flow `aether.ops.restic-nightly` |
-| **GCP DMZ observer** | 15 min for the VM, plus a few minutes to restore Kuma | ≤ 24 h (nightly Kuma backup, FND-17) | Terraform + Ansible + compose files in Git; Kuma data in GCS |
+| **GCP DMZ observer** | 30 min, Kuma restore included (was 15; the 19 Nov rebuild showed the first deploy alone takes 16) | ≤ 24 h (nightly Kuma backup, FND-17) | Terraform + Ansible + compose files in Git; Kuma data in GCS |
 | **Secrets access** | 15 min | 0 | SOPS with two recipients: Age + GCP Cloud KMS (both proven working, 3 Nov) |
 | **Terraform state** | 10 min | 0 | GCS bucket `tf-backend-oci-hlab-gcs` with object versioning |
 
@@ -65,7 +65,7 @@ Each runbook has symptoms, the restore steps, checks to run afterwards, and a dr
 | [02: OCI instance loss & restic restore](scenarios/02-oci-loss-restic.md) | SEV1 | Single-app restore, 15 Nov 2026: 972 MiB restored in 11 s, the dump loaded into a throwaway database in 4 s, 176 tables and 39,599 rows matched live (`task dr:drill:oci`). Full instance rebuild: not timed yet |
 | [03: Homelab hardware failure & K3s etcd recovery](scenarios/03-homelab-hardware.md) | SEV1 | In-place reset (DR-05): about 18 min. Cold restore from B2 (HARD-11): 10 Nov 2026, reset to ready API 54 s |
 | [04: Age key loss & GCP KMS recovery](scenarios/04-age-key-loss.md) | SEV2 | Dual-recipient check passed 3 Nov |
-| [05: GCP DMZ rebuild](scenarios/05-gcp-dmz-rebuild.md) | SEV2 | Full rebuild, 19 Nov 2026: 48 min 25 s from deleting the VM to every monitor green, against a 15 min target. The first deploy on a fresh e2-micro takes 16 min (image pulls), and three breaks cost the rest: the join key couldn't tag the VM, a deploy step crashed before the restore, heartbeats were pinned to the old mesh IP ([INC-2026-016](../incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
+| [05: GCP DMZ rebuild](scenarios/05-gcp-dmz-rebuild.md) | SEV2 | Full rebuild, 19 Nov 2026: 48 min 25 s from deleting the VM to every monitor green, against the then 15 min target (now 30). The first deploy on a fresh e2-micro takes 16 min (image pulls), and three breaks cost the rest: the join key couldn't tag the VM, a deploy step crashed before the restore, heartbeats were pinned to the old mesh IP ([INC-2026-016](../incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
 
 Related:
 - [ArgoCD recovery runbook](../runbooks/argocd-recovery.md)
