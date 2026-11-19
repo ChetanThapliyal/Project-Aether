@@ -20,7 +20,7 @@ components:
   - name: Apps on the cluster
     rto: 30 min
     rpo: 24 h
-    proven: "Every app database loaded from its nightly dump and matched against the counts taken at dump time, 17 Nov 2026: 22 s for 4 databases; offsite copy downloaded and decrypted the same day. No apps live yet"
+    proven: "Every app database loaded from its nightly dump and matched against the counts taken at dump time, 19 Nov 2026: 29 s for 4 databases, 69,840 rows, with three apps live; offsite copy downloaded and decrypted on 17 Nov"
     backup: "kuma:APP-02 app data → B2 (Proxmox)"
     backup_label: offsite copy
   - name: Edge observer (this page)
