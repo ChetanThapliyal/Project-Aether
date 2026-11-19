@@ -1,7 +1,7 @@
 # DR Scenario 05: GCP DMZ Node Loss & Zero-Cost Rebuild
 
 **Severity:** SEV2 (my outside observer is blind; a SEV1 elsewhere could go unnoticed)
-**Target RTO:** 15 minutes for the VM and stack; monitors need a manual rebuild on top
+**Target RTO:** 15 minutes for the VM and stack; monitors need a manual rebuild on top. **Measured 19 Nov 2026: 48 min** (INC-2026-016): the first deploy on a fresh e2-micro alone takes 16 min.
 **Target RPO:** Uptime Kuma data is **not backed up**. Everything else is in Git.
 
 ---
@@ -58,7 +58,26 @@ task tf:plan  DIR=02-gcp-dmz     # expect: 1 instance to add, nothing to destroy
 task tf:apply DIR=02-gcp-dmz
 ```
 
-Before the new VM boots, I delete the old `aether-gcp-dmz` machine in the Tailscale console so the name stays the same. The startup script joins the tailnet with an auth key; if that key has expired, I follow [tailscale-auth-key-rotation.md](../../runbooks/tailscale-auth-key-rotation.md).
+Before the new VM boots, I delete the old `aether-gcp-dmz` machine in the Tailscale console so the name stays the same. The startup script joins the tailnet with an OAuth client secret and asks for `tag:gcp-dmz`.
+
+**If it doesn't appear on the tailnet within 5 minutes**, I read the serial console:
+
+```bash
+gcloud compute instances get-serial-port-output aether-gcp-dmz --zone=us-central1-a | grep -i -E "tailscale|startup-script" | tail
+```
+
+`requested tags [tag:gcp-dmz] are invalid or not permitted` means the client can't mint that tag (INC-2026-016). I create a one-time auth key in the console (not reusable, 1 day, tag `tag:gcp-dmz`) and join through IAP, without the key touching the chat or the shell history:
+
+```bash
+read -rs "KEY?Tailscale auth key: " && echo && \
+gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap \
+  --ssh-key-file ~/.ssh/homelab --strict-host-key-checking=no \
+  --command "sudo tailscale up --authkey=$KEY --hostname=aether-gcp-dmz --advertise-tags=tag:gcp-dmz --ssh --accept-routes=true" ; unset KEY
+```
+
+Other key problems: [tailscale-auth-key-rotation.md](../../runbooks/tailscale-auth-key-rotation.md).
+
+**Then I give the machine its old tailnet address back** (console: Machines → `aether-gcp-dmz` → Edit machine IPv4 → `100.115.221.103`), so anything still pointing at the address keeps working. Heartbeat senders use the tailnet name since INC-2026-016, but the address is cheap insurance. On my workstation: `ssh-keygen -R aether-gcp-dmz` (the host key is new).
 
 ### Step 3.3: Check That It's Still Free
 
@@ -84,7 +103,7 @@ The playbook:
 
 ### Step 3.5: Restore the Monitors
 
-After `task ansible:dmz`, Kuma runs empty. I restore last night's backup, or the fresher copy from §2 if I took one. The VM can't read the bucket (its account is create-only), so the copy goes through my workstation:
+After `task ansible:dmz`, Kuma runs empty. (The deploy completes on an empty Kuma since INC-2026-016; before that, the status page's backup-age script crashed it at the last stage.) If I take a fresh copy from a still-working disk, I stop Kuma first: its SQLite database has a write-ahead log, and a copy of a running database can be inconsistent. I restore last night's backup, or the fresher copy from §2 if I took one. The VM can't read the bucket (its account is create-only), so the copy goes through my workstation:
 
 ```bash
 obj=$(gcloud storage ls gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/ | sort | tail -1); echo "$obj"
@@ -106,7 +125,7 @@ If I skip this, every backup run withholds its heartbeat and the monitor stays r
 
 ### Step 3.6: Check the Tailnet Policy
 
-The new VM has a new tailnet IP. I check `tailscale-policy.sops.yaml` for any `hosts` entry pinned to the old DMZ IP, and check that the policy tests still pass. The DMZ must reach **only** its probe targets (INC-2026-003).
+If I didn't restore the old address in §3.2, the new VM has a new tailnet IP. I search for the old one in the plain files **and in the decrypted secrets** (INC-2026-016 found it in `kuma_push_base`, which a plain-text search can't see), check `tailscale-policy.sops.yaml` for any `hosts` entry pinned to it, and check that the policy tests still pass. The DMZ must reach **only** its probe targets (INC-2026-003).
 
 ---
 

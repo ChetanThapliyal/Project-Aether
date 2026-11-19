@@ -26,7 +26,7 @@ components:
   - name: Edge observer (this page)
     rto: 15 min + data restore
     rpo: 24 h
-    proven: "Monitor data restored from the backup bucket and checked, 15 Nov 2026; VM rebuild not yet timed"
+    proven: "Full rebuild timed 19 Nov 2026: 48 min from deletion to every monitor green, over target; 16 min of it is the first deploy on the small VM, and three breaks it found are fixed (INC-2026-016)"
     backup: "systemd:kuma-backup.service"
     backup_label: nightly upload
   - name: Secrets access

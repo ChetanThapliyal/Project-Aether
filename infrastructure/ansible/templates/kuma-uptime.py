@@ -16,7 +16,6 @@ import os
 import re
 import sqlite3
 import subprocess
-import sys
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -28,8 +27,12 @@ RPO_GRACE_H = 3  # nightly jobs: scheduling jitter and run time
 
 
 def main():
-    if not os.path.getsize(DB):
-        sys.exit(f"{DB} is empty")
+    # A rebuilt DMZ has no Kuma database until the restore (DR Scenario 05 §3.5).
+    # Not an error: skip this run, so the deploy that installs this timer completes
+    # and the next run after the restore fills the page (5.53 drill finding).
+    if not os.path.exists(DB) or not os.path.getsize(DB):
+        print(f"{DB} missing or empty (fresh VM, Kuma not restored yet): skipping this run")
+        return
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=10)
     out = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     out["recovery"] = recovery(con)
