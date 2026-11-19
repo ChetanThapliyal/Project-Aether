@@ -91,3 +91,11 @@ ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
 ### Addendum: Diagram (2026-11-18)
 
 <img src="../diagrams/flow-monitoring.svg" alt="Monitoring and alerting: Prometheus, Loki, Alertmanager and Grafana run on the cloud host, scrape and collect from every site over the mesh, alert to Telegram, and prove the alert path works with an always-firing Watchdog sent to the edge VM." width="100%">
+
+### Addendum: The Hypervisor's Journal (2026-11-19, INC-2026-014)
+- **Context:** the hypervisor kept its logs only on its own disk. In the power cut of INC-2026-014 the journal lost its last six and a half hours, and the logs could not say whether the host crashed or lost power.
+- **Decision:** run Grafana Alloy on the hypervisor too, as a systemd service from Grafana's signed apt repository, at the cluster's version (1.21.3, held). It reads the journal with `loki.source.journal` and pushes to the same Loki on the cloud host over the tailnet (ADR-013 addendum, 19 Nov). Managed by `infrastructure/ansible/playbooks/proxmox-logging.yml`.
+- **Labels:** `job="hypervisor/journal"`, `node_name` (the host's inventory name), `unit` (the systemd unit) and `level` (the journal priority). The same `node_name` label lets the existing `LogShippingStalled` rule cover the hypervisor, generated for every cluster node and the hypervisor.
+- **Heartbeat:** the hypervisor can log nothing for more than half an hour, which would trip the stall alert. A systemd timer writes one line (`log-heartbeat`) every 5 minutes, so a silent stream means shipping stopped.
+- **Limits:** memory capped at 256 MiB (about 50 MiB used); the UI listens on localhost only; usage reporting off. On a first start Alloy reads back 12 hours of journal, and after that it resumes from its saved position.
+- **Known behaviour:** if Loki or the tailnet is unreachable, Alloy retries for a few minutes and then drops the batch. The lines are still in the local journal (500 MB, synced every minute since INC-2026-014), so the evidence is lost only if the disk is lost as well.

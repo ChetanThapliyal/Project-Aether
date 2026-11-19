@@ -1,7 +1,7 @@
 groups:
   - name: log-shipping
     rules:
-{% for node in groups['k3s_cluster'] %}
+{% for node in groups['k3s_cluster'] + groups['proxmox'] %}
       - alert: LogShippingStalled
         expr: 'absent_over_time({node_name="{{ node }}"}[15m])'
         for: 15m

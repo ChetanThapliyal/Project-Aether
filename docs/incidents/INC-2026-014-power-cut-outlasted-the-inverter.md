@@ -10,7 +10,7 @@
 | Detected | 2026-11-17 15:14 |
 | Resolved | 2026-11-18 06:32 (cluster healthy, data checked, backups caught up) |
 | Cause | Platform |
-| Status | Fixed and verified for the backup gap. Power resilience is open |
+| Status | Fixed and verified for the backup gap and the lost logs. Power resilience is open |
 
 ## Summary
 
@@ -88,10 +88,12 @@ The home lab runs from an inverter with about six and a half hours of runtime at
 - Disk and pool alerts (18 Nov, `alert-rules.yml`, group `hypervisor-hardware-alerts`): pool not online, pool errors, overdue scrub, SMART failing, bad sectors growing (not the old baseline), stale SMART data, and the host running hot. Unit-tested with promtool in CI. smartd had been mailing its warnings to a local mailbox nobody reads.
 - Runbook (`docs/disaster-recovery/scenarios/03-homelab-hardware.md`, Branch A): a BIOS reset turns virtualisation off; how to confirm it and the setting to change.
 
+- Logs off the box (19 Nov, `proxmox-logging.yml`): Grafana Alloy, the same agent and version as on the cluster, reads the hypervisor's journal and sends each line to Loki on the cloud host as it is written. The next power loss leaves its last lines on another machine. A new tailnet grant allows the hypervisor to reach Loki and nothing else, and a policy test denies the Prometheus port next to it. The host can be quiet for more than half an hour, so a timer writes one line every 5 minutes, and the `LogShippingStalled` alert now covers the hypervisor as well as the cluster nodes. Verified: 21 services' logs arrived, and the heartbeat line showed up in Loki within seconds.
+
 Still open:
 
 - Power: a UPS sized for the hypervisor and router, or a battery in the laptop, and a warning before the inverter runs out.
-- Logs off the box: ship the hypervisor's journal to Loki on the cloud host, as the cluster nodes already do, so the next outage leaves evidence somewhere else. Needs a tailnet grant.
+- A memory test on the hypervisor, low priority: nothing points at memory, but a crash with no logs could not rule it out.
 
 ## Lessons
 

@@ -170,6 +170,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/proxmox-monitoring.yml {{.CLI_ARGS}}
 
+  ansible:proxmox:logging:
+    desc: "Ship the Proxmox journal to Loki on OCI with Grafana Alloy (INC-2026-014)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/proxmox-logging.yml {{.CLI_ARGS}}
+
   dr:drill:oci:
     desc: "DR Scenario 02 drill: restore BookOrbit + Kuma from restic, load the dump into a throwaway DB, compare with live (read-only to production)"
     cmds:

@@ -1,0 +1,176 @@
+---
+# =============================================================================
+# Proxmox VE: ship the hypervisor's journal to Loki on OCI (INC-2026-014)
+# =============================================================================
+# The power cut of INC-2026-014 took the last six and a half hours of the
+# hypervisor's journal with it, so the logs could not say whether it crashed or
+# lost power. Grafana Alloy (the same agent and version as on the cluster,
+# ADR-019) now reads the journal and pushes each entry to Loki as it is written,
+# so the next outage leaves its evidence on another machine.
+#
+# Network: the tailnet grant tag:homelab-dc -> tag:oci:3100 (Loki only), with a
+# policy test that denies tag:oci:9090. Nothing listens on the network here:
+# Alloy's UI stays on localhost.
+#
+# Streams in Loki: {job="hypervisor/journal", node_name="homelab"} with labels
+# unit and level. LogShippingStalled covers this node too. The host can be quiet
+# for over half an hour, so a timer writes one "alive" line every 5 minutes: a
+# silent stream then means shipping stopped, not that nothing happened.
+#
+# Examples:
+#   ansible-playbook playbooks/proxmox-logging.yml
+#   task ansible:proxmox:logging
+# =============================================================================
+
+- name: Ship the Proxmox journal to Loki with Grafana Alloy
+  hosts: proxmox
+  become: true
+
+  vars:
+    alloy_version: "1.21.3-1"   # matches the cluster DaemonSet (kubernetes/cluster/alloy.yaml)
+    loki_push_url: "http://100.68.99.53:3100/loki/api/v1/push"   # OCI host's tailnet IP, as in alloy.yaml
+
+  tasks:
+    - name: Add the Grafana apt repository (signed)
+      ansible.builtin.deb822_repository:
+        name: grafana
+        types: deb
+        uris: https://apt.grafana.com
+        suites: stable
+        components: main
+        signed_by: https://apt.grafana.com/gpg.key
+
+    - name: Install Alloy at the pinned version
+      ansible.builtin.apt:
+        name: "alloy={{ alloy_version }}"
+        state: present
+        update_cache: true
+        allow_downgrade: true
+
+    - name: Hold Alloy so a host upgrade can't move it
+      ansible.builtin.dpkg_selections:
+        name: alloy
+        selection: hold
+
+    - name: Let Alloy read the journal
+      ansible.builtin.user:
+        name: alloy
+        groups: systemd-journal
+        append: true
+      notify: Restart alloy
+
+    - name: Alloy service arguments (no usage reports, UI on localhost only)
+      ansible.builtin.copy:
+        dest: /etc/default/alloy
+        mode: "0644"
+        content: |
+          # Managed by Ansible (proxmox-logging.yml)
+          CONFIG_FILE="/etc/alloy/config.alloy"
+          CUSTOM_ARGS="--disable-reporting --server.http.listen-addr=127.0.0.1:12345"
+          RESTART_ON_UPGRADE=true
+      notify: Restart alloy
+
+    - name: Create the Alloy unit drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/alloy.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Cap Alloy's memory (the host has about 2 GB free)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/alloy.service.d/10-limits.conf
+        mode: "0644"
+        content: |
+          # Managed by Ansible (proxmox-logging.yml)
+          [Service]
+          MemoryMax=256M
+      notify: Restart alloy
+
+    - name: Alloy pipeline (journal to Loki)
+      ansible.builtin.copy:
+        dest: /etc/alloy/config.alloy
+        mode: "0644"
+        validate: /usr/bin/alloy fmt %s
+        content: |
+          // Managed by Ansible (proxmox-logging.yml). The hypervisor's journal, shipped to
+          // Loki on OCI as it is written (INC-2026-014).
+
+          loki.relabel "journal" {
+            forward_to = []
+
+            rule {
+              source_labels = ["__journal__systemd_unit"]
+              target_label  = "unit"
+            }
+            rule {
+              source_labels = ["__journal_priority_keyword"]
+              target_label  = "level"
+            }
+          }
+
+          loki.source.journal "host" {
+            // On the first start (no saved position) read back this far; after that
+            // Alloy resumes from its position under /var/lib/alloy.
+            max_age       = "12h"
+            relabel_rules = loki.relabel.journal.rules
+            labels        = { job = "hypervisor/journal", node_name = "{{ inventory_hostname }}" }
+            forward_to    = [loki.write.oci.receiver]
+          }
+
+          loki.write "oci" {
+            endpoint {
+              url = "{{ loki_push_url }}"
+            }
+          }
+      notify: Restart alloy
+
+    - name: Journal heartbeat, one line every 5 minutes (keeps LogShippingStalled honest)
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: log-heartbeat.service
+          content: |
+            # Managed by Ansible (proxmox-logging.yml)
+            [Unit]
+            Description=Write a heartbeat line to the journal for log shipping (INC-2026-014)
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/bin/logger -t log-heartbeat alive
+        - name: log-heartbeat.timer
+          content: |
+            # Managed by Ansible (proxmox-logging.yml)
+            [Unit]
+            Description=Journal heartbeat every 5 minutes
+
+            [Timer]
+            OnBootSec=1min
+            OnUnitActiveSec=5min
+
+            [Install]
+            WantedBy=timers.target
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Enable the journal heartbeat timer
+      ansible.builtin.systemd:
+        name: log-heartbeat.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Ensure Alloy is enabled and running
+      ansible.builtin.systemd:
+        name: alloy
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: Restart alloy
+      ansible.builtin.systemd:
+        name: alloy
+        state: restarted
+        daemon_reload: true

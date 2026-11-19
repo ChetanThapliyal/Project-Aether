@@ -115,3 +115,6 @@ The cloud host's metrics grant to `tag:k3s` gains two NodePorts: 30085 (PostgreS
 ### Addendum: Diagram (2026-11-18)
 
 <img src="../diagrams/flow-tailnet.svg" alt="Mesh segmentation: every device carries a role tag, access is granted between roles and never by location, everything else is denied, and policy tests run on every save." width="100%">
+
+### Addendum: The Hypervisor Ships Its Journal to Loki (2026-11-19, INC-2026-014)
+The Loki grant on `tag:oci:3100` now has two sources, `tag:k3s` and `tag:homelab-dc`. The power cut of INC-2026-014 took the last hours of the hypervisor's journal with it, so its logs now go to Loki on the cloud host as they are written. Port 3100 is the only new path from the hypervisor. Its policy test accepts `tag:oci:3100` next to the heartbeat port and denies `tag:oci:9090`, so the grant can't widen to the rest of the cloud host without failing on save.
