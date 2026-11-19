@@ -55,7 +55,7 @@ y = chips(76, y + 10, 650, ["ArgoCD + KSOPS", "MetalLB", "Envoy Gateway", "cert-
 label(76, y, "OBSERVABILITY")
 y = chips(76, y + 10, 650, ["Alloy (logs out)", "node exporter", "kube-state-metrics"]) + 26
 label(76, y, "APPS · PHASE 04, MOVED FROM ORACLE CLOUD OR NEW")
-y = chips(76, y + 10, 650, ["IT-Tools", "Blinko", "AFFiNE", ("CouchDB", True), ("Paperless", True), ("Linkwarden", True)]) + 26
+y = chips(76, y + 10, 650, ["IT-Tools", "Blinko", "AFFiNE", "CouchDB", "Paperless", "Linkwarden"]) + 26
 label(76, y, "DATA AND STORAGE")
 chips(76, y + 10, 650, ["PostgreSQL + Redis", "local-path · databases", "nfs-zfs · files"])
 
