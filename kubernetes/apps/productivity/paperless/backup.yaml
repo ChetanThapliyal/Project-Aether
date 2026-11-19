@@ -25,6 +25,7 @@ data:
   export.sh: |
     #!/bin/bash
     set -euo pipefail
+    mkdir -p /usr/src/paperless/export/current   # the exporter refuses a missing target
     cd /usr/src/paperless/src
     # --skip-checks: the startup checks write a test file into data/, which this
     # Job mounts read-only; the verify step below is the check that matters here.
