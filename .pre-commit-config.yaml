@@ -70,3 +70,20 @@ repos:
         language: script
         pass_filenames: false
         files: ^infrastructure/ansible/
+
+  # 5.52: shell and YAML linting. Both hooks bring their own pinned binaries, so
+  # the workstation and CI (validate.yml runs pre-commit) use the same versions.
+  # Shell: the scripts/ files. Jinja templates (*.sh.j2) and shell embedded in
+  # Ansible or ConfigMap YAML are not checked: they aren't valid shell until rendered.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+
+  # YAML: mistakes only (duplicate keys, broken indentation, bad syntax); style
+  # rules are off in .yamllint.yaml.
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--strict]

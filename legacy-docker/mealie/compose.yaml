@@ -4,7 +4,7 @@ services:
     container_name: mealie
     restart: always
     ports:
-        - "9925:9000" #
+      - "9925:9000" #
     mem_limit: 1000m
     volumes:
       - mealie-data:/app/data/

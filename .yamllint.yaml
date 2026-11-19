@@ -1,0 +1,30 @@
+# Task 5.52: yamllint catches YAML mistakes (duplicate keys, broken indentation,
+# stray tabs, bad syntax), not style. Rules about how YAML looks are off: the repo
+# mixes Kubernetes, Ansible, Compose and SOPS files with their own conventions.
+extends: default
+
+ignore: |
+  *.sops.yaml
+  *.sops.yml
+  .sops.yaml
+  docs/git-ignored/
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments: disable
+  comments-indentation: disable
+  truthy: disable              # Ansible and Compose use yes/no/on deliberately
+  braces: disable              # flow maps like { name: x, value: y } are used for compact env lists
+  brackets: disable
+  commas: disable
+  colons: disable
+  empty-lines: disable
+  new-line-at-end-of-file: disable   # end-of-file-fixer already handles it
+  trailing-spaces: disable           # trailing-whitespace already handles it
+  indentation:
+    spaces: consistent
+    indent-sequences: whatever
+    check-multi-line-strings: false
+  key-duplicates: enable
+  anchors: enable

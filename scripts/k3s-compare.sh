@@ -24,11 +24,11 @@ echo "### 2. CLEAN vs ABRUPT shutdown classification per boot"
 echo "(abrupt = log has no 'Reached target poweroff.target' / 'Journal stopped')"
 printf "%-6s %-22s %-22s %-11s %-9s %s\n" "BOOT" "START" "END" "DURATION" "KIND" "PRE/POST k3s"
 for b in $(journalctl --list-boots --no-pager 2>/dev/null | tac | awk '{print $1}'); do
-  start=$(journalctl -b $b --no-pager 2>/dev/null | head -1 | cut -c1-15)
-  endline=$(journalctl -b $b --no-pager 2>/dev/null | tail -1 | cut -c1-15)
+  start=$(journalctl -b "$b" --no-pager 2>/dev/null | head -1 | cut -c1-15)
+  endline=$(journalctl -b "$b" --no-pager 2>/dev/null | tail -1 | cut -c1-15)
   [ -z "$start" ] && continue
-  dur=$(journalctl -b $b --no-pager -o short-unix 2>/dev/null | awk 'NR==1{f=$1} {l=$1} END{printf "%dm", (l-f)/60}')
-  if journalctl -b $b --no-pager 2>/dev/null | grep -qE "Reached target (poweroff|reboot)\.target|Journal stopped"; then
+  dur=$(journalctl -b "$b" --no-pager -o short-unix 2>/dev/null | awk 'NR==1{f=$1} {l=$1} END{printf "%dm", (l-f)/60}')
+  if journalctl -b "$b" --no-pager 2>/dev/null | grep -qE "Reached target (poweroff|reboot)\.target|Journal stopped"; then
     kind="clean"
   else
     kind="ABRUPT"
@@ -36,15 +36,15 @@ for b in $(journalctl --list-boots --no-pager 2>/dev/null | tac | awk '{print $1
   if [[ "$start" < "${CUTOFF:0:10}" ]]; then pre="PRE"; else pre="POST"; fi
   printf "%-6s %-22s %-22s %-11s %-9s %s\n" "$b" "$start" "$endline" "$dur" "$kind" "$pre"
   # save the tail for eyeballing
-  journalctl -b $b --no-pager 2>/dev/null | tail -25 > $RAW/boot_${b}_tail.txt
+  journalctl -b "$b" --no-pager 2>/dev/null | tail -25 > $RAW/boot_"${b}"_tail.txt
 done
 
 echo
 echo "### 3. Abrupt-shutdown detail: last 12 lines of every ABRUPT boot"
 for b in $(journalctl --list-boots --no-pager 2>/dev/null | tac | awk '{print $1}'); do
-  if ! journalctl -b $b --no-pager 2>/dev/null | grep -qE "Reached target (poweroff|reboot)\.target|Journal stopped"; then
+  if ! journalctl -b "$b" --no-pager 2>/dev/null | grep -qE "Reached target (poweroff|reboot)\.target|Journal stopped"; then
     echo "--- boot $b last 12 lines ---"
-    journalctl -b $b --no-pager 2>/dev/null | tail -12
+    journalctl -b "$b" --no-pager 2>/dev/null | tail -12
     echo
   fi
 done
@@ -54,10 +54,10 @@ echo "### 4. CPU TEMPERATURE per boot (coretemp package_id_0)"
 echo "idle  = min of boot, loaded = max of boot, samples = count"
 printf "%-6s %-22s %-9s %-9s %-9s %s\n" "BOOT" "START" "IDLE_C" "MAX_C" "SAMPLES" "PRE/POST"
 for b in $(journalctl --list-boots --no-pager 2>/dev/null | tac | awk '{print $1}'); do
-  stats=$(journalctl -b $b --no-pager -o short-unix 2>/dev/null \
+  stats=$(journalctl -b "$b" --no-pager -o short-unix 2>/dev/null \
     | grep -oE "Package id 0: *\+[0-9]+" | grep -oE "[0-9]+")
   [ -z "$stats" ] && continue
-  start=$(journalctl -b $b --no-pager 2>/dev/null | head -1 | cut -c1-16)
+  start=$(journalctl -b "$b" --no-pager 2>/dev/null | head -1 | cut -c1-16)
   mn=$(echo "$stats" | sort -n | head -1)
   mx=$(echo "$stats" | sort -n | tail -1)
   n=$(echo "$stats" | wc -l)
@@ -77,12 +77,12 @@ last -x 2>/dev/null | head -60
 echo
 echo "### 7. Per-boot error fingerprint (new errors post-k3s?)"
 for b in $(journalctl --list-boots --no-pager 2>/dev/null | tac | awk '{print $1}'); do
-  start=$(journalctl -b $b --no-pager 2>/dev/null | head -1 | cut -c1-16)
+  start=$(journalctl -b "$b" --no-pager 2>/dev/null | head -1 | cut -c1-16)
   [ -z "$start" ] && continue
   if [[ "$start" < "${CUTOFF:0:10}" ]]; then pre="PRE"; else pre="POST"; fi
-  n=$(journalctl -b $b -p err --no-pager 2>/dev/null | wc -l)
+  n=$(journalctl -b "$b" -p err --no-pager 2>/dev/null | wc -l)
   printf "boot %-4s %-5s err_lines=%-6s " "$b" "$pre" "$n"
-  journalctl -b $b -p err --no-pager 2>/dev/null | sed -E 's/^[A-Z][a-z]{2} [0-9]+ [0-9:]+ [^ ]+ //' \
+  journalctl -b "$b" -p err --no-pager 2>/dev/null | sed -E 's/^[A-Z][a-z]{2} [0-9]+ [0-9:]+ [^ ]+ //' \
     | sed -E 's/[0-9]+/N/g' | sort | uniq -c | sort -rn | head -3 | tr '\n' '|'
   echo
 done
@@ -124,10 +124,10 @@ echo
 echo "### 13. BATTERY + AC ADAPTER STATE  (key: is there any power buffering?)"
 echo "--- power supplies ---"
 for p in /sys/class/power_supply/*; do
-  n=$(basename $p)
-  echo "[$n] type=$(cat $p/type 2>/dev/null)  online=$(cat $p/online 2>/dev/null)  status=$(cat $p/status 2>/dev/null)"
-  [ -f $p/capacity ] && echo "     capacity=$(cat $p/capacity)%  energy_now=$(cat $p/energy_now 2>/dev/null)  energy_full=$(cat $p/energy_full 2>/dev/null)  power_now=$(cat $p/power_now 2>/dev/null)"
-  [ -f $p/charge_now ] && echo "     charge_now=$(cat $p/charge_now)  charge_full=$(cat $p/charge_full)  charge_control=$(cat $p/charge_control 2>/dev/null)"
+  n=$(basename "$p")
+  echo "[$n] type=$(cat "$p"/type 2>/dev/null)  online=$(cat "$p"/online 2>/dev/null)  status=$(cat "$p"/status 2>/dev/null)"
+  [ -f "$p"/capacity ] && echo "     capacity=$(cat "$p"/capacity)%  energy_now=$(cat "$p"/energy_now 2>/dev/null)  energy_full=$(cat "$p"/energy_full 2>/dev/null)  power_now=$(cat "$p"/power_now 2>/dev/null)"
+  [ -f "$p"/charge_now ] && echo "     charge_now=$(cat "$p"/charge_now)  charge_full=$(cat "$p"/charge_full)  charge_control=$(cat "$p"/charge_control 2>/dev/null)"
 done
 echo "--- battery present at all? ---"
 ls -d /sys/class/power_supply/BAT* 2>/dev/null || echo "NO BATTERY -> machine runs directly off the AC brick, zero ride-through"
