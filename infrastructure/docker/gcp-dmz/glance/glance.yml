@@ -109,6 +109,26 @@ pages:
                 url: https://status.chetan-thapliyal.cloud/
                 icon: si:cloudflare
 
+          # Visits to this page, from the public feed's "visitors" block: Cloudflare
+          # Web Analytics counts (no cookies), kept as a daily log on the cloud host so
+          # the total outlives Cloudflare's retention. Headless browsers (our own
+          # test runs) aren't counted. A null field reads as "" and shows as unknown.
+          - type: custom-api
+            title: Visits
+            url: https://public-feed.tail7067ab.ts.net/summary.json
+            cache: 5m
+            template: |
+              {{ $v := .JSON.Get "visitors" }}
+              {{ if eq ($v.String "visits_total") "" }}
+              <p class="color-subdue">Count unknown right now.</p>
+              {{ else }}
+              <div class="ae-visits">
+                <div><div class="ae-visits-num">{{ $v.Int "visits_30d" }}</div><div class="size-h6">last 30 days</div></div>
+                <div><div class="ae-visits-num">{{ $v.Int "visits_total" }}</div><div class="size-h6">since {{ $v.String "since" }}</div></div>
+              </div>
+              {{ end }}
+              <p class="color-subdue size-h6 ae-visits-note">Counted without cookies</p>
+
       - size: full
         widgets:
           # FND-23: overall status in one line, first on the page. Green when all
@@ -286,30 +306,6 @@ pages:
                 <div class="bar-row"><span class="bar-name">Security</span><span class="ae-fact">Tailnet roles with policy tests, default-deny NetworkPolicies, Secrets encrypted at rest, no public SSH, a strict content policy on this page</span></div>
                 <div class="bar-row"><span class="bar-name">Observability</span><span class="ae-fact">Prometheus, Loki (Grafana Alloy agents) and Alertmanager to Telegram, database exporters, an outside HTTPS check per app, plus a dead-man's switch</span></div>
                 <div class="bar-row"><span class="bar-name">Recovery</span><span class="ae-fact">Nightly etcd snapshots and app database dumps to ZFS, then an Object-Locked offsite bucket; restores of both drilled</span></div>
-              </div>
-
-          # Visits to this page, from the public feed's "visitors" block: Cloudflare
-          # Web Analytics counts (no cookies), kept as a daily log on the cloud host so
-          # the total outlives Cloudflare's retention. Headless browsers (our own
-          # test runs) aren't counted. A null field reads as "" and shows as unknown.
-          - type: custom-api
-            title: Visits
-            frameless: true
-            hide-header: true
-            url: https://public-feed.tail7067ab.ts.net/summary.json
-            cache: 5m
-            template: |
-              {{ $v := .JSON.Get "visitors" }}
-              <div class="ae-banner ae-banner-plain" role="status">
-                <span class="ae-dot"></span>
-                <span class="ae-banner-title">Visits</span>
-                <span class="ae-sep-clip"><span class="ae-sep-list">
-                  {{ if eq ($v.String "visits_total") "" }}<span>count unknown</span>{{ else }}
-                  <span>{{ $v.Int "visits_30d" }} in the last 30 days</span>
-                  <span>{{ $v.Int "visits_total" }} since {{ $v.String "since" }}</span>
-                  {{ end }}
-                  <span>counted without cookies</span>
-                </span></span>
               </div>
 
   # ---------------------------------------------------------------------------

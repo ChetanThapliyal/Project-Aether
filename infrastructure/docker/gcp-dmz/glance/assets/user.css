@@ -940,3 +940,7 @@ code,
 .theme-choices .theme-preset[data-key="default-dark"]::after { content: "Dark"; }
 .theme-choices .theme-preset[data-key="default-light"]::after { content: "Light"; }
 .theme-choices .theme-preset.current::after { color: var(--ae-text-strong); }
+/* Visits card under Public sites (Overview) */
+.ae-visits{display:grid;grid-template-columns:1fr 1fr;text-align:center}
+.ae-visits + .ae-visits-note,.ae-visits-note{margin-top:12px;text-align:center}
+.ae-visits-num{font-size:2.4rem;line-height:1.1;font-weight:600;color:var(--ae-text-strong);font-variant-numeric:tabular-nums}
