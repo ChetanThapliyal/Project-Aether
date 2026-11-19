@@ -4,7 +4,7 @@ Every app on the cluster has the same shape. Copy this folder to `kubernetes/app
 
 1. **Image:** pin `tag@sha256:digest` for amd64. Renovate updates both (task 4.21).
 2. **Run as non-root** with a read-only root filesystem. If the image can't, relax only the field that fails and note why in a comment. The namespace enforces Pod Security `baseline` and warns on `restricted`.
-3. **Resources:** measure idle and busy memory, then set requests near idle and limits with headroom. The namespace quota is 2 GiB of requests and 4 GiB of limits for all apps together.
+3. **Resources:** measure idle and busy memory, then set requests near idle and limits with headroom. The namespace quota is 2.5 GiB of requests and 6 GiB of limits for all apps together (`kubernetes/platform/guardrails/apps-namespace.yaml`).
 4. **Egress:** set only the labels the app needs: `aether.dev/postgres`, `aether.dev/redis`, `aether.dev/internet`. Ingress from the gateway is already allowed.
 5. **Database:** add the app's password to `kubernetes/platform/databases/secrets.sops.yaml` (`app-db-passwords`, key = app name; extensions in `bootstrap.yaml`). Put a copy in the app's own SOPS Secret (`secret.sops.yaml` plus a `ksops-*.yaml` generator). Host: `postgres.databases.svc.cluster.local`.
 6. **Files:** a PVC on `nfs-zfs` (survives a worker loss; snapshotted; shipped offsite nightly). Databases never go on NFS.

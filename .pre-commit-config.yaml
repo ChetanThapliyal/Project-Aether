@@ -70,6 +70,12 @@ repos:
         language: script
         pass_filenames: false
         files: ^infrastructure/ansible/
+      - id: docs-index
+        name: docs/README.md lists every document (5.56)
+        entry: scripts/check-docs-index.py
+        language: script
+        pass_filenames: false
+        files: ^docs/
 
   # 5.52: shell and YAML linting. Both hooks bring their own pinned binaries, so
   # the workstation and CI (validate.yml runs pre-commit) use the same versions.
