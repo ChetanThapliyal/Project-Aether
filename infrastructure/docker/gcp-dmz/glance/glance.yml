@@ -553,7 +553,7 @@ pages:
                   <span class="vitals-badge">DESIGN</span>
                 </div>
                 <div class="bar-row"><span class="bar-name">Metrics</span><span class="ae-fact">Prometheus on Oracle Cloud scrapes the cluster nodes, kube-state-metrics, ArgoCD and the Proxmox host over the tailnet</span></div>
-                <div class="bar-row"><span class="bar-name">Logs</span><span class="ae-fact">Grafana Alloy on every node ships pod logs to Loki; an alert fires if any node goes quiet for 30 minutes</span></div>
+                <div class="bar-row"><span class="bar-name">Logs</span><span class="ae-fact">Grafana Alloy ships pod logs from every node and the hypervisor's journal to Loki; an alert fires if any of them goes quiet for 30 minutes</span></div>
                 <div class="bar-row"><span class="bar-name">Alerts</span><span class="ae-fact">Alertmanager to Telegram, with a watchdog heartbeat to this host so a dead alert path is itself noticed</span></div>
                 <div class="bar-row"><span class="bar-name">Outside-in</span><span class="ae-fact">Uptime Kuma here probes the public services and receives push heartbeats from every backup stage</span></div>
                 <div class="bar-row"><span class="bar-name">Reviews</span><span class="ae-fact">Every real failure gets a written incident review with root cause and guardrails</span></div>
@@ -792,7 +792,7 @@ pages:
                   <p class="ae-note">Every service is its own node on the mesh, published by tsdproxy with a role tag: app, admin or probe. The cloud firewall lets in the mesh's direct-path traffic and, for when the mesh is down, SSH through Google IAP, which Google IAM gates.</p>
                   <div class="ae-chips"><span>per-service nodes</span><span>3 roles</span><span>SSH over the mesh only</span></div>
                   <div class="bar-row"><span class="bar-name">Roles</span><span class="ae-fact">admins reach admin tools; the observer reaches probe services only</span></div>
-                  <div class="bar-row"><span class="bar-name">Logs in</span><span class="ae-fact">cluster nodes may push logs to Loki and nothing else</span></div>
+                  <div class="bar-row"><span class="bar-name">Logs in</span><span class="ae-fact">cluster nodes and the hypervisor may push logs to Loki and nothing else</span></div>
                   <div class="bar-row"><span class="bar-name">SSH</span><span class="ae-fact">public SSH closed; hardened sshd behind the mesh</span></div>
                 </div>
                 <div class="vitals-card ae-env">
@@ -817,6 +817,7 @@ pages:
                   <div class="ae-flow"><span class="ae-flow-from">Monitoring core</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats, host metrics</span><span class="ae-flow-note">push monitors and one metrics port; no remote Docker access</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Cluster nodes</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">monitoring core</span><span class="ae-flow-what">logs</span><span class="ae-flow-note">Alloy to Loki; the only path out of the cluster</span></div>
                   <div class="ae-flow"><span class="ae-flow-from">Hypervisor</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">edge observer</span><span class="ae-flow-what">heartbeats</span><span class="ae-flow-note">each backup stage reports in</span></div>
+                  <div class="ae-flow"><span class="ae-flow-from">Hypervisor</span><span class="ae-flow-arrow" aria-hidden="true">→</span><span class="ae-flow-to">monitoring core</span><span class="ae-flow-what">logs</span><span class="ae-flow-note">its journal to Loki, so a power cut leaves evidence off the box</span></div>
                 </div>
               </div>
 
@@ -957,7 +958,7 @@ pages:
                       <a class="ae-carousel-btn" href="#ae-slide-4" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
-                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-tailnet.svg" width="1600" height="920" loading="lazy" alt="Mesh segmentation. Every device on the private mesh carries a role tag, and access is granted between roles, never by location. The operator reaches every role; signed-in devices reach the apps and admin tools. The cloud host scrapes metrics from the cluster nodes, the hypervisor and the edge VM, the cluster nodes send logs to it, and the hypervisor sends heartbeats to the edge VM. The edge VM may only check the monitored services, the public feed and the cluster&#x27;s web ports. Everything else is denied, and policy tests run on every save.">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-tailnet.svg" width="1600" height="920" loading="lazy" alt="Mesh segmentation. Every device on the private mesh carries a role tag, and access is granted between roles, never by location. The operator reaches every role; signed-in devices reach the apps and admin tools. The cloud host scrapes metrics from the cluster nodes, the hypervisor and the edge VM, the cluster nodes and the hypervisor send logs to it, and the hypervisor sends heartbeats to the edge VM. The edge VM may only check the monitored services, the public feed and the cluster&#x27;s web ports. Everything else is denied, and policy tests run on every save.">
                     </div>
                     <figcaption>
                       <span>Mesh segmentation: access goes by role, never by location, and policy tests run on every save.</span>

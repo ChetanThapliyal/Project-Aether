@@ -60,27 +60,28 @@ for i, s in enumerate(["Boxes are role tags. Each tag has one", "meaning, and lo
 r_oh = route([(455, 466), (455, 620)], tint(METRICS))
 r_ok = route([(310, 466), (310, 722), (340, 722)], tint(METRICS))
 r_ko = route([(340, 748), (270, 748), (270, 466)], tint(LOGS))
+r_ho = route([(540, 620), (540, 466)], tint(LOGS))   # the hypervisor's journal (INC-2026-014)
 r_od_m = route([(1060, 466), (1060, 620)], tint(METRICS))
 r_od_c = route([(1100, 466), (1100, 620)], tint(CHECKS))
 r_dp = route([(1140, 650), (1178, 650), (1178, 333), (1130, 333)], tint(CHECKS))
 r_dk = route([(740, 745), (570, 745)], tint(CHECKS))
 r_d8 = route([(740, 835), (570, 835)], tint(CHECKS))
 r_hd = route([(570, 655), (740, 655)], tint(BEAT))
-for x, y, s, a in ((467, 540, "metrics", "start"), (318, 540, "metrics", "start"), (262, 540, "logs", "end"), (1052, 540, "metrics", "end"), (1107, 560, "monitoring", "start"),
+for x, y, s, a in ((467, 540, "metrics", "start"), (318, 540, "metrics", "start"), (262, 540, "logs", "end"), (548, 510, "logs", "start"), (1052, 540, "metrics", "end"), (1107, 560, "monitoring", "start"),
                    (1170, 515, "web", "end"), (630, 736, "web", "middle"), (630, 826, "web", "middle"), (630, 646, "heartbeat", "middle")):
     text(x, y, s, 13, DIM, 400, a)
 
 # ── animation ─────────────────────────────────────────────────────────────────
 a = Anim()
 a.story(METRICS, oci, [[(r_oh, hyp), (r_ok, k3s), (r_od_m, dmz)]], leg[0])
-a.story(LOGS, k3s, [(r_ko, oci)], leg[1])
+a.story(LOGS, [k3s, hyp], [[(r_ko, oci), (r_ho, oci)]], leg[1])
 a.story(CHECKS, dmz, [[(r_dp, prb), (r_dk, k3s), (r_d8, k8s), (r_od_c, oci)]], leg[2])
 a.story(BEAT, hyp, [(r_hd, dmz)], leg[3])
 layer, style = a.render()
 
 ARIA = ("Mesh segmentation in Project Aether. Role tags are boxes, grouped by site: home lab, Oracle Cloud and Google Cloud, plus the operator and signed-in devices. "
         "The operator reaches every tag. Signed-in devices reach the apps and admin tools over HTTPS and the edge VM over SSH and monitoring. "
-        "The cloud host scrapes metrics from the K3s nodes, the hypervisor and the edge VM and runs monitoring checks on the edge VM. The K3s nodes send logs to the cloud host. "
+        "The cloud host scrapes metrics from the K3s nodes, the hypervisor and the edge VM and runs monitoring checks on the edge VM. The K3s nodes and the hypervisor send logs to the cloud host. "
         "The edge VM may check the monitored services and the public feed on the cloud host and the web ports of the cluster. The hypervisor sends heartbeats to the edge VM. "
         "Everything else is denied, and policy tests run on every save.")
 svg = wrap(W, H, ARIA, layer, style)
