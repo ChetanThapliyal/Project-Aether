@@ -189,7 +189,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 | 02 | GitOps: ArgoCD, app-of-apps, KSOPS, CI validation, webhook delivery | Complete, hardened and signed off |
 | 03 | Platform: ingress, certificates, private access, monitoring, logging, backups, NetworkPolicies | Complete, hardened and signed off |
 | 04 | Applications: move seven apps from Oracle Cloud onto the cluster | In progress. Automation is live. App-data backups come first, then the apps move one at a time, each running in parallel until proven |
-| 05 | CI and documentation polish | In progress. Validation and drift detection are live; branch protection and the remaining diagrams are open |
+| 05 | CI and documentation polish | In progress. Validation, drift detection and branch protection (no force-push or deletion on `main`) are live; the remaining diagrams are open |
 
 ## Documentation
 

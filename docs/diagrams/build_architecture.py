@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds docs/diagrams/project-aether-architecture.svg: the target architecture
-of the whole project. Solid boxes run today; dashed boxes are planned (Phase 04
-moves the apps onto the cluster, Phase 05 finishes CI). Edit the lists below and
+of the whole project as it runs today. A chip is a label, or (label, True) for a
+planned item, drawn dashed (none since 19 Nov 2026). Edit the lists below and
 run:  python3 docs/diagrams/build_architecture.py
 Role-level only: no IP addresses or hostnames (the repo is public)."""
 from pathlib import Path
@@ -15,7 +15,6 @@ W, H = 1600, 1040
 text(40, 46, "Project Aether", 30, TEXT, 800)
 text(262, 46, "architecture", 22, "#FB923C", 700)
 rect(1196, 24, 92, 30, 7, NODE, LINE); text(1242, 44, "running", 14, TEXT, 600, "middle")
-rect(1300, 24, 276, 30, 7, "none", PLAN, 1.5, "6 5"); text(1438, 44, "planned (Phases 04 and 05)", 14, DIM, 400, "middle")
 
 # ── public internet ───────────────────────────────────────────────────────────
 actor(40, 76, 150, "Visitors", "any browser")
@@ -74,7 +73,7 @@ y = 482
 label(950, y, "MONITORING")
 y = chips(950, y + 10, 1566, ["Prometheus", "Loki", "Alertmanager to Telegram", "Grafana"]) + 26
 label(950, y, "AUTOMATION")
-y = chips(950, y + 10, 1566, ["Kestra", "n8n", ("alert + incident flows", True)]) + 26
+y = chips(950, y + 10, 1566, ["Kestra", "n8n", "backup + prune flows"]) + 26
 label(950, y, "APPS · STAYING ON THE CLOUD HOST")
 y = chips(950, y + 10, 1566, ["BookOrbit", "Navidrome", "NextExplorer", "Anytype sync", "openGym", "CouchDB (until decided)"]) + 26
 label(950, y, "EDGE OF THE HOST")
@@ -86,10 +85,10 @@ chips(950, y + 10, 1566, ["OCI Object Storage · restic nightly, restore-drilled
 rect(40, 920, 1536, 100, 14, PANEL, LINE)
 label(60, 946, "ONE REPOSITORY, EVERYTHING AS CODE")
 chips(60, 958, 1566, ["Terraform · machines", "Ansible · hosts", "ArgoCD · cluster", "SOPS (age + KMS) · secrets", "GitHub Actions · validate + drift",
-                      "Renovate + Dependabot · updates", ("branch protection", True)])
+                      "Renovate + Dependabot · updates", "branch protection"])
 
 ARIA = ("Architecture of Project Aether: a public internet row, a Google Cloud DMZ, a private Tailscale mesh, the on-prem K3s home lab, "
-        "the Oracle Cloud monitoring core, and the tools that manage it all as code. Dashed boxes are planned.")
+        "the Oracle Cloud monitoring core, and the tools that manage it all as code.")
 svg = wrap(W, H, ARIA)
 Path(__file__).with_name("project-aether-architecture.svg").write_text(svg)
 print("wrote project-aether-architecture.svg", len(svg), "bytes")
