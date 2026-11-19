@@ -594,6 +594,7 @@
           - ["Cluster — IT-Tools", "https://it-tools.lab.chetan-thapliyal.cloud/healthz"]
           - ["Cluster — Blinko", "https://blinko.lab.chetan-thapliyal.cloud/signin"]
           - ["Cluster — AFFiNE", "https://affine.lab.chetan-thapliyal.cloud/info"]
+          - ["Cluster — Linkwarden", "https://links.lab.chetan-thapliyal.cloud/login"]
           - ["Cluster — CouchDB", "https://couchdb.lab.chetan-thapliyal.cloud/_up"]
         public_monitors:
           - "OCI Nightly Restic Backup"
