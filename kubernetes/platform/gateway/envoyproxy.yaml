@@ -9,6 +9,7 @@ spec:
     kubernetes:
       envoyDeployment:
         pod:
+          priorityClassName: platform   # INC-2026-016: every app's traffic goes through it
           nodeSelector:
             kubernetes.io/hostname: k3s-worker-01   # data plane apart from the controller-heavy worker-02 (§2)
         container:

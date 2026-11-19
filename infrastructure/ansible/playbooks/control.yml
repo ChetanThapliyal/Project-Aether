@@ -159,6 +159,29 @@
         mode: "0644"
       notify: Restart K3s Control Plane
 
+    # ----- Node memory: reservations and a memory eviction threshold (INC-2026-016) -----
+    # Without these, allocatable equalled capacity and the kubelet had no memory
+    # eviction threshold, so the kernel OOM killer was the only backstop. The K3s
+    # server process (API server, etcd, controllers) runs outside any pod and uses
+    # about 1.5 Gi here, so kube-reserved covers it. Setting eviction-hard replaces
+    # K3s's defaults, so the disk thresholds are restated at their old 5 %.
+    # Allocatable is only reduced (enforce-node-allocatable stays "pods"); no
+    # cgroup limit is put on K3s itself.
+    - name: INC-2026-016 | Kubelet reservations and memory eviction
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/40-kubelet-reservations.yaml
+        content: |
+          # Managed by Ansible (control.yml), INC-2026-016
+          kubelet-arg:
+            - "system-reserved=cpu=100m,memory=256Mi"
+            - "kube-reserved=cpu=250m,memory=1536Mi"
+            - "eviction-hard=memory.available<200Mi,nodefs.available<5%,imagefs.available<5%"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart K3s Control Plane
+      tags: [kubelet]
+
     # ----- Admin kubeconfig 600 + tailnet SAN (FND-11) -----
     # `--write-kubeconfig-mode` is hard-coded in the unit's ExecStart, and a CLI
     # flag beats any config.yaml.d drop-in, so an existing node's unit has to be

@@ -29,10 +29,10 @@ spec:
           resources:
             requests:
               cpu: 15m
-              memory: 32Mi
+              memory: 64Mi    # INC-2026-016: uses 58-63 Mi, so the request matches real use
             limits:
               cpu: 100m
-              memory: 64Mi
+              memory: 96Mi    # was 64Mi, a few Mi above use
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system

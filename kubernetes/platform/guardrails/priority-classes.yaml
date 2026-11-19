@@ -1,12 +1,18 @@
-# Phase 04 task 4.19: when a worker runs short, the scheduler evicts batch work
-# first, then apps, and keeps the platform (databases, gateway) running.
+# Phase 04 task 4.19, corrected in INC-2026-016. Priority does two things here:
+# - Scheduling: a pod that doesn't fit may preempt lower-priority pods (batch never
+#   preempts anything).
+# - Memory pressure: the kubelet evicts pods using more than their memory request
+#   first, then lower priority first. So platform pods go last only while they
+#   stay within their requests, which is why their requests match real use.
+# Before INC-2026-016 the kubelet had no memory eviction threshold, so only the
+# scheduling half applied and the OOM killer decided the rest.
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: platform
 value: 1000000
 globalDefault: false
-description: "Shared services every app depends on (databases, gateway). Evicted last."
+description: "Shared services every app depends on (databases, gateway). Evicted last under memory pressure while within its requests."
 ---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass

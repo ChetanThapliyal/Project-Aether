@@ -24,6 +24,7 @@
 - name: Join worker nodes to K3s cluster
   hosts: workers
   become: true
+  serial: 1   # one worker at a time, so a K3s restart never takes both down
 
   vars:
     k3s_version: "v1.36.4+k3s1"
@@ -52,6 +53,62 @@
         name: k3s-agent
         state: started
         enabled: true
+
+    # ----- Node memory: reservations and a memory eviction threshold (INC-2026-016) -----
+    # Allocatable used to equal capacity and the kubelet had no memory eviction
+    # threshold. k3s-agent plus containerd use about 420 Mi per worker, so
+    # kube-reserved covers them. eviction-hard replaces K3s's defaults, so the
+    # disk thresholds are restated at their old 5 %.
+    - name: INC-2026-016 | K3s config drop-in directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      tags: [kubelet]
+
+    - name: INC-2026-016 | Kubelet reservations and memory eviction
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/40-kubelet-reservations.yaml
+        content: |
+          # Managed by Ansible (workers.yml), INC-2026-016
+          kubelet-arg:
+            - "system-reserved=cpu=100m,memory=256Mi"
+            - "kube-reserved=cpu=100m,memory=384Mi"
+            - "eviction-hard=memory.available<200Mi,nodefs.available<5%,imagefs.available<5%"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart K3s agent
+      tags: [kubelet]
+
+    - name: INC-2026-016 | Apply the restart before the next worker
+      ansible.builtin.meta: flush_handlers
+      tags: [kubelet]
+
+    # A restarted kubelet stays Ready for its lease time, so wait for the proof
+    # that the new kubelet is up: allocatable below capacity, and Ready.
+    - name: INC-2026-016 | Wait for this node's kubelet to report the new allocatable
+      ansible.builtin.command: >-
+        k3s kubectl get node {{ inventory_hostname }} -o
+        jsonpath='{.status.capacity.memory} {.status.allocatable.memory} {.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: k3s-control-01
+      register: node_mem
+      until: >-
+        (node_mem.stdout.split() | length == 3)
+        and node_mem.stdout.split()[0] != node_mem.stdout.split()[1]
+        and node_mem.stdout.split()[2] == 'True'
+      retries: 18
+      delay: 10
+      changed_when: false
+      tags: [kubelet]
+
+  handlers:
+    - name: Restart K3s agent
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
 
 # Finally, verify all nodes joined
 - name: Verify cluster membership
