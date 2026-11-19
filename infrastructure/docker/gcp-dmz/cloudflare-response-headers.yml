@@ -15,7 +15,7 @@
 # Content-Security-Policy.
 # =============================================================================
 
-csp_mode: report-only
+csp_mode: enforce   # 19 Nov 2026: 5 pages x 3 themes, zero CSP reports in headless Chromium
 
 # One sha256 per Glance page and theme: the inline pageData script differs
 # only by slug and by the theme key from the visitor's "theme" cookie (Auto is
