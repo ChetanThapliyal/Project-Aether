@@ -32,9 +32,8 @@ spec:
           env:
             - { name: NEXTAUTH_URL, value: https://links.lab.chetan-thapliyal.cloud/api/v1/auth }
             - { name: BASE_URL, value: https://links.lab.chetan-thapliyal.cloud }
-            # Registration is open only until the owner's account exists, then closed.
-            # User 1 stays admin and can still add users.
-            - { name: NEXT_PUBLIC_DISABLE_REGISTRATION, value: "false" }
+            # Closed after the owner registered (19 Nov). User 1 is admin and can still add users.
+            - { name: NEXT_PUBLIC_DISABLE_REGISTRATION, value: "true" }
             - { name: NEXT_PUBLIC_ADMIN, value: "1" }
             - { name: NEXT_PUBLIC_CREDENTIALS_ENABLED, value: "true" }
             - { name: ARCHIVE_TAKE_COUNT, value: "1" }   # one page archived at a time (default 5 in parallel)
