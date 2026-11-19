@@ -118,8 +118,10 @@ services:
       - INTERVAL=300
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
+    env_file: ./public-feed.env   # Cloudflare analytics token (read-only), from SOPS
     volumes:
       - ./public-feed:/app:ro
+      - ./public-feed-state:/state   # daily visit log; the nightly restic run backs it up
     user: "65534:65534"
     read_only: true
     cap_drop: [ALL]

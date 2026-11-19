@@ -146,6 +146,30 @@
       notify: restart public-feed   # Python reads the code only at start
       tags: [monitoring, public-feed]
 
+    # Visit counts: a token that can only read account analytics. The account id
+    # rides in the tunnel token already in SOPS, so it isn't kept twice.
+    - name: FND-20 | Create the public feed state directory (daily visit log)
+      ansible.builtin.file:
+        path: "{{ app_base_dir }}/monitoring/public-feed-state"
+        state: directory
+        owner: "65534"
+        group: "65534"
+        mode: "0755"
+      tags: [monitoring, public-feed]
+
+    - name: FND-20 | Deploy the public feed env file
+      ansible.builtin.copy:
+        dest: "{{ app_base_dir }}/monitoring/public-feed.env"
+        content: |
+          CF_API_TOKEN={{ cloudflare_analytics_token }}
+          CF_ACCOUNT_ID={{ (gcp_dmz_cloudflare_tunnel_token | b64decode | from_json).a }}
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      notify: recreate public-feed
+      tags: [monitoring, public-feed]
+
     - name: Copy monitoring compose file
       copy:
         src: ../../../legacy-docker/oci-services/monitoring.yml
@@ -215,4 +239,11 @@
 
     - name: restart public-feed
       ansible.builtin.command: docker restart public-feed
+      changed_when: true
+
+    # env_file is read when the container is created, so a restart isn't enough.
+    - name: recreate public-feed
+      ansible.builtin.command:
+        cmd: docker compose up -d --force-recreate public-feed
+        chdir: "{{ app_base_dir }}/monitoring"
       changed_when: true

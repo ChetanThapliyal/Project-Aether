@@ -11,6 +11,9 @@ Rules:
   * Every value is a number or a plain string; the page draws the charts itself.
   * A summary that fails the allow-list check is never published. The last good
     one keeps being served and `fresh` goes false once it is 15 minutes old.
+  * Visits to the status page come from Cloudflare Web Analytics (counts only),
+    kept as one number per day in STATE_DIR so the total outlives Cloudflare's
+    retention. Headless browsers (our own test runs) are not counted.
 
 Standard library only, so the container needs no packages.
 """
@@ -23,13 +26,24 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PROM = os.environ.get("PROM_URL", "http://prometheus:9090")
 INTERVAL = int(os.environ.get("INTERVAL", "300"))
 PORT = int(os.environ.get("PORT", "8080"))
 STALE_AFTER = int(os.environ.get("STALE_AFTER", "900"))
+
+# Visits (Cloudflare Web Analytics). Without a token the page shows "unknown".
+CF_GRAPHQL = "https://api.cloudflare.com/client/v4/graphql"
+CF_TOKEN = os.environ.get("CF_API_TOKEN", "")
+CF_ACCOUNT = os.environ.get("CF_ACCOUNT_ID", "")
+CF_HOST = os.environ.get("CF_HOST", "status.chetan-thapliyal.cloud")
+VISITS_SINCE = os.environ.get("VISITS_SINCE", "2026-11-12")  # the page's first day online
+STATE_DIR = os.environ.get("STATE_DIR", "/state")
+VISITS_EVERY = 3600       # ask Cloudflare at most hourly
+VISITS_REFETCH_DAYS = 3   # recent days are re-read, so late or partial counts settle
+VISITS_STALE_DAYS = 2     # no good fetch for this long: show "unknown"
 
 # Charts: 6 hours at 5-minute steps, drawn in a 300 x 80 viewBox.
 RANGE_S, STEP_S = 6 * 3600, 300
@@ -213,6 +227,75 @@ def storage():
     }
 
 
+_visits = {"checked": 0.0}
+
+
+def cf_daily_visits(start, end):
+    """{date: visits} for the status page, UTC days start..end inclusive."""
+    query = """query($a:String!,$f:AccountRumPageloadEventsAdaptiveGroupsFilter_InputObject){
+      viewer{accounts(filter:{accountTag:$a}){
+        rumPageloadEventsAdaptiveGroups(limit:1000,filter:$f){sum{visits} dimensions{date}}}}}"""
+    flt = {"date_geq": start.isoformat(), "date_leq": end.isoformat(),
+           "requestHost": CF_HOST, "userAgentBrowser_neq": "ChromeHeadless"}
+    req = urllib.request.Request(
+        CF_GRAPHQL, data=json.dumps({"query": query, "variables": {"a": CF_ACCOUNT, "f": flt}}).encode(),
+        headers={"Authorization": f"Bearer {CF_TOKEN}", "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = json.load(r)
+    if data.get("errors"):
+        raise RuntimeError(f"cloudflare: {data['errors'][0].get('message', 'query failed')[:200]}")
+    days = {}
+    for g in data["data"]["viewer"]["accounts"][0]["rumPageloadEventsAdaptiveGroups"]:
+        d = g["dimensions"]["date"]
+        days[d] = days.get(d, 0) + int(g["sum"]["visits"])
+    return days
+
+
+def visits():
+    """Visits in the last 30 days and since the first day, from the daily log.
+    Each day is stored by date, so re-reading a day replaces it, never adds twice."""
+    path = os.path.join(STATE_DIR, "visits.json")
+    try:
+        with open(path) as f:
+            log = json.load(f)
+    except (OSError, ValueError):
+        log = {"days": {}, "fetched_at": 0}
+    today = datetime.now(timezone.utc).date()
+    if CF_TOKEN and CF_ACCOUNT and time.time() - _visits["checked"] >= VISITS_EVERY:
+        _visits["checked"] = time.time()
+        first = datetime.strptime(VISITS_SINCE, "%Y-%m-%d").date()
+        start = first
+        if log["days"]:
+            last = datetime.strptime(max(log["days"]), "%Y-%m-%d").date()
+            start = max(first, last - timedelta(days=VISITS_REFETCH_DAYS))
+        start = max(start, today - timedelta(days=180))  # Cloudflare keeps about 26 weeks
+        try:
+            got = {}
+            while start <= today:  # one query may span at most about 13 weeks
+                end = min(today, start + timedelta(days=89))
+                got.update(cf_daily_visits(start, end))
+                for n in range((end - start).days + 1):  # a day with no visits is a real 0
+                    got.setdefault((start + timedelta(days=n)).isoformat(), 0)
+                start = end + timedelta(days=1)
+            log["days"].update(got)
+            log["fetched_at"] = int(time.time())
+            tmp = path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(log, f, sort_keys=True)
+            os.replace(tmp, path)
+        except Exception as e:  # keep the log as it was; the page goes "unknown" if this lasts
+            print(f"visits fetch failed: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+    if not log["days"] or time.time() - log["fetched_at"] > VISITS_STALE_DAYS * 86400:
+        return {"visits_30d": None, "visits_total": None, "since": None}
+    cutoff = (today - timedelta(days=29)).isoformat()
+    first = min(log["days"])
+    return {
+        "visits_30d": sum(v for d, v in log["days"].items() if d >= cutoff),
+        "visits_total": sum(log["days"].values()),
+        "since": datetime.strptime(first, "%Y-%m-%d").strftime("%b %Y"),
+    }
+
+
 def build():
     s = {k: scalar(q) for k, q in SCALARS.items()}
     r = lambda v, n=1: None if v is None else round(v, n)
@@ -240,6 +323,7 @@ def build():
         "charts": {},
         "versions": versions(),
         "storage": storage(),
+        "visitors": visits(),
     }
     for label, key, group in GAUGES:
         v = s[key]
@@ -267,6 +351,10 @@ def check(summary):
     for v in summary["versions"]:
         if not re.fullmatch(r"[a-z0-9._/-]+", v["image"]) or not re.fullmatch(r"[A-Za-z0-9._+-]{1,64}", v["tag"]):
             raise ValueError(f"unexpected image string {v!r}")
+    vis = summary["visitors"]
+    if any(v is not None and type(v) is not int for v in (vis["visits_30d"], vis["visits_total"])) \
+            or not (vis["since"] is None or re.fullmatch(r"[A-Z][a-z]{2} \d{4}", vis["since"])):
+        raise ValueError(f"unexpected visitors block {vis!r}")
 
 
 def loop():
