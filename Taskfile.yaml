@@ -120,6 +120,12 @@ tasks:
     cmds:
       - ansible-playbook playbooks/workers.yml
 
+  ansible:k3s:upgrade:
+    desc: "Upgrade K3s to the pinned release: control plane, then workers one at a time (runbook docs/runbooks/k3s-upgrade.md, 5.59)"
+    dir: infrastructure/ansible
+    cmds:
+      - ansible-playbook playbooks/k3s-upgrade.yml {{.CLI_ARGS}}
+
   ansible:kubeconfig:
     desc: "Fetch kubeconfig from control node"
     dir: infrastructure/ansible

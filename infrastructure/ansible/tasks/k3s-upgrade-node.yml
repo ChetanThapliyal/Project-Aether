@@ -1,0 +1,73 @@
+---
+# One node's K3s upgrade, included by playbooks/k3s-upgrade.yml (5.59).
+# Needs: k3s_target (the release tag) and k3s_service (k3s or k3s-agent).
+# kubectl runs on the control plane, the only node with the admin kubeconfig.
+
+- name: Read the running version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_running
+  changed_when: false
+
+- name: Note the running version
+  ansible.builtin.set_fact:
+    k3s_current: "{{ k3s_running.stdout | regex_search('k3s version (v\\S+)', '\\1') | first }}"
+
+- name: Skip a node that is already on the target
+  ansible.builtin.meta: end_host
+  when: k3s_current == k3s_target
+
+- name: Upgrading
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: {{ k3s_current }} -> {{ k3s_target }}"
+
+- name: Take an etcd snapshot first (control plane)
+  ansible.builtin.command: k3s etcd-snapshot save --name "pre-upgrade-{{ k3s_current | replace('+', '-') }}"
+  when: k3s_service == 'k3s'
+  changed_when: true
+
+- name: Drain the node (node maintenance runbook)
+  ansible.builtin.command: >-
+    k3s kubectl drain {{ inventory_hostname }}
+    --ignore-daemonsets --delete-emptydir-data --timeout=10m
+  delegate_to: "{{ groups['control'][0] }}"
+  changed_when: true
+
+- name: Download the release binary, checked against its SHA-256 list
+  ansible.builtin.get_url:
+    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_target | urlencode }}/k3s"
+    checksum: "sha256:https://github.com/k3s-io/k3s/releases/download/{{ k3s_target | urlencode }}/sha256sum-amd64.txt"
+    dest: /usr/local/bin/k3s.new
+    mode: "0755"
+    force: true
+
+- name: Keep the running binary for a rollback
+  ansible.builtin.copy:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/k3s.previous
+    remote_src: true
+    mode: "0755"
+
+- name: Swap the binary
+  ansible.builtin.command: mv -f /usr/local/bin/k3s.new /usr/local/bin/k3s
+  changed_when: true
+
+- name: Restart K3s
+  ansible.builtin.systemd:
+    name: "{{ k3s_service }}"
+    state: restarted
+
+- name: Wait until the node is Ready on the new version
+  ansible.builtin.shell: >-
+    k3s kubectl get node {{ inventory_hostname }}
+    -o jsonpath='{.status.nodeInfo.kubeletVersion} {.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: "{{ groups['control'][0] }}"
+  register: k3s_node
+  until: k3s_node.stdout == k3s_target ~ ' True'
+  retries: 60
+  delay: 10
+  changed_when: false
+
+- name: Uncordon the node
+  ansible.builtin.command: k3s kubectl uncordon {{ inventory_hostname }}
+  delegate_to: "{{ groups['control'][0] }}"
+  changed_when: true

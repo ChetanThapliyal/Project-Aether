@@ -59,6 +59,7 @@ For ArgoCD alone, see the ArgoCD recovery runbook below.
 
 | Runbook | For |
 |---|---|
+| [K3s upgrade](runbooks/k3s-upgrade.md) | Moving the cluster to a newer K3s release with the upgrade playbook, and rolling back |
 | [Node maintenance](runbooks/node-maintenance.md) | Draining, rebooting or resizing a node, or taking the hypervisor down, and what each one breaks |
 | [ArgoCD recovery](runbooks/argocd-recovery.md) | ArgoCD lost or broken, from a single namespace to the whole cluster |
 | [SOPS key rotation](runbooks/sops-key-rotation.md) | Replacing the age key without breaking ArgoCD, the KMS key's versions, and every secret to change if a key leaks |

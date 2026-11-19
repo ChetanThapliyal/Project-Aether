@@ -1,0 +1,68 @@
+---
+# =============================================================================
+# K3s upgrade: control plane first, then the workers one at a time (5.59)
+# =============================================================================
+# The install tasks in control.yml and workers.yml run only once (creates:), so
+# changing k3s_version there upgrades nothing. This playbook does the upgrade:
+# it swaps the k3s binary for the pinned release (checked against the release's
+# SHA-256 list) and restarts the service. The systemd unit, its flags and the
+# config files in /etc/rancher/k3s/config.yaml.d/ are left exactly as they are,
+# which is the upgrade K3s documents as "using the binary".
+#
+# The target version is the pin in control.yml; workers.yml must agree (Renovate
+# updates both in one pull request). A node already on that version is skipped,
+# so a rerun after a failure carries on where it stopped.
+#
+# Each node: drained (node maintenance runbook), binary swapped, service
+# restarted, Ready on the new version, uncordoned. The control plane also gets
+# an etcd snapshot first, named for the version it is leaving. Workers go
+# worker-02 first: worker-01 holds the databases, so its drain is the planned
+# outage and comes last.
+#
+# Runbook: docs/runbooks/k3s-upgrade.md. Run in a quiet window (not 01:00-04:30 IST).
+#   task ansible:k3s:upgrade
+#   task ansible:k3s:upgrade -- --limit control     # one stage at a time
+# =============================================================================
+
+- name: Check the version pins agree
+  hosts: control
+  gather_facts: false
+  tasks:
+    - name: Read the pins
+      ansible.builtin.set_fact:
+        k3s_target: "{{ lookup('file', playbook_dir ~ '/control.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
+        k3s_workers_pin: "{{ lookup('file', playbook_dir ~ '/workers.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: control.yml and workers.yml must pin the same release
+      ansible.builtin.assert:
+        that: k3s_target == k3s_workers_pin
+        fail_msg: "control.yml pins {{ k3s_target }}, workers.yml pins {{ k3s_workers_pin }}"
+        quiet: true
+      run_once: true
+
+- name: Upgrade the control plane
+  hosts: control
+  become: true
+  serial: 1
+  gather_facts: false
+  vars:
+    k3s_target: "{{ hostvars[groups['control'][0]]['k3s_target'] }}"
+    k3s_service: k3s
+  tasks:
+    - name: Upgrade this node
+      ansible.builtin.include_tasks: ../tasks/k3s-upgrade-node.yml
+
+- name: Upgrade the workers, worker-02 first
+  hosts: workers
+  become: true
+  serial: 1
+  order: reverse_inventory
+  gather_facts: false
+  vars:
+    k3s_target: "{{ hostvars[groups['control'][0]]['k3s_target'] }}"
+    k3s_service: k3s-agent
+  tasks:
+    - name: Upgrade this node
+      ansible.builtin.include_tasks: ../tasks/k3s-upgrade-node.yml

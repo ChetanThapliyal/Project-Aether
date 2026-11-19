@@ -135,5 +135,5 @@ Everything goes down: the cluster, the NFS exports the apps use, and the hypervi
 ## 10. Known limits
 
 - **No high availability by design.** One control-plane node, single replicas and node-local databases fit a two-worker homelab; this runbook makes the outages planned and short, not zero.
-- **K3s version upgrades are not covered.** The playbooks install K3s once (`creates: /usr/local/bin/k3s`), so changing `k3s_version` upgrades nothing. An upgrade would follow the order in section 8 with the K3s install script per node; that procedure isn't written yet.
+- **K3s version upgrades** have their own runbook and playbook: [K3s upgrade](k3s-upgrade.md). They use this page's drain steps and order.
 - **No alert for a pending reboot.** Section 3's check is manual.

@@ -8,7 +8,8 @@
   "enabledManagers": [
     "docker-compose",
     "kubernetes",
-    "argocd"
+    "argocd",
+    "custom.regex"
   ],
   "includePaths": [
     "legacy-docker/oci-services/**",
@@ -114,6 +115,44 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "description": "K3s: one pull request for both pins; a minor version waits for approval (read the release notes, upgrade one minor at a time)",
+      "matchPackageNames": [
+        "k3s-io/k3s"
+      ],
+      "groupName": "K3s",
+      "addLabels": [
+        "cluster"
+      ],
+      "prBodyNotes": [
+        "Merging does not upgrade the cluster. Follow `docs/runbooks/k3s-upgrade.md`: `task ansible:k3s:upgrade` in a quiet window."
+      ]
+    },
+    {
+      "matchPackageNames": [
+        "k3s-io/k3s"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "K3s release pinned in the cluster playbooks (5.59). Merging changes nothing on the cluster: run docs/runbooks/k3s-upgrade.md (task ansible:k3s:upgrade)",
+      "managerFilePatterns": [
+        "/^infrastructure/ansible/playbooks/(control|workers)\\.yml$/"
+      ],
+      "matchStrings": [
+        "k3s_version: \"(?<currentValue>v[^\"]+)\""
+      ],
+      "depNameTemplate": "k3s-io/k3s",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\+k3s(?<build>\\d+)$"
     }
   ]
 }
