@@ -54,12 +54,12 @@
         state: started
         enabled: true
 
-    # ----- Node memory: reservations and a memory eviction threshold (INC-2026-016) -----
+    # ----- Node memory: reservations and a memory eviction threshold (Phase 04 task 4.32) -----
     # Allocatable used to equal capacity and the kubelet had no memory eviction
     # threshold. k3s-agent plus containerd use about 420 Mi per worker, so
     # kube-reserved covers them. eviction-hard replaces K3s's defaults, so the
     # disk thresholds are restated at their old 5 %.
-    - name: INC-2026-016 | K3s config drop-in directory
+    - name: 4.32 | K3s config drop-in directory
       ansible.builtin.file:
         path: /etc/rancher/k3s/config.yaml.d
         state: directory
@@ -68,11 +68,11 @@
         mode: "0755"
       tags: [kubelet]
 
-    - name: INC-2026-016 | Kubelet reservations and memory eviction
+    - name: 4.32 | Kubelet reservations and memory eviction
       ansible.builtin.copy:
         dest: /etc/rancher/k3s/config.yaml.d/40-kubelet-reservations.yaml
         content: |
-          # Managed by Ansible (workers.yml), INC-2026-016
+          # Managed by Ansible (workers.yml), task 4.32
           kubelet-arg:
             - "system-reserved=cpu=100m,memory=256Mi"
             - "kube-reserved=cpu=100m,memory=384Mi"
@@ -83,13 +83,13 @@
       notify: Restart K3s agent
       tags: [kubelet]
 
-    - name: INC-2026-016 | Apply the restart before the next worker
+    - name: 4.32 | Apply the restart before the next worker
       ansible.builtin.meta: flush_handlers
       tags: [kubelet]
 
     # A restarted kubelet stays Ready for its lease time, so wait for the proof
     # that the new kubelet is up: allocatable below capacity, and Ready.
-    - name: INC-2026-016 | Wait for this node's kubelet to report the new allocatable
+    - name: 4.32 | Wait for this node's kubelet to report the new allocatable
       ansible.builtin.command: >-
         k3s kubectl get node {{ inventory_hostname }} -o
         jsonpath='{.status.capacity.memory} {.status.allocatable.memory} {.status.conditions[?(@.type=="Ready")].status}'

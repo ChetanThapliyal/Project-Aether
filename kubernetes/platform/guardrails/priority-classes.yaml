@@ -1,10 +1,10 @@
-# Phase 04 task 4.19, corrected in INC-2026-016. Priority does two things here:
+# Phase 04 task 4.19, corrected in 4.32. Priority does two things here:
 # - Scheduling: a pod that doesn't fit may preempt lower-priority pods (batch never
 #   preempts anything).
 # - Memory pressure: the kubelet evicts pods using more than their memory request
 #   first, then lower priority first. So platform pods go last only while they
 #   stay within their requests, which is why their requests match real use.
-# Before INC-2026-016 the kubelet had no memory eviction threshold, so only the
+# Before 4.32 the kubelet had no memory eviction threshold, so only the
 # scheduling half applied and the OOM killer decided the rest.
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass

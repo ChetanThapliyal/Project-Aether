@@ -159,7 +159,7 @@
         mode: "0644"
       notify: Restart K3s Control Plane
 
-    # ----- Node memory: reservations and a memory eviction threshold (INC-2026-016) -----
+    # ----- Node memory: reservations and a memory eviction threshold (Phase 04 task 4.32) -----
     # Without these, allocatable equalled capacity and the kubelet had no memory
     # eviction threshold, so the kernel OOM killer was the only backstop. The K3s
     # server process (API server, etcd, controllers) runs outside any pod and uses
@@ -167,11 +167,11 @@
     # K3s's defaults, so the disk thresholds are restated at their old 5 %.
     # Allocatable is only reduced (enforce-node-allocatable stays "pods"); no
     # cgroup limit is put on K3s itself.
-    - name: INC-2026-016 | Kubelet reservations and memory eviction
+    - name: 4.32 | Kubelet reservations and memory eviction
       ansible.builtin.copy:
         dest: /etc/rancher/k3s/config.yaml.d/40-kubelet-reservations.yaml
         content: |
-          # Managed by Ansible (control.yml), INC-2026-016
+          # Managed by Ansible (control.yml), task 4.32
           kubelet-arg:
             - "system-reserved=cpu=100m,memory=256Mi"
             - "kube-reserved=cpu=250m,memory=1536Mi"

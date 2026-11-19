@@ -25,14 +25,14 @@ metadata:
 spec:
   statefulSet:
     pod:
-      priorityClassName: platform   # INC-2026-016: the tailnet path to every app
+      priorityClassName: platform   # 4.32: the tailnet path to every app
       nodeSelector:
         kubernetes.io/hostname: k3s-worker-01
       tailscaleContainer:
         resources:
           requests:
             cpu: 20m
-            memory: 48Mi   # INC-2026-016: uses ~35 Mi; above its request it would be evicted early
+            memory: 48Mi   # 4.32: uses ~35 Mi; above its request it would be evicted early
           limits:
             cpu: 200m      # carries all app traffic, unlike the admin-only proxies
             memory: 96Mi
