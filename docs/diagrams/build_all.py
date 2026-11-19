@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE.parents[1] / "infrastructure/docker/gcp-dmz/glance/assets"
 BUILDERS = ["build_architecture.py", "build_flow_backups.py", "build_flow_monitoring.py",
-            "build_flow_tailnet.py", "build_flow_gitops.py", "build_flow_secrets.py", "build_flow_app_request.py",
+            "build_flow_tailnet.py", "build_flow_gitops.py", "build_flow_secrets.py", "build_flow_topology.py", "build_flow_app_request.py",
             "build_flow_status_page.py"]
 STATUS_PAGE = {   # SVG in docs/diagrams -> name under the status page's /assets/
     "project-aether-architecture.svg": "aether-architecture.svg",
@@ -24,6 +24,7 @@ STATUS_PAGE = {   # SVG in docs/diagrams -> name under the status page's /assets
     "flow-tailnet.svg": "aether-flow-tailnet.svg",
     "flow-gitops.svg": "aether-flow-gitops.svg",
     "flow-secrets.svg": "aether-flow-secrets.svg",
+    "flow-topology.svg": "aether-flow-topology.svg",
     "flow-app-request.svg": "aether-flow-app-request.svg",
     "flow-status-page.svg": "aether-flow-status-page.svg",
 }

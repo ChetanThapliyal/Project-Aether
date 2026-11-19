@@ -60,3 +60,7 @@ Decision 3 reserved the ZFS pool's NFS export for media. As built, it holds **ap
 - **Cluster side:** `csi-driver-nfs` (controller on the platform worker, node plugin on both workers and not on the control plane, snapshot sidecar off) and StorageClass `nfs-zfs`. Each claim gets a directory named `<namespace>/<pvc-name>`, so the tree on the host reads like the cluster. `onDelete: retain` keeps that directory when a claim is deleted, and a claim recreated with the same name picks the data up again, which is what a rebuild from Git does.
 - **Verified 2026-11-17:** a non-root pod (uid 1000, `fsGroup` 1000, all capabilities dropped) wrote through a `ReadWriteMany` claim on one worker. The claim was deleted and recreated, and a pod on the other worker read the same file. A file was overwritten and then restored from a ZFS snapshot. A second playbook run changed nothing.
 - **Trade-off accepted:** the hypervisor is now a dependency of every app that keeps files. If the Proxmox host is down, the VMs are down too, so this adds no new failure that was not already there.
+
+### Addendum: Diagram, cluster topology (2026-11-19, Phase 05 task 5.16)
+
+<img src="../diagrams/flow-topology.svg" alt="Cluster topology: the databases on local-path volumes pinned to worker 1, app files on NFS from the hypervisor's ZFS pool, and what runs on each node." width="100%">

@@ -944,9 +944,9 @@ pages:
                 </div>
                 <div class="ae-carousel" tabindex="0" role="region" aria-label="Flow diagrams">
                   <figure class="ae-carousel-slide" id="ae-slide-1">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 1 of 9">
-                      <a class="ae-carousel-btn" href="#ae-slide-9" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">1 / 9</span>
+                    <nav class="ae-carousel-nav" aria-label="Diagram 1 of 10">
+                      <a class="ae-carousel-btn" href="#ae-slide-10" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">1 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -958,9 +958,9 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-2">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 2 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 2 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">2 / 9</span>
+                      <span class="ae-carousel-count">2 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-3" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -972,9 +972,9 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-3">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 3 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 3 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-2" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">3 / 9</span>
+                      <span class="ae-carousel-count">3 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-4" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -986,9 +986,9 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-4">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 4 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 4 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-3" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">4 / 9</span>
+                      <span class="ae-carousel-count">4 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-5" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -1000,9 +1000,9 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-5">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 5 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 5 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-4" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">5 / 9</span>
+                      <span class="ae-carousel-count">5 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-6" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -1014,9 +1014,9 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-6">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 6 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 6 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-5" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">6 / 9</span>
+                      <span class="ae-carousel-count">6 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-7" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
@@ -1028,10 +1028,24 @@ pages:
                     </figcaption>
                   </figure>
                   <figure class="ae-carousel-slide" id="ae-slide-7">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 7 of 9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 7 of 10">
                       <a class="ae-carousel-btn" href="#ae-slide-6" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">7 / 9</span>
+                      <span class="ae-carousel-count">7 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-8" aria-label="Next diagram">Next ›</a>
+                    </nav>
+                    <div class="ae-diagram-scroll">
+                      <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-topology.svg" width="1600" height="910" loading="lazy" alt="The cluster&#x27;s layout. Three virtual machines share one laptop with 2 cores and 12 GB. The control plane runs the API server and the only etcd member and is tainted, so nothing else runs there. Worker 1 runs the mesh gateway, the Envoy proxy, most apps, Redis, and PostgreSQL and CouchDB, which are pinned there because their volumes are on that machine&#x27;s disk. Worker 2 runs ArgoCD, Paperless and the controllers. The hypervisor&#x27;s HDD holds a ZFS pool shared over NFS for app files and nightly dumps, snapshotted and sent offsite. Every workload is a single replica.">
+                    </div>
+                    <figcaption>
+                      <span>Cluster topology: three VMs on one laptop; the databases are pinned to one worker's disk, app files sit on the hypervisor's ZFS pool.</span>
+                      <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/016-kubernetes-storage-strategy.md" target="_blank" rel="noreferrer">ADR-016 ↗</a> <a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/runbooks/node-maintenance.md" target="_blank" rel="noreferrer">Node maintenance ↗</a> <a href="/assets/aether-flow-topology.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
+                    </figcaption>
+                  </figure>
+                  <figure class="ae-carousel-slide" id="ae-slide-8">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 8 of 10">
+                      <a class="ae-carousel-btn" href="#ae-slide-7" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">8 / 10</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-9" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
                       <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-status-page.svg" width="1600" height="830" loading="lazy" alt="This page&#x27;s one-way data path. On the cloud host, a small service turns Prometheus metrics into a summary of counts and plain numbers every five minutes, and a check blocks any summary that contains a name or an address. The edge VM pulls that file over its single grant on the mesh, Glance draws the page from it, and Cloudflare serves the page through a tunnel opened from inside. Uptime Kuma alerts if the summary is more than 15 minutes old. Nothing flows back from the edge or from visitors.">
@@ -1041,11 +1055,11 @@ pages:
                       <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/020-public-observability-data-diode.md" target="_blank" rel="noreferrer">ADR-020 ↗</a> <a href="/assets/aether-flow-status-page.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
                     </figcaption>
                   </figure>
-                  <figure class="ae-carousel-slide" id="ae-slide-8">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 8 of 9">
-                      <a class="ae-carousel-btn" href="#ae-slide-7" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">8 / 9</span>
-                      <a class="ae-carousel-btn" href="#ae-slide-9" aria-label="Next diagram">Next ›</a>
+                  <figure class="ae-carousel-slide" id="ae-slide-9">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 9 of 10">
+                      <a class="ae-carousel-btn" href="#ae-slide-8" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">9 / 10</span>
+                      <a class="ae-carousel-btn" href="#ae-slide-10" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">
                       <img class="ae-diagram ae-diagram-wide" src="/assets/aether-flow-cloudinit-template.svg" width="1600" height="690" loading="lazy" alt="How a cluster node is built. An Ubuntu cloud image is imported once into a virtual machine and frozen as a template, with nothing node-specific inside. Each node is a full clone of that template and gets its own user, SSH key, network settings and hostname from cloud-init on first boot. A broken node is destroyed and cloned again, and Terraform does the cloning today.">
@@ -1055,10 +1069,10 @@ pages:
                       <span class="ae-carousel-links"><a href="https://github.com/ChetanThapliyal/Project-Aether/blob/main/docs/adr/006-proxmox-vm-provisioning-strategy.md" target="_blank" rel="noreferrer">ADR-006 ↗</a> <a href="/assets/aether-flow-cloudinit-template.svg" target="_blank" rel="noreferrer">Full size ↗</a></span>
                     </figcaption>
                   </figure>
-                  <figure class="ae-carousel-slide" id="ae-slide-9">
-                    <nav class="ae-carousel-nav" aria-label="Diagram 9 of 9">
-                      <a class="ae-carousel-btn" href="#ae-slide-8" aria-label="Previous diagram">‹ Back</a>
-                      <span class="ae-carousel-count">9 / 9</span>
+                  <figure class="ae-carousel-slide" id="ae-slide-10">
+                    <nav class="ae-carousel-nav" aria-label="Diagram 10 of 10">
+                      <a class="ae-carousel-btn" href="#ae-slide-9" aria-label="Previous diagram">‹ Back</a>
+                      <span class="ae-carousel-count">10 / 10</span>
                       <a class="ae-carousel-btn" href="#ae-slide-1" aria-label="Next diagram">Next ›</a>
                     </nav>
                     <div class="ae-diagram-scroll">

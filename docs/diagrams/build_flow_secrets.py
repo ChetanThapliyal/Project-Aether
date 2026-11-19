@@ -7,6 +7,9 @@ Role-level only: no IP addresses, hostnames or port numbers (the repo is public)
 from pathlib import Path
 
 from aether_style import *
+import aether_style
+
+aether_style.DATE_STAMP = "as of 19 Nov 2026"   # drawn later than the first six flows
 
 W, H = 1600, 910
 K8S, ANS, TF, CI = SKY, TEAL, LIME, SNOW

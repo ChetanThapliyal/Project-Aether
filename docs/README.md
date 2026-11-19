@@ -75,6 +75,7 @@ Every diagram is generated from Python in [`diagrams/`](diagrams/) (`task diagra
 | Diagram | Shows |
 |---|---|
 | [Architecture](diagrams/project-aether-architecture.svg) | Every site, what runs there and how they connect |
+| [Cluster topology](diagrams/flow-topology.svg) | The three VMs, what runs on each, and where the data sits: local-path on a worker, NFS from ZFS |
 | [App request](diagrams/flow-app-request.svg) | How a request reaches an app: mesh-only DNS, the gateway, network policies |
 | [GitOps](diagrams/flow-gitops.svg) | From a push to a running pod: CI, the signed webhook, ArgoCD, encrypted secrets |
 | [Secrets](diagrams/flow-secrets.svg) | Where each secret is encrypted, which key opens it, and how it reaches the cluster, the hosts and Terraform |

@@ -66,6 +66,8 @@ The control plane uses embedded etcd on a single server. A three-server quorum w
 
 On the cluster, the Tailscale operator publishes Envoy Gateway and ArgoCD on the mesh, and cert-manager issues a Let's Encrypt wildcard certificate for app names that resolve only on the mesh ([ADR-021](docs/adr/021-internal-dns-and-pki.md)). Databases use `local-path`; app files use NFS from the ZFS pool, and Longhorn was rejected for its memory footprint ([ADR-016](docs/adr/016-kubernetes-storage-strategy.md)).
 
+<img src="docs/diagrams/flow-topology.svg" alt="Cluster topology: three VMs on one laptop. The control plane runs the API server and etcd; worker 1 runs the gateway, most apps and the two databases, pinned there by their local-path volumes; worker 2 runs ArgoCD, Paperless and the controllers; app files and nightly dumps sit on the hypervisor's ZFS pool over NFS." width="100%">
+
 <img src="docs/diagrams/flow-app-request.svg" alt="How a request reaches an app: a wildcard DNS name returns an address that works only on the mesh, Envoy Gateway terminates HTTPS with a Let's Encrypt wildcard certificate, and default-deny network policies let each app reach only what it opts in to." width="100%">
 
 ### GitOps delivery
@@ -228,7 +230,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 - [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
 - [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
-- [Diagrams](docs/diagrams/): the architecture and seven flows, each generated from Python (`task diagrams`).
+- [Diagrams](docs/diagrams/): the architecture and eight flows, each generated from Python (`task diagrams`).
 
 <details>
 <summary>Repository layout</summary>
