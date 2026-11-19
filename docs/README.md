@@ -61,6 +61,7 @@ For ArgoCD alone, see the ArgoCD recovery runbook below.
 |---|---|
 | [Node maintenance](runbooks/node-maintenance.md) | Draining, rebooting or resizing a node, or taking the hypervisor down, and what each one breaks |
 | [ArgoCD recovery](runbooks/argocd-recovery.md) | ArgoCD lost or broken, from a single namespace to the whole cluster |
+| [SOPS key rotation](runbooks/sops-key-rotation.md) | Replacing the age key without breaking ArgoCD, the KMS key's versions, and every secret to change if a key leaks |
 | [Tailscale key rotation](runbooks/tailscale-auth-key-rotation.md) | Auth keys and OAuth clients for joining nodes to the mesh |
 | [Drift detector setup](runbooks/gcp-ci-drift-detector-setup.md) | The keyless CI identity that plans Terraform every night |
 | [Proxmox TLS](runbooks/proxmox-acme-cloudflare-tls.md) | The hypervisor's certificate through ACME and Cloudflare DNS |

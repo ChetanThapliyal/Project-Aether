@@ -224,7 +224,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 
 - [Incident reviews](docs/incidents/): 15 blameless reviews with timelines, root causes and guardrails.
 - [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
-- [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
+- [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
 - [Diagrams](docs/diagrams/): the architecture and six flows, each generated from Python (`task diagrams`).
 
@@ -243,7 +243,7 @@ Project Aether/
 │   ├── diagrams/                # architecture and flow diagrams, and their generators
 │   ├── disaster-recovery/       # objectives and five scenarios
 │   ├── incidents/               # 15 incident reviews
-│   └── runbooks/                # seven operational runbooks
+│   └── runbooks/                # eight operational runbooks
 ├── infrastructure/
 │   ├── ansible/                 # inventory, playbooks, templates
 │   ├── docker/gcp-dmz/          # the DMZ stack and the status page

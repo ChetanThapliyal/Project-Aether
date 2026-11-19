@@ -57,3 +57,9 @@ ADR-007: Secrets Management with SOPS, Age, and GCP Cloud KMS
 ### Addendum: Diagram (2026-11-18)
 
 <img src="../diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys." width="100%">
+
+### Addendum: Recipients enforced, rotation written down (2026-11-19, Phase 05 task 5.40)
+
+- **Enforced:** `scripts/check-sops-recipients.py` runs in pre-commit and CI. It reads each encrypted file's metadata (no key needed) and fails unless the file has exactly the recipients its `.sops.yaml` rule names: both keys, and no age key that has been rotated out.
+- **What it found on its first run:** the Tailscale operator's OAuth secret had been encrypted for age only since 28 Oct, so the "either key alone" property above didn't hold for it. It was re-keyed with `sops updatekeys`; the value is unchanged.
+- **Rotation:** [SOPS key rotation](../runbooks/sops-key-rotation.md) replaces the age key with the cluster holding both keys during the switch, so ArgoCD never fails to decrypt. It also covers the KMS key's versions (never disable one before every file has been through `sops rotate`), and lists every secret to change at its issuer if a key leaks. The repository is public, so old commits stay readable with a leaked key.

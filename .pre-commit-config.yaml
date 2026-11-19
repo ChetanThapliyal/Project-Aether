@@ -70,6 +70,12 @@ repos:
         language: script
         pass_filenames: false
         files: ^infrastructure/ansible/
+      - id: sops-recipients
+        name: Encrypted files have exactly the recipients .sops.yaml names (5.40)
+        entry: scripts/check-sops-recipients.py
+        language: script
+        pass_filenames: false
+        files: (\.sops\.|vault\.yaml$)
       - id: docs-index
         name: docs/README.md lists every document (5.56)
         entry: scripts/check-docs-index.py
