@@ -61,7 +61,9 @@ spec:
             periodSeconds: 5
             failureThreshold: 120
           readinessProbe:
-            httpGet: { path: /accounts/login/, port: http }
+            # Paperless accepts only its own host name and localhost (ALLOWED_HOSTS);
+            # the kubelet would otherwise send the pod IP.
+            httpGet: { path: /accounts/login/, port: http, httpHeaders: [{ name: Host, value: localhost }] }
             periodSeconds: 15
             timeoutSeconds: 5
           livenessProbe:
