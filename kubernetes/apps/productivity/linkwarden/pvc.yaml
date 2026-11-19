@@ -1,0 +1,11 @@
+# /data/data: screenshots, readable copies and other page archives, one folder per
+# collection. Grows with every saved link; the dataset quota and the ZFS alerts watch it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: linkwarden-data
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-zfs
+  resources:
+    requests: { storage: 5Gi }

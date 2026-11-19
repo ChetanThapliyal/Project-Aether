@@ -1,0 +1,19 @@
+# M9 Linkwarden (Phase 04): bookmarks with page archives. New, no OCI copy.
+# PostgreSQL on the shared server (database and role "linkwarden", created by
+# databases/bootstrap.yaml), archives on nfs-zfs. No Meilisearch: without its key,
+# search runs in PostgreSQL.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps
+components:
+  - ../../_components/app-defaults
+labels:
+  - pairs: { app.kubernetes.io/name: linkwarden }
+    includeSelectors: true
+generators:
+  - ksops-linkwarden.yaml
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml

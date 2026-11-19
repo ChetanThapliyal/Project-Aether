@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: linkwarden
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: linkwarden }
+  strategy: { type: Recreate }   # one writer to the archives and the schema migrations
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: linkwarden
+        aether.dev/postgres: "true"
+        aether.dev/redis: "false"
+        # Fetching and archiving the pages you save is outbound HTTPS. Private
+        # addresses stay blocked twice: here (never LAN, mesh or cluster) and in the
+        # app (ALLOW_PRIVATE_NETWORK_ACCESS is off by default).
+        aether.dev/internet: "true"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000   # the node image's user; the image itself defaults to root
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: linkwarden
+          # One container runs the web app and the archive worker (Chromium headless
+          # shell, started per batch and closed after: BROWSER_LIFECYCLE on-demand).
+          image: ghcr.io/linkwarden/linkwarden:v2.17.0@sha256:7c11fde57d1a0c819b6de0079966eba3a33584d718464af7dacde22bd470ae46
+          env:
+            - { name: NEXTAUTH_URL, value: https://links.lab.chetan-thapliyal.cloud/api/v1/auth }
+            - { name: BASE_URL, value: https://links.lab.chetan-thapliyal.cloud }
+            # Registration is open only until the owner's account exists, then closed.
+            # User 1 stays admin and can still add users.
+            - { name: NEXT_PUBLIC_DISABLE_REGISTRATION, value: "false" }
+            - { name: NEXT_PUBLIC_ADMIN, value: "1" }
+            - { name: NEXT_PUBLIC_CREDENTIALS_ENABLED, value: "true" }
+            - { name: ARCHIVE_TAKE_COUNT, value: "1" }   # one page archived at a time (default 5 in parallel)
+            - { name: HOME, value: /tmp }
+            - { name: NEXT_TELEMETRY_DISABLED, value: "1" }
+            - { name: CHECKPOINT_DISABLE, value: "1" }   # no Prisma telemetry
+          envFrom:
+            - secretRef: { name: linkwarden }   # DATABASE_URL, NEXTAUTH_SECRET
+          ports:
+            - { name: http, containerPort: 3000 }
+          startupProbe:   # prisma migrate deploy runs before the server listens
+            tcpSocket: { port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 30
+          resources:   # first guess; re-set from measurements with Chromium running
+            requests: { cpu: 50m, memory: 320Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /data/data }
+            - { name: next-cache, mountPath: /data/apps/web/.next/cache }   # Next.js image cache
+            - { name: tmp, mountPath: /tmp }   # Chromium profile, tsx cache, HOME
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: linkwarden-data }
+        - { name: next-cache, emptyDir: { sizeLimit: 256Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 1Gi } }
