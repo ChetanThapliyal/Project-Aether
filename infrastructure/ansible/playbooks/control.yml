@@ -10,7 +10,7 @@
   become: true
 
   vars:
-    k3s_version: "v1.36.4+k3s1"
+    k3s_version: "v1.36.6+k3s1"
     k3s_tailnet_name: "k3s-control-01.tail7067ab.ts.net"   # extra API certificate name (FND-11)
 
   tasks:
