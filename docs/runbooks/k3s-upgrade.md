@@ -1,7 +1,7 @@
 # K3s upgrade
 
 > **Scope:** Moving the cluster to a newer K3s release: the control plane first, then the workers one at a time, with an etcd snapshot and a rollback for each step.
-> **Status:** Operational runbook (Phase 05 task 5.59), written 19 Nov 2026 with the cluster on `v1.36.4+k3s1`. The playbook has not run an upgrade yet; the first real one is the `v1.36.6+k3s1` patch.
+> **Status:** Operational runbook (Phase 05 task 5.59), written 19 Nov 2026. First real run 20 Nov 2026: `v1.36.4+k3s1` → `v1.36.6+k3s1`, one node at a time, about 9 minutes of playbook in all (control plane 2.5, worker-02 1.6, worker-01 4.5) plus the clean-up in section 4 ([INC-2026-019](../incidents/INC-2026-019-upgrade-drain-preempted-node-agents.md)).
 > **Related:** [Node maintenance](node-maintenance.md) (draining, and what each node's absence breaks) · [DR Scenario 03](../disaster-recovery/scenarios/03-homelab-hardware.md) (etcd restore) · [ADR-003](../adr/003-kubernetes-distribution.md)
 
 ## 1. How an upgrade happens here
@@ -50,7 +50,9 @@ For each node, already on the target or not:
 7. Waits until the node is `Ready` and its kubelet reports the new version (up to 10 minutes).
 8. Uncordons it.
 
-The workers go worker-02 first. worker-01 holds the databases, so its drain is the planned outage and comes last. While the control plane restarts (about a minute), `kubectl` and ArgoCD fail and nothing new is scheduled; running apps keep serving.
+The workers go worker-02 first. worker-01 holds the databases, so its drain is the planned outage and comes last. While the control plane restarts (about a minute), `kubectl` and ArgoCD fail and nothing new is scheduled; running apps keep serving. When a release changes K3s's bundled CoreDNS manifest, K3s replaces CoreDNS, a single replica, so cluster DNS is down for about 20 seconds after the control plane comes back.
+
+**After each worker, put back what moved before the next node.** A drain moves pods to the other worker and the scheduler never moves them back, so the next drain starts from a full node. On 20 Nov, Paperless moved to worker-01 after worker-02's drain, and Linkwarden to worker-02 after worker-01's, where it held the room ArgoCD (pinned to worker-02) needed. To move a pod back without another drain: `kubectl cordon` the node it is on, delete the pod (its Deployment recreates it on the other node), then `kubectl uncordon`. Cordoning evicts nothing.
 
 ## 4. Checks afterwards
 
@@ -59,6 +61,8 @@ The workers go worker-02 first. worker-01 holds the databases, so its drain is t
 | Versions | `kubectl get nodes` | Every node on the target, `Ready`, none `SchedulingDisabled` |
 | Bundled components | `kubectl -n kube-system get pods` | CoreDNS, local-path-provisioner and metrics-server running; K3s updates them itself from its bundled manifests |
 | Workloads | `kubectl get pods -A \| grep -v -E 'Running\|Completed'` | Only the header |
+| Per-node agents | `kubectl get ds -A` | DESIRED = READY for every DaemonSet. A Pending agent means a node is full: see section 3's note on moved pods |
+| Placement | `kubectl get pods -A -o wide` | Paperless and the ArgoCD pods on worker-02, the other apps on worker-01; put back anything that moved (section 3) |
 | GitOps | `kubectl -n argocd get applications` | All `Synced` and `Healthy` |
 | From outside | DMZ Uptime Kuma | All cluster monitors green |
 | The snapshot | `ssh -i ~/.ssh/homelab owl@192.168.1.51 'sudo k3s etcd-snapshot ls \| grep pre-upgrade'` | The pre-upgrade snapshot is listed |
@@ -82,4 +86,5 @@ In every case, revert the pin commit too, so Git matches the cluster.
 
 - **amd64 only.** The playbook downloads the amd64 binary; every node is amd64.
 - **No automatic upgrades.** Renovate proposes, a person runs the playbook. system-upgrade-controller would do it in-cluster, but it is one more controller for three nodes.
-- **Untested until the first real upgrade.** The playbook's syntax, version parsing and download URLs were checked on 19 Nov 2026; the first run will be the `v1.36.6+k3s1` patch. Update this page with what it showed.
+- **One node at a time is the way to run it** while the workers can't hold each other's pods: the full run gives no chance to put moved pods back between nodes.
+- **Draining makes each VM touch its full memory**, and KVM doesn't hand it back, so the hypervisor sits at its 12 GB ceiling afterwards (`ProxmoxMemoryCritical`, 20 Nov) until the RAM upgrade (5.57).

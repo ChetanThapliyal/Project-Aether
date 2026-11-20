@@ -22,19 +22,22 @@
 # Runbook: docs/runbooks/k3s-upgrade.md. Run in a quiet window (not 01:00-04:30 IST).
 #   task ansible:k3s:upgrade
 #   task ansible:k3s:upgrade -- --limit control     # one stage at a time
+#
+# Each play reads the pins itself (a lookup on the controller), so --limit to
+# one node works: the first real run (20 Nov) found the workers' play reading
+# the target from the control play, which --limit to a worker skips.
 # =============================================================================
 
-- name: Check the version pins agree
+- name: Upgrade the control plane
   hosts: control
+  become: true
+  serial: 1
   gather_facts: false
+  vars: &pins
+    k3s_target: "{{ lookup('file', playbook_dir ~ '/control.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
+    k3s_workers_pin: "{{ lookup('file', playbook_dir ~ '/workers.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
+    k3s_service: k3s
   tasks:
-    - name: Read the pins
-      ansible.builtin.set_fact:
-        k3s_target: "{{ lookup('file', playbook_dir ~ '/control.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
-        k3s_workers_pin: "{{ lookup('file', playbook_dir ~ '/workers.yml') | regex_search('k3s_version: \"(v[^\"]+)\"', '\\1') | first }}"
-      delegate_to: localhost
-      run_once: true
-
     - name: control.yml and workers.yml must pin the same release
       ansible.builtin.assert:
         that: k3s_target == k3s_workers_pin
@@ -42,15 +45,6 @@
         quiet: true
       run_once: true
 
-- name: Upgrade the control plane
-  hosts: control
-  become: true
-  serial: 1
-  gather_facts: false
-  vars:
-    k3s_target: "{{ hostvars[groups['control'][0]]['k3s_target'] }}"
-    k3s_service: k3s
-  tasks:
     - name: Upgrade this node
       ansible.builtin.include_tasks: ../tasks/k3s-upgrade-node.yml
 
@@ -61,8 +55,15 @@
   order: reverse_inventory
   gather_facts: false
   vars:
-    k3s_target: "{{ hostvars[groups['control'][0]]['k3s_target'] }}"
+    <<: *pins
     k3s_service: k3s-agent
   tasks:
+    - name: control.yml and workers.yml must pin the same release
+      ansible.builtin.assert:
+        that: k3s_target == k3s_workers_pin
+        fail_msg: "control.yml pins {{ k3s_target }}, workers.yml pins {{ k3s_workers_pin }}"
+        quiet: true
+      run_once: true
+
     - name: Upgrade this node
       ansible.builtin.include_tasks: ../tasks/k3s-upgrade-node.yml

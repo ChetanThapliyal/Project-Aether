@@ -73,7 +73,9 @@ kubectl wait --for=condition=Ready node/"$NODE" --timeout=10m
 kubectl uncordon "$NODE"
 ```
 
-Pending pods schedule onto it within seconds. Pods that moved stay where they are: the scheduler doesn't rebalance. That is fine; the next rollout of each app spreads them again. Paperless prefers worker-02 (a preference, not a rule) and only acts on it when it is next scheduled.
+Pending pods schedule onto it within seconds. Pods that moved stay where they are: the scheduler doesn't rebalance. **Put them back before the next drain** ([INC-2026-019](../incidents/INC-2026-019-upgrade-drain-preempted-node-agents.md)): with neither worker able to hold the other's pods, a node left full makes the next drain evict things. `kubectl cordon` the node a pod is on, delete the pod so it is recreated on the other node, then `kubectl uncordon`; cordoning evicts nothing. Paperless prefers worker-02 (a preference, not a rule) and only acts on it when it is next scheduled.
+
+The per-node agents (MetalLB's speaker, node exporter, Alloy) run at `system-node-critical` since 20 Nov, so a crowded node evicts an app before them, never the other way round.
 
 ## 5. worker-01: the databases
 

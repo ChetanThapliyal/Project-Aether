@@ -120,7 +120,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 3. On the new control VM, install K3s without starting it, **with the same flags as `control.yml`**. `task ansible:control` skips the install once the binary exists, so flags left out here are never added later (a K3s without `--disable traefik --disable servicelb` deploys both on first start). From my workstation:
    ```bash
    K3S_TOKEN=$(sops -d --extract '["k3s_server_token"]' infrastructure/secrets/ansible-secrets.sops.yaml)
-   ssh owl@192.168.1.51 "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.4+k3s1 INSTALL_K3S_SKIP_START=true \
+   ssh owl@192.168.1.51 "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.6+k3s1 INSTALL_K3S_SKIP_START=true \
      K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
      --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb --secrets-encryption"
    ```

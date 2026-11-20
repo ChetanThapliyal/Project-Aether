@@ -34,6 +34,7 @@ Each review says how the problem was found. Five of the first seven came from au
 | [INC-2026-016](INC-2026-016-edge-rebuild-drill-found-three-breaks.md) | 2026-11-19 | The first timed rebuild of the edge VM took 48 minutes and found three breaks in the recovery path | SEV2 | Verification check | Fixed and verified |
 | [INC-2026-017](INC-2026-017-worker-back-on-relay.md) | 2026-11-19 | The worker from INC-2026-011 fell back to a relay again after the ISP changed the home address | SEV3 | Alert | Fixed and verified |
 | [INC-2026-018](INC-2026-018-offsite-copy-filled-storage-cap.md) | 2026-11-20 | The first offsite copy of the cloud host uploaded itself five times and filled the backup account's storage cap | SEV3 | Verification check | Fixed and verified |
+| [INC-2026-019](INC-2026-019-upgrade-drain-preempted-node-agents.md) | 2026-11-20 | The first K3s upgrade's drains pushed a node's load-balancer agent off it and left pods queued behind each other | SEV3 | Verification check | Fixed and verified |
 
 ## Conventions
 
