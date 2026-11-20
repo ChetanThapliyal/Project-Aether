@@ -45,3 +45,14 @@ output "offsite_restore_key" {
   value       = b2_application_key.offsite_restore.application_key
   sensitive   = true
 }
+
+output "oci_offsite_upload_key_id" {
+  description = "Upload-only key ID for the OCI host, limited to oci/ (5.61)"
+  value       = b2_application_key.oci_offsite_upload.application_key_id
+}
+
+output "oci_offsite_upload_key" {
+  description = "Upload-only key secret for the OCI host, limited to oci/ (5.61)"
+  value       = b2_application_key.oci_offsite_upload.application_key
+  sensitive   = true
+}

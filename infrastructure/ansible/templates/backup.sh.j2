@@ -38,3 +38,8 @@ fi
 curl -fsS -m 10 --retry 3 "$UPTIME_KUMA_PUSH_URL" >/dev/null \
   || echo "WARN: heartbeat push failed (backup itself succeeded)"
 echo "==> Backup complete"
+
+# 5.61: copy the snapshot just taken offsite. It has its own heartbeat (OCI-02 in
+# DMZ Kuma), so a failure here doesn't hide that the backup above succeeded; the
+# exit code still fails the Kestra run so it shows in Kestra too.
+/opt/backup/offsite-b2.sh

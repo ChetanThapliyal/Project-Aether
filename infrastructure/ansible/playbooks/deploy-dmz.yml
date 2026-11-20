@@ -562,6 +562,7 @@
           - { name: "APP-01 app database dumps (K3s)", token: "{{ kuma_push_tokens.app_dumps }}", interval: 93600 }   # 4.15, pushed by the Proxmox host when the dump marker is fresh
           - { name: "APP-02 app data → B2 (Proxmox)",  token: "{{ kuma_push_tokens.apps_b2 }}",   interval: 93600 }   # 4.15
           - { name: "OCI-01 Docker prune (Kestra)",  token: "{{ kuma_push_tokens.oci_prune }}", interval: 691200 }  # ADR-017: weekly flow, 8-day window
+          - { name: "OCI-02 OCI backup → B2 (Kestra)", token: "{{ kuma_push_tokens.oci_b2 }}",  interval: 93600 }   # 5.61, pushed by run-backup.sh after the offsite copy
       register: uk_push_provision
       changed_when: "'OK:' in uk_push_provision.stdout"
       delegate_to: localhost
@@ -607,6 +608,7 @@
           - "DR-04 etcd → B2 (Proxmox)"
           - "APP-01 app database dumps (K3s)"
           - "APP-02 app data → B2 (Proxmox)"
+          - "OCI-02 OCI backup → B2 (Kestra)"
           - "OCI — Bookorbit"
       register: uk_public_feed
       changed_when: "'OK:' in uk_public_feed.stdout"

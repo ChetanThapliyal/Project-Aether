@@ -52,6 +52,7 @@ A gap found by review, with nothing broken yet, goes in the backlog instead.
 | [03: Home lab hardware](disaster-recovery/scenarios/03-homelab-hardware.md) | The hypervisor or its disks fail: rebuild the cluster and restore etcd |
 | [04: Age key loss](disaster-recovery/scenarios/04-age-key-loss.md) | The SOPS age key is lost: recover through Cloud KMS |
 | [05: DMZ rebuild](disaster-recovery/scenarios/05-gcp-dmz-rebuild.md) | The edge VM is gone: rebuild from Terraform and restore Uptime Kuma |
+| [06: Account or workstation loss](disaster-recovery/scenarios/06-account-and-workstation-loss.md) | A whole GCP project, OCI tenancy, the workstation or the GitHub repo is gone |
 
 For ArgoCD alone, see the ArgoCD recovery runbook below.
 

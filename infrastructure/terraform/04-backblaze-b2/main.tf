@@ -86,3 +86,14 @@ resource "b2_application_key" "offsite_restore" {
   bucket_ids   = [b2_bucket.etcd_offsite_locked.bucket_id]
   capabilities = ["listBuckets", "listFiles", "readFiles"]
 }
+
+# 5.61: the OCI host's nightly backup, copied offsite. Its restic repository lives
+# in the same OCI tenancy as the host, so losing the tenancy lost both. Same rules
+# as the homelab key, plus a name prefix: this key can only list and write under
+# oci/, so the cloud host can't even see the homelab's objects.
+resource "b2_application_key" "oci_offsite_upload" {
+  key_name     = "aether-oci-offsite-upload"
+  bucket_ids   = [b2_bucket.etcd_offsite_locked.bucket_id]
+  name_prefix  = "oci/"
+  capabilities = ["listBuckets", "listFiles", "writeFiles"]
+}

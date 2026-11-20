@@ -13,7 +13,7 @@ The public status page shows a short form of this table from [`objectives.yml`](
 | Component | My Target RTO | My Target RPO | Backup Mechanism |
 |---|---|---|---|
 | **Homelab K3s cluster** | 30 min in place (DR-05 measured about 18 min); total hardware loss is rebuild time plus about 3 min of restore (HARD-11) | ≤ 24 h | 4-stage etcd pipeline (ADR-018), all IST: K3s snapshot 02:00 → Proxmox pull 02:30 → local restic 03:00 → Backblaze B2 03:30 (age-encrypted object in a 30-day Object Lock bucket, plus a transitional `restic copy`) |
-| **OCI applications & databases** | 45 min (instance loss); none if the OCI tenancy is lost (see §5) | ≤ 24 h | Restic to the OCI Object Storage bucket `dr-backups`, 03:00 UTC (08:30 IST), scheduled by the Kestra flow `aether.ops.restic-nightly` |
+| **OCI applications & databases** | 45 min (instance loss); tenancy loss not timed ([Scenario 06](scenarios/06-account-and-workstation-loss.md)) | ≤ 24 h | Restic to the OCI Object Storage bucket `dr-backups`, 03:00 UTC (08:30 IST), scheduled by the Kestra flow `aether.ops.restic-nightly`; then the newest snapshot, age-encrypted, to the Object Lock bucket on B2 under `oci/` (5.61) |
 | **GCP DMZ observer** | 30 min, Kuma restore included (was 15; the 19 Nov rebuild showed the first deploy alone takes 16) | ≤ 24 h (nightly Kuma backup, FND-17) | Terraform + Ansible + compose files in Git; Kuma data in GCS |
 | **Secrets access** | 15 min | 0 | SOPS with two recipients: Age + GCP Cloud KMS (both proven working, 3 Nov) |
 | **Terraform state** | 10 min | 0 | GCS bucket `tf-backend-oci-hlab-gcs` with object versioning |
@@ -30,9 +30,9 @@ The public status page shows a short form of this table from [`objectives.yml`](
 | SOPS Age private key | My workstation | GCP KMS (decrypts everything without it); a copy in the cluster secret `argocd/argocd-sops-age-key`; an offline copy in the password manager ([SOPS key rotation](../runbooks/sops-key-rotation.md) replaces it on every rotation) | — |
 | K3s etcd snapshots | `k3s-control-01:/var/lib/rancher/k3s/server/db/snapshots/` (14 kept) | Proxmox `/mnt/aether-pool/k3s-etcd-snapshots` → restic `/mnt/aether-pool/restic-k3s-etcd` → B2 `aether-etcd-offsite-lock` (age, locked 30 days) and `aether-restic-etcd-offsite` (transitional) | Locked bucket: read-only restore key in `group_vars/proxmox/vault.yaml`, age identity `dr_offsite_age_identity` in `ansible-secrets.sops.yaml`. Local repo: `/etc/restic/etcd-password.txt` on Proxmox (**randomly generated, not in SOPS**). B2 repo: `restic_b2_password` + B2 key in `group_vars/proxmox/vault.yaml` |
 | K3s server token | `/var/lib/rancher/k3s/server/token` on the control VM | Escrowed in SOPS as `k3s_server_token` (HARD-10, 10 Nov); fresh installs are seeded from it | Without it I can't restore a snapshot onto a new VM |
-| Kubernetes persistent volumes | `local-path` on each node's SSD | **None** | — |
-| OCI app volumes & databases | `/home/ubuntu/` on `bookorbit` | Restic repo `s3:<oci endpoint>/dr-backups` (same OCI tenancy) | `/opt/backup/restic.env`, rendered from `oci_backup_*` keys in `ansible-secrets.sops.yaml` |
-| OCI database dumps | Written nightly before the restic run: `blinko/db.sql`, `bookorbit/db.sql`, `affine/db.sql`, `kestra/db.sql`, `anytype/mongo.archive` | Inside the restic snapshot | — |
+| Kubernetes persistent volumes | PostgreSQL and CouchDB on `local-path` (worker-01); app files on `nfs-zfs` (the hypervisor's ZFS pool) | Nightly database dumps and CouchDB export onto `nfs-zfs` (APP-01), hourly and daily ZFS snapshots, then the dataset age-encrypted to the Object Lock bucket under `apps/` (APP-02, ADR-022) | Same restore key and age identity as the etcd copies; `task dr:drill:k8s` |
+| OCI app volumes & databases | `/home/ubuntu/` on `bookorbit` | Restic repo `s3:<oci endpoint>/dr-backups` (same OCI tenancy); since 5.61 the newest snapshot each night as `oci/<date>.tar.zst.age` in B2 `aether-etcd-offsite-lock` (locked 30 days; heartbeat OCI-02) | Restic: `/opt/backup/restic.env`, rendered from `oci_backup_*` keys in `ansible-secrets.sops.yaml`. B2 copy: the read-only restore key in `group_vars/proxmox/vault.yaml` and `dr_offsite_age_identity` ([Scenario 02 §3.5b](scenarios/02-oci-loss-restic.md)) |
+| OCI database dumps | Written nightly before the restic run: `bookorbit/db.sql`, `kestra/db.sql`, `anytype/mongo.archive` (Blinko's and AFFiNE's last dumps of 17 Nov stay until 4.23 removes the old copies) | Inside the restic snapshot, so in the B2 copy too | — |
 | OCI data **not** backed up | `calibre-library/`, `navidrome/` (excluded on purpose); `kestra/postgres/` (raw data dir, covered by the dump) | — | — |
 | OCI boot volume | OCI block storage | One manual boot-volume backup, `bookorbit-pre-upgrade` (Terraform output `bookorbit_backup_id`) | OCI console |
 | Kestra flows | Git `automation/kestra/flows/` | Synced by `system/git-sync-flows.yml` | — |
@@ -66,6 +66,7 @@ Each runbook has symptoms, the restore steps, checks to run afterwards, and a dr
 | [03: Homelab hardware failure & K3s etcd recovery](scenarios/03-homelab-hardware.md) | SEV1 | In-place reset (DR-05): about 18 min. Cold restore from B2 (HARD-11): 10 Nov 2026, reset to ready API 54 s |
 | [04: Age key loss & GCP KMS recovery](scenarios/04-age-key-loss.md) | SEV2 | Dual-recipient check passed 3 Nov |
 | [05: GCP DMZ rebuild](scenarios/05-gcp-dmz-rebuild.md) | SEV2 | Full rebuild, 19 Nov 2026: 48 min 25 s from deleting the VM to every monitor green, against the then 15 min target (now 30). The first deploy on a fresh e2-micro takes 16 min (image pulls), and three breaks cost the rest: the join key couldn't tag the VM, a deploy step crashed before the restore, heartbeats were pinned to the old mesh IP ([INC-2026-016](../incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
+| [06: Losing an account or the workstation](scenarios/06-account-and-workstation-loss.md) | SEV1–SEV2 | Not drilled; section 5 lists the safe checks |
 
 Related:
 - [ArgoCD recovery runbook](../runbooks/argocd-recovery.md)
@@ -78,8 +79,8 @@ Related:
 
 These are the gaps I know about and have accepted for now:
 
-- **The OCI backups aren't offsite.** The `dr-backups` bucket is in the same OCI tenancy as the instance. If I lose the tenancy, I lose the backups too. A second-provider copy is deferred to the Phase 04 DR review.
-- **Nothing backs up the Kubernetes PVs** (`local-path`).
 - **A rebuilt OCI host needs a fresh Tailscale auth key.** The base playbook installs and joins Tailscale (FND-18), but the key is one-time and expires after 90 days, so I create a new one for each rebuild (Scenario 02 §3.3).
 - **GCS-CP's bootstrap state lives only on my workstation.** It describes one resource (the state bucket), so losing it means re-importing the bucket, not losing data.
-- **No runbooks yet** for: losing the GCP project (Terraform state, KMS and DMZ all live there), losing the OCI tenancy, losing my workstation (toolchain and keys), or losing the GitHub repository.
+- **Losing a whole account or the workstation is written down but not drilled** ([Scenario 06](scenarios/06-account-and-workstation-loss.md)). The GCP project holds the Terraform state and the edge Kuma's backups with nothing outside it, so its loss means importing every resource back into new state and starting monitor history from zero.
+- **The SSH private keys may exist only on my workstation.** Confirm both are in the password manager (Scenario 06 §3).
+- **`calibre-library/` and `navidrome/` on the cloud host have no backup** (excluded on purpose: re-importable, and too large for nightly full copies).

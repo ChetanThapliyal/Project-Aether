@@ -19,6 +19,7 @@
   vars:
     app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
     app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
+    rclone_version: v1.75.2   # 5.61; matches proxmox-etcd-b2.yml, bump both with their checksums
 
   tasks:
     # ─── Load SOPS Secrets ──────────────────────────────
@@ -144,6 +145,74 @@
         owner: root
         mode: "0700"
       tags: [backup, restic, ops]
+
+    # ─── 5.61: offsite copy to the Object Lock bucket on Backblaze B2 ───
+    # Same pattern as the homelab (HARD-12): an upload-only key, here limited to
+    # oci/, and only the public age recipient on this host.
+    - name: 5.61 | Require the offsite key, the age recipient and the heartbeat token
+      ansible.builtin.assert:
+        that:
+          - b2_oci_offsite_upload_key_id | default('') | length > 0
+          - b2_oci_offsite_upload_key | default('') | length > 0
+          - dr_offsite_age_recipient | default('') is match('^age1')
+          - kuma_push_base is defined and kuma_push_tokens.oci_b2 is defined
+        fail_msg: "5.61 secrets missing from ansible-secrets.sops.yaml; the offsite copy would fail every night."
+        quiet: true
+      tags: [backup, restic, ops, offsite]
+
+    - name: 5.61 | Install age and unzip
+      ansible.builtin.apt:
+        name: [age, unzip]
+        state: present
+      tags: [backup, restic, ops, offsite]
+
+    # Ubuntu's rclone authorises with B2 API v1, which rejects current keys (see
+    # proxmox-etcd-b2.yml). Same pinned release; sha256 from SHA256SUMS and the
+    # GitHub asset digest, which agree.
+    - name: 5.61 | Download rclone {{ rclone_version }} (arm64)
+      ansible.builtin.get_url:
+        url: "https://downloads.rclone.org/{{ rclone_version }}/rclone-{{ rclone_version }}-linux-arm64.zip"
+        dest: "/var/cache/rclone-{{ rclone_version }}-linux-arm64.zip"
+        checksum: "sha256:7e1e8d69654941b7b7df84ee74c5f7fb09cce7d5496947fb7bf16b55ff427d10"
+        mode: "0644"
+      tags: [backup, restic, ops, offsite]
+
+    - name: 5.61 | Unpack rclone {{ rclone_version }}
+      ansible.builtin.unarchive:
+        src: "/var/cache/rclone-{{ rclone_version }}-linux-arm64.zip"
+        dest: /opt
+        remote_src: true
+        creates: "/opt/rclone-{{ rclone_version }}-linux-arm64/rclone"
+      tags: [backup, restic, ops, offsite]
+
+    - name: 5.61 | Link rclone into PATH
+      ansible.builtin.file:
+        src: "/opt/rclone-{{ rclone_version }}-linux-arm64/rclone"
+        dest: /usr/local/bin/rclone
+        state: link
+      tags: [backup, restic, ops, offsite]
+
+    - name: 5.61 | Deploy the offsite env file
+      ansible.builtin.copy:
+        content: |
+          export RCLONE_B2_ACCOUNT={{ b2_oci_offsite_upload_key_id | quote }}
+          export RCLONE_B2_KEY={{ b2_oci_offsite_upload_key | quote }}
+          export B2_LOCKED_BUCKET=aether-etcd-offsite-lock
+          export DR_AGE_RECIPIENT={{ dr_offsite_age_recipient | quote }}
+          export OFFSITE_PUSH_URL={{ (kuma_push_base ~ '/' ~ kuma_push_tokens.oci_b2 ~ '?status=up&msg=OK') | quote }}
+        dest: /opt/backup/b2-offsite.env
+        owner: root
+        mode: "0600"
+      no_log: true
+      tags: [backup, restic, ops, offsite]
+
+    - name: 5.61 | Deploy the offsite copy script
+      ansible.builtin.template:
+        src: ../templates/offsite-b2.sh.j2
+        dest: /opt/backup/offsite-b2.sh
+        owner: root
+        mode: "0700"
+      tags: [backup, restic, ops, offsite]
 
     # FND-02: Kestra (aether.ops.restic-nightly) is the only scheduler.
     # Keep this task until the cron is gone everywhere, then delete it.

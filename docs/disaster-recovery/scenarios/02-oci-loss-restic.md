@@ -4,7 +4,7 @@
 **Target RTO:** < 45 minutes
 **Target RPO:** ≤ 24 hours (nightly restic run at 03:00 UTC / 08:30 IST, scheduled by the Kestra flow `aether.ops.restic-nightly`)
 
-> **Scope:** This runbook assumes the instance is gone but the OCI tenancy and its `dr-backups` bucket survive. If I lose the tenancy, I lose the backups with it (see [Known Gaps](../README.md#5-known-gaps)).
+> **Scope:** This runbook assumes the instance is gone. If the OCI tenancy and its `dr-backups` bucket survive, restore from restic (Step 3.5). If the tenancy is gone too, restore last night's offsite copy from Backblaze B2 instead (Step 3.5b, since 20 Nov 2026, task 5.61); [Scenario 06](06-account-and-workstation-loss.md) covers replacing the tenancy itself.
 
 ---
 
@@ -97,6 +97,26 @@ sudo chown -R 1000:1000 /home/ubuntu/n8n/data && sudo chmod 755 /home/ubuntu/n8n
 ```
 
 > If `restic snapshots` fails, I **must not** run `run-backup.sh`. It runs `restic init` when it can't read the repo config, so with a wrong endpoint or empty bucket it would quietly start a new, empty repository.
+
+### Step 3.5b: If the Whole Tenancy Is Gone: Restore from Backblaze B2
+
+Every night, after the restic run, `run-backup.sh` copies the newest snapshot to the Object Lock bucket as one file: `oci/<YYYY-MM-DD>.tar.zst.age` (tar, zstd, then age to the DR recipient; locked 30 days; heartbeat "OCI-02 OCI backup → B2" in DMZ Kuma). The cloud host can only write it. Reading needs the restore key and the DR identity, which are only in SOPS:
+
+```bash
+# From my workstation, at the repo root. rclone v1.75.2 (Debian's older rclone can't use these keys).
+V=infrastructure/ansible/group_vars/proxmox/vault.yaml
+export RCLONE_B2_ACCOUNT=$(sops -d --extract '["b2_offsite_restore_key_id"]' $V)
+export RCLONE_B2_KEY=$(sops -d --extract '["b2_offsite_restore_key"]' $V)
+rclone lsl :b2:aether-etcd-offsite-lock/oci/ | sort -k2 | tail -3     # newest night; ignore "-v<timestamp>" duplicates
+ID=$(mktemp); chmod 600 "$ID"
+sops -d --extract '["dr_offsite_age_identity"]' infrastructure/secrets/ansible-secrets.sops.yaml > "$ID"
+rclone cat :b2:aether-etcd-offsite-lock/oci/<date>.tar.zst.age | age -d -i "$ID" | zstd -dc \
+  | ssh ubuntu@<new host> 'sudo tar -x -C /'      # paths are home/ubuntu/...
+rm -f "$ID"
+```
+Then the same ownership fixes as Step 3.5 (`chown -R ubuntu:ubuntu /home/ubuntu`, the n8n UID mapping), and continue with Step 3.6. The copy holds everything the restic snapshot does, including the database dumps of Step 3.7.
+
+Checked 20 Nov 2026 on the first copy: 1.9 GiB downloaded, decrypted and listed in 12.5 minutes: 21,290 entries, 3.84 GiB, with `bookorbit/db.sql`, `kestra/db.sql`, `anytype/mongo.archive` and Grafana's database present. Not yet unpacked onto a host.
 
 ### Step 3.6: Redeploy the Stacks
 

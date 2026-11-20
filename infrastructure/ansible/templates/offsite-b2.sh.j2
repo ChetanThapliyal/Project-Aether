@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Managed by Ansible (oci-ops.yml). Phase 05 task 5.61.
+#
+# The restic repository this host backs up to lives in the same OCI tenancy as the
+# host, so losing the tenancy would lose both. This copies the newest snapshot
+# offsite: one age-encrypted tar per night in the Object Lock bucket on Backblaze
+# B2 (oci/<date>.tar.zst.age), the same pattern as the homelab's etcd and app data.
+#
+# The key can only list and write under oci/: it can't read, delete or bypass the
+# 30-day lock, and this host holds only the public age recipient, so it can't read
+# back what it uploads. Restore: DR Scenario 02, "If the whole tenancy is gone".
+#
+# Run by run-backup.sh after a successful backup; the heartbeat fires only on success.
+set -Eeuo pipefail
+source /opt/backup/restic.env
+source /opt/backup/b2-offsite.env
+
+obj="oci/$(date -u +%F).tar.zst.age"
+in_bucket() { rclone lsf ":b2:${B2_LOCKED_BUCKET}/oci/" | grep -xF "$(basename "${obj}")" >/dev/null; }
+
+if in_bucket; then
+  echo "${obj} is already in the bucket; not uploading a second version"
+else
+  # A temp file, not a stream: a dump that failed halfway must never become a
+  # truncated object that the lock then keeps for 30 days.
+  enc=$(mktemp /var/tmp/oci-offsite.XXXXXX)
+  trap 'rm -f "${enc}"' EXIT
+  restic dump --archive tar latest {{ app_base_dir }} | zstd -q -T0 -3 | age -r "${DR_AGE_RECIPIENT}" -o "${enc}"
+  # Same guard as the homelab's app data (ADR-022): nightly full copies grow with
+  # the data; past 20 GB, fail and page rather than grow the bill quietly.
+  if [ "$(stat -c %s "${enc}")" -gt $((20 * 1024 * 1024 * 1024)) ]; then
+    echo "ERROR: the copy is over 20 GB; move this host to incremental uploads"; exit 1
+  fi
+  echo "Uploading ${obj} ($(du -h "${enc}" | cut -f1)) to ${B2_LOCKED_BUCKET}"
+  # --no-check-dest: a HEAD on the object needs readFiles, which this key lacks.
+  # --retries 1 and no multi-thread copy: on the first run (20 Nov) rclone uploaded
+  # the 1.9 GiB file five times; each finished attempt became another version that
+  # the lock then keeps for 30 days, until the account's storage cap stopped it.
+  # Chunk-level retries stay on; a whole-copy retry is left to a rerun, which the
+  # in_bucket check above turns into a no-op if the object did land.
+  rclone copyto --no-check-dest --retries 1 --multi-thread-streams 0 "${enc}" ":b2:${B2_LOCKED_BUCKET}/${obj}"
+fi
+in_bucket || { echo "ERROR: ${obj} is not in ${B2_LOCKED_BUCKET} after upload"; exit 1; }
+
+curl -fsS -m 10 --retry 3 -o /dev/null "${OFFSITE_PUSH_URL}" \
+  || echo "WARN: heartbeat push failed (the offsite copy itself succeeded)"
+echo "==> Offsite copy complete: ${obj}"
