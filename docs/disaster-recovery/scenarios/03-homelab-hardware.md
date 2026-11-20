@@ -124,7 +124,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
      K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
      --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb --secrets-encryption"
    ```
-4. From my workstation, fetch the latest snapshot from the Object Lock bucket (HARD-12) with the read-only key, and decrypt it with the escrowed age identity:
+4. From my workstation, fetch the latest snapshot from the Object Lock bucket (HARD-12) with the read-only key, and decrypt it with the escrowed age identity (first check the Backblaze daily download cap in Caps & Alerts allows it; at the free 1 GB a large download stops partway, INC-2026-018):
    ```bash
    V=infrastructure/ansible/group_vars/proxmox/vault.yaml; B=aether-etcd-offsite-lock
    export RCLONE_B2_ACCOUNT=$(sops -d --extract '["b2_offsite_restore_key_id"]' $V)

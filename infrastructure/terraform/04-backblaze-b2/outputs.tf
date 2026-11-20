@@ -47,12 +47,28 @@ output "offsite_restore_key" {
 }
 
 output "oci_offsite_upload_key_id" {
-  description = "Upload-only key ID for the OCI host, limited to oci/ (5.61)"
+  description = "Upload-only key ID for the OCI host, in aether-oci-offsite-lock (5.61)"
   value       = b2_application_key.oci_offsite_upload.application_key_id
 }
 
 output "oci_offsite_upload_key" {
-  description = "Upload-only key secret for the OCI host, limited to oci/ (5.61)"
+  description = "Upload-only key secret for the OCI host, in aether-oci-offsite-lock (5.61)"
   value       = b2_application_key.oci_offsite_upload.application_key
+  sensitive   = true
+}
+
+output "oci_offsite_bucket_name" {
+  description = "Object Lock bucket for the OCI host's offsite copies, 3-day lock (5.61)"
+  value       = b2_bucket.oci_offsite_locked.bucket_name
+}
+
+output "oci_offsite_restore_key_id" {
+  description = "Read-only key ID for OCI offsite restores (5.61)"
+  value       = b2_application_key.oci_offsite_restore.application_key_id
+}
+
+output "oci_offsite_restore_key" {
+  description = "Read-only key secret for OCI offsite restores (5.61)"
+  value       = b2_application_key.oci_offsite_restore.application_key
   sensitive   = true
 }

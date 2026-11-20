@@ -197,7 +197,7 @@
         content: |
           export RCLONE_B2_ACCOUNT={{ b2_oci_offsite_upload_key_id | quote }}
           export RCLONE_B2_KEY={{ b2_oci_offsite_upload_key | quote }}
-          export B2_LOCKED_BUCKET=aether-etcd-offsite-lock
+          export B2_LOCKED_BUCKET=aether-oci-offsite-lock   # 3-day lock, its own bucket (5.61)
           export DR_AGE_RECIPIENT={{ dr_offsite_age_recipient | quote }}
           export OFFSITE_PUSH_URL={{ (kuma_push_base ~ '/' ~ kuma_push_tokens.oci_b2 ~ '?status=up&msg=OK') | quote }}
         dest: /opt/backup/b2-offsite.env

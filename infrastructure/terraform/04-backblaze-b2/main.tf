@@ -88,12 +88,53 @@ resource "b2_application_key" "offsite_restore" {
 }
 
 # 5.61: the OCI host's nightly backup, copied offsite. Its restic repository lives
-# in the same OCI tenancy as the host, so losing the tenancy lost both. Same rules
-# as the homelab key, plus a name prefix: this key can only list and write under
-# oci/, so the cloud host can't even see the homelab's objects.
+# in the same OCI tenancy as the host, so losing the tenancy lost both. Its own
+# bucket, because the lock period is per bucket: this copy only covers losing the
+# tenancy (the host's restic repo keeps 7 daily and 4 weekly snapshots for going
+# back in time), so 3 days is enough, and the homelab keeps its 30. About four
+# nightly copies are kept: locked 3 days, hidden on day 3, deleted a day later.
+resource "b2_bucket" "oci_offsite_locked" {
+  bucket_name = "aether-oci-offsite-lock"
+  bucket_type = "allPrivate"
+
+  default_server_side_encryption {
+    algorithm = "AES256"
+    mode      = "SSE-B2"
+  }
+
+  file_lock_configuration {
+    is_file_lock_enabled = true
+    default_retention {
+      mode = "governance"
+      period {
+        duration = 3
+        unit     = "days"
+      }
+    }
+  }
+
+  lifecycle_rules {
+    file_name_prefix              = ""
+    days_from_uploading_to_hiding = 3
+    days_from_hiding_to_deleting  = 1
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Same rules as the homelab key: list and write only, no read, delete or bypass.
 resource "b2_application_key" "oci_offsite_upload" {
   key_name     = "aether-oci-offsite-upload"
-  bucket_ids   = [b2_bucket.etcd_offsite_locked.bucket_id]
+  bucket_ids   = [b2_bucket.oci_offsite_locked.bucket_id]
   name_prefix  = "oci/"
   capabilities = ["listBuckets", "listFiles", "writeFiles"]
+}
+
+# Read only, for restores from a workstation (Scenario 02 step 3.5b). Never deployed.
+resource "b2_application_key" "oci_offsite_restore" {
+  key_name     = "aether-oci-offsite-restore"
+  bucket_ids   = [b2_bucket.oci_offsite_locked.bucket_id]
+  capabilities = ["listBuckets", "listFiles", "readFiles"]
 }

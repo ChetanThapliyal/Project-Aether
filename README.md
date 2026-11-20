@@ -34,7 +34,7 @@ No customers depend on it. The data, the backups and the attack surface are real
 | Observability | Metrics, logs and alerting hosted off the cluster, plus an outside observer and a dead-man's switch for the alert path itself |
 | Disaster recovery | 3-2-1 backups with an Object-Locked offsite copy. Restores are drilled and timed, and each backup stage reports a heartbeat |
 | Security | Secrets encrypted for two independent keys, keyless CI, pinned images, default-deny NetworkPolicies, a strict content policy on the public page |
-| Operations | 17 blameless incident reviews, five recovery scenarios, runbooks, and a sign-off checklist for each phase |
+| Operations | 18 blameless incident reviews, six recovery scenarios, runbooks, and a sign-off checklist for each phase |
 
 ## Architecture
 
@@ -145,7 +145,7 @@ Recovery targets are shown next to what has been proven. The live version, with 
 
 **Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` and `task dr:drill:k8s` restore application databases into throwaway databases and compare them with the live ones, without touching production.
 
-**Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 17 so far. When an alert caught the problem, the median time to detect was 2 minutes. Problems found by audit instead had been latent for a median of 3 days, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
+**Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 18 so far. When an alert caught the problem, the median time to detect was 2 minutes. Problems found by audit instead had been latent for a median of 3 days, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
 
 **Known limits.** One hypervisor and one control-plane node mean a hardware failure is an outage, not a failover. The Oracle Cloud backups live in the same tenancy as the host they protect. The full rebuild drills for the cloud host and the DMZ have not been timed.
 
@@ -226,7 +226,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 
 **Also in the repository** (every document is listed in [`docs/README.md`](docs/README.md)):
 
-- [Incident reviews](docs/incidents/): 17 blameless reviews with timelines, root causes and guardrails.
+- [Incident reviews](docs/incidents/): 18 blameless reviews with timelines, root causes and guardrails.
 - [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
 - [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), K3s upgrades, SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
@@ -246,7 +246,7 @@ Project Aether/
 │   ├── adr/                     # 22 architecture decisions
 │   ├── diagrams/                # architecture and flow diagrams, and their generators
 │   ├── disaster-recovery/       # objectives and five scenarios
-│   ├── incidents/               # 17 incident reviews
+│   ├── incidents/               # 18 incident reviews
 │   └── runbooks/                # nine operational runbooks
 ├── infrastructure/
 │   ├── ansible/                 # inventory, playbooks, templates

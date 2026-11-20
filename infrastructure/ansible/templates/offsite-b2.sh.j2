@@ -3,8 +3,11 @@
 #
 # The restic repository this host backs up to lives in the same OCI tenancy as the
 # host, so losing the tenancy would lose both. This copies the newest snapshot
-# offsite: one age-encrypted tar per night in the Object Lock bucket on Backblaze
-# B2 (oci/<date>.tar.zst.age), the same pattern as the homelab's etcd and app data.
+# offsite: one age-encrypted tar per night in its own Object Lock bucket on
+# Backblaze B2 (oci/<date>.tar.zst.age), the same pattern as the homelab's etcd and
+# app data. The copy only covers losing the tenancy (restic keeps the history), so
+# the bucket keeps about four nights, and metrics and log history are left out:
+# losing the tenancy would cost graphs, not data.
 #
 # The key can only list and write under oci/: it can't read, delete or bypass the
 # 30-day lock, and this host holds only the public age recipient, so it can't read
@@ -22,10 +25,15 @@ if in_bucket; then
   echo "${obj} is already in the bucket; not uploading a second version"
 else
   # A temp file, not a stream: a dump that failed halfway must never become a
-  # truncated object that the lock then keeps for 30 days.
-  enc=$(mktemp /var/tmp/oci-offsite.XXXXXX)
-  trap 'rm -f "${enc}"' EXIT
-  restic dump --archive tar latest {{ app_base_dir }} | zstd -q -T0 -3 | age -r "${DR_AGE_RECIPIENT}" -o "${enc}"
+  # truncated object that the lock then keeps. `restic dump` can't exclude paths,
+  # so restore the snapshot without the metrics and logs, then tar that.
+  work=$(mktemp -d /var/tmp/oci-offsite.XXXXXX)
+  enc="${work}.age"
+  trap 'rm -rf "${work}" "${enc}"' EXIT
+  restic restore latest --target "${work}" \
+    --exclude {{ app_base_dir }}/monitoring/prometheus-data \
+    --exclude {{ app_base_dir }}/monitoring/loki-data
+  tar -C "${work}" -cf - "{{ app_base_dir | regex_replace('^/', '') }}" | zstd -q -T0 -3 | age -r "${DR_AGE_RECIPIENT}" -o "${enc}"
   # Same guard as the homelab's app data (ADR-022): nightly full copies grow with
   # the data; past 20 GB, fail and page rather than grow the bill quietly.
   if [ "$(stat -c %s "${enc}")" -gt $((20 * 1024 * 1024 * 1024)) ]; then
@@ -34,8 +42,8 @@ else
   echo "Uploading ${obj} ($(du -h "${enc}" | cut -f1)) to ${B2_LOCKED_BUCKET}"
   # --no-check-dest: a HEAD on the object needs readFiles, which this key lacks.
   # --retries 1 and no multi-thread copy: on the first run (20 Nov) rclone uploaded
-  # the 1.9 GiB file five times; each finished attempt became another version that
-  # the lock then keeps for 30 days, until the account's storage cap stopped it.
+  # the 1.9 GiB file five times; each finished attempt became another locked
+  # version, until the account's storage cap stopped it (INC-2026-018).
   # Chunk-level retries stay on; a whole-copy retry is left to a rerun, which the
   # in_bucket check above turns into a no-op if the object did land.
   rclone copyto --no-check-dest --retries 1 --multi-thread-streams 0 "${enc}" ":b2:${B2_LOCKED_BUCKET}/${obj}"
