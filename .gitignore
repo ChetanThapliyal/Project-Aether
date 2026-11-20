@@ -148,3 +148,8 @@ docs/proxmox-audit
 # Ignore environment files
 *.env
 docs/git-ignored/
+
+# =========================
+# Python bytecode (diagram builders, template checks)
+# =========================
+__pycache__/
