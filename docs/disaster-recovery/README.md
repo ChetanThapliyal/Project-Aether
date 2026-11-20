@@ -82,6 +82,5 @@ These are the gaps I know about and have accepted for now:
 - **A rebuilt OCI host needs a fresh Tailscale auth key.** The base playbook installs and joins Tailscale (FND-18), but the key is one-time and expires after 90 days, so I create a new one for each rebuild (Scenario 02 §3.3).
 - **GCS-CP's bootstrap state lives only on my workstation.** It describes one resource (the state bucket), so losing it means re-importing the bucket, not losing data.
 - **Losing a whole account or the workstation is written down but not drilled** ([Scenario 06](scenarios/06-account-and-workstation-loss.md)). The GCP project holds the Terraform state and the edge Kuma's backups with nothing outside it, so its loss means importing every resource back into new state and starting monitor history from zero.
-- **The SSH private keys may exist only on my workstation.** Confirm both are in the password manager (Scenario 06 §3).
 - **Restores from B2 depend on the account's daily download cap** (Backblaze Caps & Alerts). Set to $0.10/day (about 11 GB) on 20 Nov after a check download hit the free 1 GB (INC-2026-018); raise it further before a full restore of everything.
 - **`calibre-library/` and `navidrome/` on the cloud host have no backup** (excluded on purpose: re-importable, and too large for nightly full copies).

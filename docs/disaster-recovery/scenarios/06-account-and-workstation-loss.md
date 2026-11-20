@@ -61,7 +61,7 @@ Everything Google-side is one project, `gcs-oci-homelab-controlplane`:
 | Lives only there | Copy elsewhere |
 |---|---|
 | The SOPS age key (`~/.config/sops/age/keys.txt`) | Password manager; the cluster secret `argocd/argocd-sops-age-key`; GCP KMS decrypts every file too |
-| SSH private keys `~/.ssh/homelab` and `~/.ssh/oci_bookorbit` | **Unknown: check the password manager has both.** Without them, see step 4 |
+| SSH private keys `~/.ssh/homelab` and `~/.ssh/oci_bookorbit` | Password manager (saved 20 Nov 2026) |
 | `GCS-CP`'s bootstrap Terraform state (the state bucket only) | None needed: `terraform import` the bucket |
 | Repository clones | GitHub |
 | Logins: `gcloud`, `gh`, Tailscale, Cloudflare, OCI | Re-authenticate; no secrets live in them |
@@ -70,7 +70,7 @@ Everything Google-side is one project, `gcs-oci-homelab-controlplane`:
 1. Install the toolchain: clone the repo, then `mise install` (Terraform, SOPS, age, Helm, kubectl, Task, restic at the pinned versions), plus Ansible and pre-commit from pip.
 2. Restore the age key from the password manager to `~/.config/sops/age/keys.txt` (mode 600). Check: `sops -d infrastructure/secrets/ansible-secrets.sops.yaml >/dev/null`.
 3. Sign in: `gcloud auth login` and `gcloud auth application-default login`, `gh auth login`, Tailscale (the device needs approval and its tag in the admin console).
-4. **SSH keys.** From the password manager if they are there. If not, make a new pair and get its public key onto each machine: the edge VM through Terraform (`ssh_public_key` in its tfvars, then apply; IAP gets you in meanwhile); the homelab through the Proxmox web console as root; the cloud host through the OCI console's serial console. Then update the three `ssh_public_key` variables so a rebuild uses the new key.
+4. **SSH keys.** Restore both from the password manager to `~/.ssh/` (mode 600). If that copy is ever lost, make a new pair and get its public key onto each machine: the edge VM through Terraform (`ssh_public_key` in its tfvars, then apply; IAP gets you in meanwhile); the homelab through the Proxmox web console as root; the cloud host through the OCI console's serial console. Then update the three `ssh_public_key` variables so a rebuild uses the new key.
 5. `kubectl`: copy the kubeconfig from the control VM (`task ansible:kubeconfig`).
 
 ---
