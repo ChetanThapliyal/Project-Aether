@@ -18,6 +18,7 @@ spec:
         crds:
           create: false            # PodLogs CRD unused
         controller:
+          priorityClassName: system-node-critical   # per-node log shipper; never preempted for app pods (20 Nov)
           type: daemonset
           # No hostNetwork (HARD-15): pods reach Loki over the tailnet through
           # the node's NAT, so the monitoring NetworkPolicy applies to Alloy.

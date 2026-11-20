@@ -26,6 +26,10 @@ spec:
               cpu: 100m
               memory: 128Mi   # HARD-18: OOMKilled at 64Mi in the DR-05 reconnect storm; idles ~52Mi
         speaker:
+          # A per-node agent: without it a node's LoadBalancer IPs aren't announced.
+          # With no priority class it was preempted on worker-01 by pods moved there
+          # by the first K3s upgrade's drain (20 Nov), and couldn't come back.
+          priorityClassName: system-node-critical
           resources:
             requests:
               cpu: 15m

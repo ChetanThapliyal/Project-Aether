@@ -15,6 +15,7 @@ spec:
     targetRevision: 4.45.0
     helm:
       valuesObject:
+        priorityClassName: system-node-critical   # per-node agent; never preempted for app pods (20 Nov)
         nodeSelector:
           kubernetes.io/os: linux
         tolerations:
