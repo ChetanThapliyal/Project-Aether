@@ -100,8 +100,11 @@ def main():
             r = requests(p)
             for k in free[n]:
                 free[n][k] -= r[k]
-            if owner_kind(p) != "DaemonSet":
-                victims[n].append((p.get("spec", {}).get("priority", 0), p, r))
+            # DaemonSet pods are victims too: the scheduler evicts any lower-priority
+            # pod, and an evicted DaemonSet pod can't move, it waits on its node.
+            # Leaving them out predicted "Paperless PENDING, 8 MiB short" when the
+            # scheduler evicted the MetalLB speaker instead (INC-2026-019).
+            victims[n].append((p.get("spec", {}).get("priority", 0), p, r))
 
     moving = [p for p in pods if p["spec"]["nodeName"] == node and owner_kind(p) != "DaemonSet"]
     moving.sort(key=lambda p: -p["spec"].get("priority", 0))
@@ -146,7 +149,7 @@ def main():
                     for v in chosen:
                         victims[n].remove(v)
                     free[n] = {k: gain[k] - r[k] for k in r}
-                    names = ", ".join(v[1]["metadata"]["name"] for v in chosen)
+                    names = ", ".join(v[1]["metadata"]["name"] + (" (a DaemonSet pod: stays down on that node)" if owner_kind(v[1]) == "DaemonSet" else "") for v in chosen)
                     verdict = f"fits {n} by preempting {names}"
                     break
         if verdict is None:
