@@ -1,0 +1,98 @@
+# gateway-system: default deny, then one rule per flow it needs.
+#
+#   Envoy proxy  ← anyone on 10080/10443 (its listeners): LAN clients through
+#                  MetalLB (externalTrafficPolicy Local keeps their address) and
+#                  the tailnet gateway pod. It is the edge, so the port is the
+#                  restriction; what matters is where it can go next:
+#                → the apps namespace (every HTTPRoute backend lives there),
+#                  the controller's xDS on 18000, DNS. Nothing else: not the
+#                  databases, the LAN, the tailnet or the internet.
+#   Controller   ← the proxy on 18000 (xDS); the API server on 9443 (the
+#                  topology-injector webhook, failurePolicy Ignore)
+#                → API server, DNS
+#
+# Nothing scrapes 19001 (metrics). Kubelet probes come from the node itself,
+# which kube-router always allows.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: gateway-system
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: gateway-system
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: envoy-proxy
+  namespace: gateway-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+      app.kubernetes.io/component: proxy
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - { protocol: TCP, port: 10080 }
+        - { protocol: TCP, port: 10443 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: apps }
+    - to:
+        - podSelector:
+            matchLabels: { control-plane: envoy-gateway }
+      ports:
+        - { protocol: TCP, port: 18000 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: envoy-gateway-controller
+  namespace: gateway-system
+spec:
+  podSelector:
+    matchLabels: { control-plane: envoy-gateway }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: envoy
+              app.kubernetes.io/component: proxy
+      ports:
+        - { protocol: TCP, port: 18000 }
+    # The API server's calls can arrive from the control node's LAN address or
+    # its overlay address, so the port is the restriction, not the source.
+    - ports:
+        - { protocol: TCP, port: 9443 }
+  egress:
+    # The API server: its service address before DNAT and the control node after.
+    - to:
+        - ipBlock: { cidr: 10.43.0.1/32 }
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - ipBlock: { cidr: 192.168.1.51/32 }
+      ports:
+        - { protocol: TCP, port: 6443 }
