@@ -802,7 +802,7 @@ pages:
                   <div class="ae-chips"><span>no port forwards</span><span>MetalLB layer 2</span><span>Envoy Gateway</span></div>
                   <div class="bar-row"><span class="bar-name">Ingress</span><span class="ae-fact">Envoy Gateway, reachable on the mesh only; public DNS names for the apps point at its mesh address, with Let's Encrypt certificates issued over DNS</span></div>
                   <div class="bar-row"><span class="bar-name">In-cluster</span><span class="ae-fact">default-deny NetworkPolicies, both directions, for the apps, the databases, the gateway, the certificate issuer, monitoring and platform services; only the Envoy proxy may reach app pods, and the proxy reaches nothing but the apps</span></div>
-                  <div class="bar-row"><span class="bar-name">Pods</span><span class="ae-fact">the apps and databases refuse any pod that runs as root or keeps extra privileges (Pod Security <code>restricted</code>)</span></div>
+                  <div class="bar-row"><span class="bar-name">Pods</span><span class="ae-fact">the apps, the databases, the gateway, the certificate issuer and the GitOps controller refuse any pod that runs as root or keeps extra privileges (Pod Security <code>restricted</code>); only the load balancer, node metrics and the mesh keep host access</span></div>
                   <div class="bar-row"><span class="bar-name">Admin</span><span class="ae-fact">the ArgoCD UI is published on the mesh by the Tailscale operator, not on the LAN</span></div>
                 </div>
                 <div class="vitals-card ae-env">
