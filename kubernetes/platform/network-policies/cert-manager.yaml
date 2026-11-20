@@ -1,0 +1,91 @@
+# cert-manager: default deny, then one rule per flow it needs.
+#
+#   controller  → API server; DNS; the public internet on 443 (Cloudflare API,
+#                 Let's Encrypt) and on 53 (the DNS-01 self-check asks the
+#                 zone's authoritative nameservers directly, not CoreDNS)
+#   webhook     ← API server on 10250 (failurePolicy: Fail, so if this is
+#                 blocked every Certificate and Issuer is rejected)
+#               → API server (it reads its own CA secret)
+#   cainjector  → API server
+#
+# Nothing scrapes cert-manager's metrics (9402), so that port stays closed.
+# Kubelet probes come from the node itself, which kube-router always allows.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-and-api-egress
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # The API server: its service address before DNAT and the control node after.
+    - to:
+        - ipBlock: { cidr: 10.43.0.1/32 }
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - ipBlock: { cidr: 192.168.1.51/32 }
+      ports:
+        - { protocol: TCP, port: 6443 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: controller-acme-egress
+  namespace: cert-manager
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/component: controller
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8        # pods, services
+              - 172.16.0.0/12
+              - 192.168.0.0/16    # home LAN
+              - 100.64.0.0/10     # tailnet
+              - 169.254.0.0/16    # link-local
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# The API server's calls can arrive from the control node's LAN address or its
+# overlay address, so the port is the restriction, not the source. Only the
+# API server calls it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: webhook-from-api-server
+  namespace: cert-manager
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: webhook
+      app.kubernetes.io/component: webhook
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { protocol: TCP, port: 10250 }
