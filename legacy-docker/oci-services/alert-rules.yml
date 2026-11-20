@@ -34,6 +34,29 @@ groups:
           summary: "Kube State Metrics target is unreachable"
           description: "Kube-state-metrics on K3s cluster is down for >1m."
 
+      # ─── P2: Tailnet path to a scraped peer is relayed (INC-2026-011, INC-2026-017) ───
+      # A relayed path stalls for minutes at a time and the scrape alerts above
+      # flap. Moving the peer's tailscaled to a new UDP port has fixed it twice.
+      - alert: TailnetPeerRelayed
+        expr: aether_tailscale_peer_direct == 0
+        for: 30m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "The monitoring host reaches {{ $labels.peer }} only through a Tailscale relay"
+          description: "No direct path for 30 minutes, so scrapes of {{ $labels.peer }} will time out whenever the relay stalls. Check `tailscale ping` from the peer; if it stays on DERP, give that node a new tailscale_port in the inventory (INC-2026-011)."
+
+      - alert: TailnetPathCheckStale
+        expr: (time() - aether_tailscale_paths_timestamp_seconds > 600) or absent(aether_tailscale_paths_timestamp_seconds)
+        for: 10m
+        labels:
+          severity: warning
+          tier: homelab
+        annotations:
+          summary: "The tailnet path check on the monitoring host has stopped"
+          description: "TailnetPeerRelayed can't fire. Check tailscale-path-metrics.timer on the cloud host and node exporter's textfile collector."
+
       # ─── P1: Kubernetes Node NotReady ────────────────────────
       - alert: K8sNodeNotReady
         expr: kube_node_status_condition{condition="Ready",status="true"} == 0

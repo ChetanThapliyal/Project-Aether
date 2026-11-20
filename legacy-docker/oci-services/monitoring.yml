@@ -8,6 +8,7 @@ services:
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.textfile.directory=/host/var/lib/node_exporter/textfile'   # tailnet paths (INC-2026-017)
     volumes:
       - /:/host:ro,rslave
       - /proc:/host/proc:ro

@@ -14,6 +14,10 @@
     app_user: "{{ hostvars[inventory_hostname].app_user | default(ansible_user | default('ubuntu')) }}"
     app_base_dir: "{{ hostvars[inventory_hostname].app_base_dir | default('/home/' ~ app_user) }}"
     docker_network: proxied-net
+    # node exporter mounts / at /host, so it reads this as /host/var/lib/...
+    node_exporter_textfile_dir: /var/lib/node_exporter/textfile
+    # The peers Prometheus scrapes over the tailnet (prometheus.yml).
+    tailscale_path_peers: [k3s-control-01, k3s-worker-01, k3s-worker-02, homelab]
 
   tasks:
     # ─── Load SOPS Secrets ──────────────────────────────
@@ -169,6 +173,57 @@
       no_log: true
       notify: recreate public-feed
       tags: [monitoring, public-feed]
+
+    # INC-2026-017 (follow-up from INC-2026-011): which scraped peers this host
+    # reaches through a relay instead of directly. The edge VM is left out: it
+    # has only a public IPv6 address and nothing else here has IPv6, so its path
+    # is always relayed by design.
+    - name: Create the node exporter textfile directory
+      ansible.builtin.file:
+        path: "{{ node_exporter_textfile_dir }}"
+        state: directory
+        mode: "0755"
+      tags: [monitoring, tailnet-paths]
+
+    - name: Deploy the tailnet path check
+      ansible.builtin.template:
+        src: ../templates/tailscale-path-metrics.py
+        dest: /usr/local/bin/tailscale-path-metrics.py
+        mode: "0755"
+      tags: [monitoring, tailnet-paths]
+
+    - name: Deploy the tailnet path check's service and 1-minute timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: tailscale-path-metrics.service
+          content: |
+            [Unit]
+            Description=Tailnet path metrics for node exporter (INC-2026-017)
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/tailscale-path-metrics.py
+        - name: tailscale-path-metrics.timer
+          content: |
+            [Unit]
+            Description=Check tailnet paths every minute (INC-2026-017)
+            [Timer]
+            OnBootSec=1min
+            OnUnitActiveSec=1min
+            [Install]
+            WantedBy=timers.target
+      register: tailnet_path_units
+      tags: [monitoring, tailnet-paths]
+
+    - name: Enable the tailnet path check
+      ansible.builtin.systemd_service:
+        name: tailscale-path-metrics.timer
+        enabled: true
+        state: started
+        daemon_reload: "{{ tailnet_path_units.changed }}"
+      tags: [monitoring, tailnet-paths]
 
     - name: Copy monitoring compose file
       copy:

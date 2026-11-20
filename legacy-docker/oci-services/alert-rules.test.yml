@@ -36,3 +36,42 @@ tests:
             exp_annotations:
               summary: "ZFS pool aether-pool reports read, write or checksum errors"
               description: "The pool has no redundancy: an error may mean damaged data. Run zpool status -v on the Proxmox host and check the latest offsite copy."
+  # INC-2026-017: a peer on the relay for 30 minutes alerts; a direct one doesn't.
+  - interval: 1m
+    input_series:
+      - series: 'aether_tailscale_peer_direct{instance="bookorbit",job="node-exporter",peer="k3s-worker-01"}'
+        values: '1x10 0x40'
+      - series: 'aether_tailscale_peer_direct{instance="bookorbit",job="node-exporter",peer="k3s-worker-02"}'
+        values: '1x50'
+      - series: 'aether_tailscale_paths_timestamp_seconds{instance="bookorbit",job="node-exporter"}'
+        values: '0+60x50'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: TailnetPeerRelayed
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: TailnetPeerRelayed
+        exp_alerts:
+          - exp_labels: {instance: bookorbit, job: node-exporter, peer: k3s-worker-01, severity: warning, tier: homelab}
+            exp_annotations:
+              summary: "The monitoring host reaches k3s-worker-01 only through a Tailscale relay"
+              description: "No direct path for 30 minutes, so scrapes of k3s-worker-01 will time out whenever the relay stalls. Check `tailscale ping` from the peer; if it stays on DERP, give that node a new tailscale_port in the inventory (INC-2026-011)."
+      - eval_time: 45m
+        alertname: TailnetPathCheckStale
+        exp_alerts: []
+  # The check stops writing: its timestamp freezes and the stale alert fires.
+  - interval: 1m
+    input_series:
+      - series: 'aether_tailscale_paths_timestamp_seconds{instance="bookorbit",job="node-exporter"}'
+        values: '0+60x10 600x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: TailnetPathCheckStale
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: TailnetPathCheckStale
+        exp_alerts:
+          - exp_labels: {instance: bookorbit, job: node-exporter, severity: warning, tier: homelab}
+            exp_annotations:
+              summary: "The tailnet path check on the monitoring host has stopped"
+              description: "TailnetPeerRelayed can't fire. Check tailscale-path-metrics.timer on the cloud host and node exporter's textfile collector."

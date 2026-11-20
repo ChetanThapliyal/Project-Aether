@@ -69,7 +69,7 @@ The fault hit a worker. If it had been the control-plane VM, the same flapping w
 ## Guardrails added
 
 - The inventory comment on the port override points to this review.
-- Follow-up: an alert on Tailscale peers that stay relayed for more than 30 minutes, so a lost direct path is caught before the scrapes start to suffer.
+- Follow-up: an alert on Tailscale peers that stay relayed for more than 30 minutes, so a lost direct path is caught before the scrapes start to suffer. Not built until the same fault came back on the new port: `TailnetPeerRelayed`, [INC-2026-017](INC-2026-017-worker-back-on-relay.md).
 - Follow-up: ask the ISP about IPv6. A native IPv6 path would avoid both NATs.
 
 ## Lessons
