@@ -3,8 +3,9 @@ kind: Namespace
 metadata:
   name: platform
   labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    # No pods yet: the first one must already meet restricted (20 Nov 2026).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
     pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
@@ -36,8 +37,10 @@ kind: Namespace
 metadata:
   name: gateway-system
   labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    # Envoy and its controller passed restricted on 20 Nov 2026 (server dry run).
+    # An upgrade whose pods don't is refused: check the ReplicaSet events first.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
     pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
@@ -47,8 +50,10 @@ kind: Namespace
 metadata:
   name: cert-manager
   labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: restricted     # HARD-18: see what restricted would reject
+    # All three pods passed restricted on 20 Nov 2026 (server dry run).
+    # An upgrade whose pods don't is refused: check the ReplicaSet events first.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
     pod-security.kubernetes.io/audit: restricted
   annotations:
     argocd.argoproj.io/sync-wave: "-3"

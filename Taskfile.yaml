@@ -252,7 +252,8 @@ tasks:
         --from-file=keys.txt=${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
         --dry-run=client -o yaml | kubectl apply -f -
 
-      - kubectl label --overwrite ns argocd pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
+      # restricted since 20 Nov 2026: the KSOPS sidecar drops all capabilities and sets a seccomp profile (values.yaml).
+      - kubectl label --overwrite ns argocd pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
 
   k8s:bootstrap-argocd:
     desc: "Install or upgrade ArgoCD via Helm with homelab tuning"

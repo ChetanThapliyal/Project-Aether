@@ -66,11 +66,15 @@ repoServer:
           # Only the limit rises; the request (what the node reserves) is unchanged.
           cpu: 500m
           memory: 128Mi
-      securityContext:
+      securityContext:   # meets Pod Security restricted, like the upstream containers
         runAsNonRoot: true
         runAsUser: 999
         readOnlyRootFilesystem: true
         allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+        seccompProfile:
+          type: RuntimeDefault
       env:
         - name: SOPS_AGE_KEY_FILE
           value: /home/argocd/.config/sops/age/keys.txt
