@@ -68,6 +68,7 @@ The LAN address stayed reachable only because devices had cached it. Had a devic
 
 - MetalLB's speaker, node exporter and Alloy run at `system-node-critical`, so an app can't evict them and they evict lower-priority pods to come back.
 - `k3s-upgrade.yml`: each play reads the pins itself, so one-node runs work.
+- `check-helm-values.py` allows `priorityClassName` for the node exporter chart. Its template reads the key, but its default values only show it commented out, so CI's Helm values lint failed the three pushes that carried this fix (red on `main` from 12:07 to the next morning's check) while ArgoCD applied it correctly. Nobody looked at CI between pushes; the commit after a push now waits for its run.
 - `drain-check.py` counts DaemonSet pods as eviction candidates and labels them "stays down on that node". On a minimal model of the 12:05 state, the old script says Paperless stays Pending; the fixed one says it fits by evicting the speaker, which is what happened.
 - The runbooks now say to put moved pods back after each drain (section 4 of the K3s upgrade runbook).
 

@@ -23,7 +23,11 @@ FREEFORM = {
 }
 
 # Valid keys a chart documents but does not list in values.yaml: "chart": {"dotted.path"}
-ALLOW = {}
+ALLOW = {
+    # templates/daemonset.yaml reads .Values.priorityClassName; values.yaml only has
+    # it commented out. Set to system-node-critical after INC-2026-019.
+    "prometheus-node-exporter": {"priorityClassName"},
+}
 
 
 def chart_values(repo: str, chart: str, version: str) -> dict:
