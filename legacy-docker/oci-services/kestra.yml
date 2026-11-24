@@ -55,6 +55,7 @@ services:
       SECRET_TELEGRAM_CHAT_ID: ${SECRET_TELEGRAM_CHAT_ID}
       SECRET_KUMA_PRUNE_PUSH_URL: ${SECRET_KUMA_PRUNE_PUSH_URL}   # ADR-017 follow-up: prune heartbeat
       SECRET_KUMA_RENOVATE_PUSH_URL: ${SECRET_KUMA_RENOVATE_PUSH_URL}   # Renovate PR notifier heartbeat
+      SECRET_KUMA_DEPLOY_PUSH_URL: ${SECRET_KUMA_DEPLOY_PUSH_URL}   # OCI deploy flow heartbeat
     volumes:
       - ./storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock

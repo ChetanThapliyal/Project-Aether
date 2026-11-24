@@ -1,0 +1,197 @@
+id: oci-deploy
+namespace: aether.ops
+description: >
+  Every 5 minutes: if a cloud host app's compose file on main differs from the deployed one only in
+  image lines (a merged Renovate PR), ask on Telegram with Deploy / Skip buttons. A tap from the
+  operator's own chat, matching the exact version in the message, dumps the database, pulls,
+  recreates the container and waits for healthy; if it isn't healthy the previous compose file is
+  restored. Allowlist of apps below. The host has a read-only GitHub token and no merge rights, so
+  approval is merging the PR (ADR-013, ADR-017). Success-only heartbeat to Uptime Kuma.
+labels:
+  managed-by: git-sync
+
+concurrency:
+  limit: 1
+  behavior: CANCEL   # only one consumer of Telegram getUpdates at a time
+
+tasks:
+  - id: deploy
+    type: io.kestra.plugin.scripts.shell.Commands
+    timeout: PT20M
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: host   # heartbeat to the edge Uptime Kuma over the tailnet
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        # Same path inside and outside: compose passes bind-mount paths to the host's daemon.
+        - /home/ubuntu:/home/ubuntu
+    containerImage: docker:27-cli
+    env:
+      GIT_TOKEN: "{{ secret('GIT_TOKEN') }}"          # read-only
+      TG_TOKEN: "{{ secret('TELEGRAM_TOKEN') }}"
+      TG_CHAT: "{{ secret('TELEGRAM_CHAT_ID') }}"
+      PUSH_URL: "{{ secret('KUMA_DEPLOY_PUSH_URL') }}"
+    commands:
+      - |
+        set -eu
+        apk add --no-cache -q curl jq
+        APPS_DIR="${APPS_DIR:-/home/ubuntu}"
+        DEPLOY_APPS="${DEPLOY_APPS:-bookorbit}"          # allowlist: add an app only once it has a health check and a rollback story
+        STATE="${STATE_DIR:-/home/ubuntu/kestra/oci-deploy}"
+        POLL="${POLL_SECONDS:-240}"
+        HEALTH_WAIT="${HEALTH_WAIT:-180}"
+        GH="${GH_API:-https://api.github.com}"
+        TG="${TG_API:-https://api.telegram.org}/bot${TG_TOKEN}"
+        REPO="ChetanThapliyal/Project-Aether"
+        TAB="$(printf '\t')"
+        mkdir -p "$STATE"; touch "$STATE/announced"
+        FAILED=0
+
+        esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+        send() {   # $1 = HTML text, $2 = optional inline keyboard JSON
+          if [ -n "${2:-}" ]; then
+            curl -fsS -m 20 "$TG/sendMessage" -o /dev/null --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "parse_mode=HTML" \
+              --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=$1" --data-urlencode "reply_markup=$2"
+          else
+            curl -fsS -m 20 "$TG/sendMessage" -o /dev/null --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "parse_mode=HTML" \
+              --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=$1"
+          fi
+        }
+        answer() { curl -fsS -m 15 "$TG/answerCallbackQuery" -o /dev/null --data-urlencode "callback_query_id=$1" --data-urlencode "text=$2" || true; }
+        unbutton() { curl -fsS -m 15 "$TG/editMessageReplyMarkup" -o /dev/null --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "message_id=$1" --data-urlencode 'reply_markup={"inline_keyboard":[]}' || true; }
+
+        # Per-app facts. Test hook: TEST_CONTAINER lets an unlisted demo app through (never set in the flow).
+        app_cfg() {
+          CONTAINER=""; DB_CONTAINER=""; DB_USER=""; DB_NAME=""
+          case "$1" in
+            bookorbit) CONTAINER=bookorbit-app; DB_CONTAINER=bookorbit-db; DB_USER=bookorbit; DB_NAME=bookorbit ;;
+            *) if [ -n "${TEST_CONTAINER:-}" ]; then CONTAINER="$TEST_CONTAINER"; else return 1; fi ;;
+          esac
+        }
+        fetch_desired() { curl -fsS -m 30 -H "Accept: application/vnd.github.raw" -H "Authorization: Bearer ${GIT_TOKEN:-none}" "$GH/repos/$REPO/contents/legacy-docker/oci-services/$1.yml?ref=main" -o "$2"; }
+        health() {   # prints healthy | starting | unhealthy | nohealth | missing
+          docker inspect "$1" 2>/dev/null | jq -r '.[0] | if .State.Running == true then (.State.Health.Status // "nohealth") else "missing" end' 2>/dev/null || echo missing
+        }
+        wait_healthy() {   # $1 container, $2 max seconds
+          i=0
+          while [ "$i" -lt "$2" ]; do
+            s="$(health "$1")"
+            case "$s" in
+              healthy) return 0 ;;
+              nohealth) [ "$i" -ge 30 ] && return 0 ;;
+            esac
+            sleep 3; i=$((i + 3))
+          done
+          return 1
+        }
+        summarize() {   # $1 = changes file -> "old -> new" per changed image
+          grep -E '^-[[:space:]]*image:' "$1" | sed -E 's/^-[[:space:]]*image:[[:space:]]*//; s/@sha256:[0-9a-f]+//' > /tmp/img.old
+          grep -E '^\+[[:space:]]*image:' "$1" | sed -E 's/^\+[[:space:]]*image:[[:space:]]*//; s/@sha256:[0-9a-f]+//' > /tmp/img.new
+          paste -d'>' /tmp/img.old /tmp/img.new | awk -F'>' '{ if ($1 == $2) print $1 " (new digest, same tag)"; else print $1 " → " $2 }'
+        }
+
+        # Returns 0 deployed and healthy; 1 nothing changed (aborted early); 2 unhealthy, previous version restored.
+        deploy() {
+          app="$1"; dir="$APPS_DIR/$app"; cur="$dir/docker-compose.yml"; new="/tmp/$app.desired"
+          app_cfg "$app" || return 1
+          cp -p "$cur" "$dir/docker-compose.yml.prev"
+          if [ -n "$DB_CONTAINER" ]; then
+            dump="$dir/pre-update-$(date -u +%Y%m%dT%H%M%SZ).dump"
+            docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$dump" || { rm -f "$dump"; echo "database dump failed"; return 1; }
+            rows="$(docker exec -i "$DB_CONTAINER" pg_restore --list < "$dump" | grep -c 'TABLE DATA' || true)"
+            [ "$rows" -gt 0 ] || { echo "database dump is empty"; return 1; }
+            echo "database dump ok ($rows tables): $dump"
+            ls -1t "$dir"/pre-update-*.dump 2>/dev/null | tail -n +4 | xargs -r rm -f
+          fi
+          cat "$new" > "$cur"
+          if ! (cd "$dir" && docker compose pull --quiet); then
+            cat "$dir/docker-compose.yml.prev" > "$cur"; echo "image pull failed; nothing was changed"; return 1
+          fi
+          (cd "$dir" && docker compose up -d --quiet-pull)
+          if wait_healthy "$CONTAINER" "$HEALTH_WAIT"; then echo "healthy"; return 0; fi
+          echo "not healthy after ${HEALTH_WAIT}s; restoring the previous compose file"
+          cat "$dir/docker-compose.yml.prev" > "$cur"
+          (cd "$dir" && docker compose up -d --quiet-pull)
+          if wait_healthy "$CONTAINER" 120; then echo "previous version is healthy again"; else echo "PREVIOUS VERSION IS NOT HEALTHY EITHER"; fi
+          return 2
+        }
+
+        # 1. Look for merged image-only changes that aren't deployed yet.
+        for app in $DEPLOY_APPS; do
+          app_cfg "$app" || continue
+          cur="$APPS_DIR/$app/docker-compose.yml"
+          [ -f "$cur" ] || { echo "skip $app: not deployed here"; continue; }
+          fetch_desired "$app" "/tmp/$app.desired"
+          cmp -s "$cur" "/tmp/$app.desired" && continue
+          hash="$(sha256sum "/tmp/$app.desired" | cut -c1-10)"
+          diff -u "$cur" "/tmp/$app.desired" | grep -E '^[-+][^-+]' > "/tmp/$app.changes" || true
+          other="$(grep -cvE '^[-+][[:space:]]*image:' "/tmp/$app.changes" || true)"
+          if [ "$other" -gt 0 ] || ! grep -qE '^[-+][[:space:]]*image:' "/tmp/$app.changes"; then
+            grep -qxF "$app:$hash:manual" "$STATE/announced" && continue
+            send "$(printf '<b>%s: compose file changed beyond the image</b>\nNot deployed automatically. Deploy it with <code>task ansible:oci:apps -- --tags %s</code>.' "$app" "$app")"
+            echo "$app:$hash:manual" >> "$STATE/announced"
+            continue
+          fi
+          grep -qxF "$app:$hash" "$STATE/announced" && continue
+          kb="$(jq -cn --arg d "d:$app:$hash" --arg s "s:$app:$hash" '{inline_keyboard:[[{text:"Deploy now",callback_data:$d},{text:"Skip",callback_data:$s}]]}')"
+          send "$(printf '<b>%s: update merged, not deployed</b>\n<code>%s</code>\n\nDeploying takes a database dump first and restores the old version if the new one is not healthy within %ss.' "$app" "$(summarize "/tmp/$app.changes" | esc)" "$HEALTH_WAIT")" "$kb"
+          echo "$app:$hash" >> "$STATE/announced"
+        done
+
+        # 2. Wait for button taps (long poll; returns at once when one arrives).
+        OFFSET="$(cat "$STATE/offset" 2>/dev/null || echo 0)"
+        curl -fsS -m "$((POLL + 25))" -G "$TG/getUpdates" -o /tmp/updates.json \
+          --data-urlencode "offset=$OFFSET" --data-urlencode "timeout=$POLL" --data-urlencode 'allowed_updates=["callback_query"]'
+        jq -c '.result[]' /tmp/updates.json > /tmp/updates.jsonl || true
+        last="$(jq -r '[.result[].update_id] | max // empty' /tmp/updates.json)"
+        # Advance first: each tap is handled at most once, even if this run dies mid-deploy.
+        [ -n "$last" ] && echo "$((last + 1))" > "$STATE/offset"
+
+        while read -r upd; do
+          [ -n "$upd" ] || continue
+          cid="$(printf '%s' "$upd" | jq -r '.callback_query.id')"
+          data="$(printf '%s' "$upd" | jq -r '.callback_query.data // ""')"
+          from="$(printf '%s' "$upd" | jq -r '.callback_query.from.id')"
+          chat="$(printf '%s' "$upd" | jq -r '.callback_query.message.chat.id')"
+          mid="$(printf '%s' "$upd" | jq -r '.callback_query.message.message_id')"
+          if [ "$chat" != "$TG_CHAT" ] || [ "$from" != "$TG_CHAT" ]; then answer "$cid" "Not allowed"; continue; fi
+          kind="${data%%:*}"; rest="${data#*:}"; app="${rest%%:*}"; hash="${rest#*:}"
+          case "$app$hash" in *[!a-z0-9_-]*|"") answer "$cid" "Unknown action"; continue ;; esac
+          case " $DEPLOY_APPS " in *" $app "*) ;; *) answer "$cid" "Unknown app"; continue ;; esac
+          if [ "$kind" = "s" ]; then answer "$cid" "Skipped"; unbutton "$mid"; continue; fi
+          [ "$kind" = "d" ] || { answer "$cid" "Unknown action"; continue; }
+          fetch_desired "$app" "/tmp/$app.desired"
+          now="$(sha256sum "/tmp/$app.desired" | cut -c1-10)"
+          if [ "$now" != "$hash" ]; then answer "$cid" "This update changed; wait for a new message"; unbutton "$mid"; continue; fi
+          if cmp -s "$APPS_DIR/$app/docker-compose.yml" "/tmp/$app.desired"; then answer "$cid" "Already deployed"; unbutton "$mid"; continue; fi
+          answer "$cid" "Deploying…"; unbutton "$mid"
+          rc=0; out="$(deploy "$app" 2>&1)" || rc=$?
+          tail_out="$(printf '%s' "$out" | tail -n 12 | esc)"
+          case "$rc" in
+            0) send "$(printf '<b>%s deployed and healthy</b>\n<code>%s</code>' "$app" "$(docker inspect "$(app_cfg "$app"; echo "$CONTAINER")" | jq -r '.[0].Config.Image' | sed -E 's/@sha256:[0-9a-f]+//' | esc)")" ;;
+            1) FAILED=1; send "$(printf '<b>%s: deploy aborted, nothing changed</b>\n<pre>%s</pre>' "$app" "$tail_out")" ;;
+            *) FAILED=1; send "$(printf '<b>%s: new version was not healthy, previous version restored</b>\nA pre-update database dump is in the app folder if a migration needs undoing.\n<pre>%s</pre>' "$app" "$tail_out")" ;;
+          esac
+        done < /tmp/updates.jsonl
+
+        # A failed deploy fails the run (no heartbeat, so it pages). Otherwise ADR-017 success-only heartbeat.
+        [ "$FAILED" -eq 0 ] || exit 1
+        if [ -n "${PUSH_URL:-}" ]; then wget -q -T 10 -O /dev/null "$PUSH_URL" || echo "WARN heartbeat push failed"; fi
+
+triggers:
+  - id: every_5_min
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *"
+    timezone: UTC
+
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.telegram.TelegramSend
+    token: "{{ secret('TELEGRAM_TOKEN') }}"
+    channel: "{{ secret('TELEGRAM_CHAT_ID') }}"
+    parseMode: HTML
+    payload: |
+      <b>OCI deploy flow failed</b>
+      Flow: <code>{{ flow.namespace }}/{{ flow.id }}</code>
+      Execution: <code>{{ execution.id }}</code>
+      Time: {{ now() }}
