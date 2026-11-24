@@ -84,7 +84,7 @@ KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` fil
 
 The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened ([INC-2026-012](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
 
-Kestra is the operations scheduler ([ADR-017](docs/adr/017-automation-and-scheduling.md)), with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
+Kestra is the operations scheduler ([ADR-017](docs/adr/017-automation-and-scheduling.md)), with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, an hourly Telegram notice for each new Renovate pull request, and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
 
 <img src="docs/diagrams/flow-monitoring.svg" alt="Monitoring and alerting: Prometheus, Loki, Alertmanager and Grafana run on the cloud host, scrape and collect from every site over the mesh, alert to Telegram, and prove the alert path works with an always-firing Watchdog sent to the edge VM." width="100%">
 
