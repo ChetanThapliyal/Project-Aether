@@ -1,0 +1,104 @@
+id: renovate-pr-notify
+namespace: aether.ops
+description: >
+  Hourly: send a Telegram message for each new or retitled Renovate pull request, with a button
+  that opens it. Approval is merging the PR in GitHub; this flow has no GitHub write access, so a
+  compromised cloud host cannot push to main (ADR-013, ADR-017). Success-only heartbeat to Uptime Kuma.
+labels:
+  managed-by: git-sync
+
+tasks:
+  - id: notify
+    type: io.kestra.plugin.scripts.shell.Commands
+    timeout: PT5M
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      # Host networking so the heartbeat reaches the edge Uptime Kuma over the tailnet.
+      networkMode: host
+      volumes:
+        # Keys of PRs already announced, so a PR is announced once (again if Renovate retitles it).
+        - /home/ubuntu/kestra/renovate-notify:/state
+    containerImage: docker:27-cli
+    env:
+      GIT_TOKEN: "{{ secret('GIT_TOKEN') }}"          # read-only; avoids anonymous GitHub API limits
+      TG_TOKEN: "{{ secret('TELEGRAM_TOKEN') }}"
+      TG_CHAT: "{{ secret('TELEGRAM_CHAT_ID') }}"
+      PUSH_URL: "{{ secret('KUMA_RENOVATE_PUSH_URL') }}"
+    commands:
+      - |
+        set -eu
+        apk add --no-cache -q curl jq
+        STATE="${STATE_FILE:-/state/notified.txt}"
+        API="${PRS_API:-https://api.github.com/repos/ChetanThapliyal/Project-Aether/pulls?state=open&per_page=50}"
+        TAB="$(printf '\t')"
+        touch "$STATE"
+
+        curl -fsS -m 30 -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GIT_TOKEN:-none}" -o prs.json "$API"
+        jq -r '.[] | select(.user.login=="renovate[bot]") | [(.number|tostring), .title, .html_url, ([.labels[].name]|join(" "))] | @tsv' prs.json > current.tsv
+
+        # New = number + a hash of the title not seen before (Renovate retitles a PR when a newer version appears).
+        : > new.tsv
+        while IFS="$TAB" read -r num title url labels; do
+          key="$num:$(printf '%s' "$title" | md5sum | cut -c1-8)"
+          grep -qxF "$key" "$STATE" || printf '%s\t%s\t%s\t%s\t%s\n' "$key" "$num" "$title" "$url" "$labels" >> new.tsv
+        done < current.tsv
+
+        esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+        send() {
+          # $1 = HTML text, $2 = optional button URL
+          if [ -n "${DRY_RUN:-}" ]; then printf -- '--- telegram ---\n%s\n[button: %s]\n' "$1" "${2:-none}"; return 0; fi
+          if [ -n "${2:-}" ]; then
+            kb="$(jq -cn --arg u "$2" '{inline_keyboard:[[{text:"Open pull request",url:$u}]]}')"
+            curl -fsS -m 20 "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -o /dev/null \
+              --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "parse_mode=HTML" \
+              --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=$1" --data-urlencode "reply_markup=$kb"
+          else
+            curl -fsS -m 20 "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -o /dev/null \
+              --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "parse_mode=HTML" \
+              --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=$1"
+          fi
+        }
+
+        n="$(wc -l < new.tsv | tr -d ' ')"
+        if [ "$n" -eq 0 ]; then
+          echo "No new Renovate pull requests."
+        elif [ "$n" -le 3 ]; then
+          while IFS="$TAB" read -r key num title url labels; do
+            case " $labels " in
+              *" oci "*)     hint="Cloud host app: merging approves it; deploy with <code>task ansible:oci:apps -- --tags &lt;app&gt;</code>." ;;
+              *" cluster "*) hint="Cluster: ArgoCD deploys it when you merge." ;;
+              *)             hint="Merge it in GitHub to approve." ;;
+            esac
+            send "$(printf '<b>Update available</b> (#%s)\n%s\n\n%s' "$num" "$(printf '%s' "$title" | esc)" "$hint")" "$url"
+          done < new.tsv
+        else
+          list="$(head -n 25 new.tsv | while IFS="$TAB" read -r key num title url labels; do printf '• <a href="%s">%s</a>\n' "$url" "$(printf '%s' "$title" | esc)"; done)"
+          more=""
+          [ "$n" -gt 25 ] && more="$(printf '\n…and %s more' "$((n - 25))")"
+          send "$(printf '<b>%s new Renovate pull requests</b>\n%s%s' "$n" "$list" "$more")" ""
+        fi
+
+        # Only after every message was sent: remember them (bounded), so a failed send is retried next hour.
+        cut -f1 new.tsv >> "$STATE"
+        tail -n 500 "$STATE" > state.tmp && cat state.tmp > "$STATE"
+
+        # ADR-017: success-only heartbeat. A failed run, or a Kestra that stops scheduling, leaves the edge Uptime Kuma silent.
+        if [ -n "${PUSH_URL:-}" ]; then wget -q -T 10 -O /dev/null "$PUSH_URL" || echo "WARN heartbeat push failed (the notifications themselves succeeded)"; fi
+
+triggers:
+  - id: hourly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "17 * * * *"
+    timezone: UTC
+
+errors:
+  - id: notify_failure
+    type: io.kestra.plugin.telegram.TelegramSend
+    token: "{{ secret('TELEGRAM_TOKEN') }}"
+    channel: "{{ secret('TELEGRAM_CHAT_ID') }}"
+    parseMode: HTML
+    payload: |
+      <b>Renovate PR notifier failed</b>
+      Flow: <code>{{ flow.namespace }}/{{ flow.id }}</code>
+      Execution: <code>{{ execution.id }}</code>
+      Time: {{ now() }}

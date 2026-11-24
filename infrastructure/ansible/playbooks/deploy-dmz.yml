@@ -563,6 +563,7 @@
           - { name: "APP-02 app data → B2 (Proxmox)",  token: "{{ kuma_push_tokens.apps_b2 }}",   interval: 93600 }   # 4.15
           - { name: "OCI-01 Docker prune (Kestra)",  token: "{{ kuma_push_tokens.oci_prune }}", interval: 691200 }  # ADR-017: weekly flow, 8-day window
           - { name: "OCI-02 OCI backup → B2 (Kestra)", token: "{{ kuma_push_tokens.oci_b2 }}",  interval: 93600 }   # 5.61, pushed by run-backup.sh after the offsite copy
+          - { name: "OCI-03 Renovate PR notifier (Kestra)", token: "{{ kuma_push_tokens.oci_renovate }}", interval: 10800 }   # hourly flow, 3 h window; private (not on the public page)
       register: uk_push_provision
       changed_when: "'OK:' in uk_push_provision.stdout"
       delegate_to: localhost

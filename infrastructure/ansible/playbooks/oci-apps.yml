@@ -55,7 +55,6 @@
     - name: Copy bookorbit env file
       copy:
         content: |
-          APP_IMAGE={{ oci_bookorbit_app_image }}
           APP_PORT={{ oci_bookorbit_app_port }}
           BOOKS_HOST_PATH={{ oci_bookorbit_books_host_path }}
           PUID={{ oci_bookorbit_puid }}
@@ -570,6 +569,7 @@
       loop:
         - "{{ app_base_dir }}/kestra"
         - "{{ app_base_dir }}/kestra/storage"
+        - "{{ app_base_dir }}/kestra/renovate-notify"   # state of the Renovate PR notifier flow
       tags: [kestra, apps]
 
     - name: Set kestra postgres data dir permissions
@@ -599,6 +599,7 @@
           SECRET_TELEGRAM_TOKEN={{ telegram_bot_token | b64encode }}
           SECRET_TELEGRAM_CHAT_ID={{ telegram_chat_id | b64encode }}
           SECRET_KUMA_PRUNE_PUSH_URL={{ (kuma_push_base ~ '/' ~ kuma_push_tokens.oci_prune ~ '?status=up&msg=OK') | b64encode }}
+          SECRET_KUMA_RENOVATE_PUSH_URL={{ (kuma_push_base ~ '/' ~ kuma_push_tokens.oci_renovate ~ '?status=up&msg=OK') | b64encode }}
         dest: "{{ app_base_dir }}/kestra/.env"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"

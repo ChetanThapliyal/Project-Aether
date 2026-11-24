@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Image and chart updates. OCI compose files: Dependabot can't see them (it only recognises compose files by name, and these are named per app); deploys stay manual after a merge (task ansible:oci:apps or task ansible:oci:monitoring); BookOrbit's image is set in SOPS (oci_bookorbit_app_image) and isn't tracked here. Cluster: image tags in kubernetes/apps and kubernetes/platform manifests, Helm chart versions in the ArgoCD Applications under kubernetes/cluster; ArgoCD deploys on merge. Dependabot keeps the DMZ compose file and GitHub Actions. kubernetes/bootstrap is applied by hand and isn't tracked.",
+  "description": "Image and chart updates. OCI compose files: Dependabot can't see them (it only recognises compose files by name, and these are named per app); deploys stay manual after a merge (task ansible:oci:apps or task ansible:oci:monitoring); BookOrbit's image is pinned in its compose file like the others. Cluster: image tags in kubernetes/apps and kubernetes/platform manifests, Helm chart versions in the ArgoCD Applications under kubernetes/cluster; ArgoCD deploys on merge. Dependabot keeps the DMZ compose file and GitHub Actions. kubernetes/bootstrap is applied by hand and isn't tracked.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard"
@@ -37,7 +37,7 @@
   },
   "timezone": "Asia/Kolkata",
   "schedule": [
-    "before 9am on monday"
+    "before 9am"
   ],
   "prConcurrentLimit": 5,
   "labels": [
@@ -46,10 +46,11 @@
   "pinDigests": true,
   "packageRules": [
     {
-      "description": "Cloud host (OCI) compose files",
+      "description": "Cloud host (OCI) compose files. A new release waits 3 days before it gets a PR: these deploy outside ArgoCD, and fast-moving apps (BookOrbit ships weekly) sometimes follow a release with a fix",
       "matchFileNames": [
         "legacy-docker/oci-services/**"
       ],
+      "minimumReleaseAge": "3 days",
       "addLabels": [
         "oci"
       ]
