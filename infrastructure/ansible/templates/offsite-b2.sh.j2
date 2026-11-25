@@ -18,6 +18,12 @@ set -Eeuo pipefail
 source /opt/backup/restic.env
 source /opt/backup/b2-offsite.env
 
+# Kestra runs run-backup.sh in an Alpine container, not on the host: a tool that exists on the host
+# is not necessarily here. Say so plainly instead of failing with exit 127 (INC-2026-020).
+for tool in restic rclone zstd age tar curl; do
+  command -v "${tool}" >/dev/null || { echo "ERROR: ${tool} not found. This runs inside Kestra's restic-nightly container: add it to that flow's apk line or mount it"; exit 1; }
+done
+
 obj="oci/$(date -u +%F).tar.zst.age"
 in_bucket() { rclone lsf ":b2:${B2_LOCKED_BUCKET}/oci/" | grep -xF "$(basename "${obj}")" >/dev/null; }
 

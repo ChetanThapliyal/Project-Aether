@@ -24,9 +24,12 @@ tasks:
         - /var/run/docker.sock:/var/run/docker.sock
         - /opt/backup:/opt/backup:ro
         - /home/ubuntu:/home/ubuntu
+        # The offsite step (offsite-b2.sh, 5.61) needs rclone at the version the host pins (Alpine's is older and
+        # B2's v1 API refuses bucket-scoped keys), plus zstd and age from apk below (INC-2026-020).
+        - /usr/local/bin/rclone:/usr/local/bin/rclone:ro
     containerImage: docker:27-cli
     commands:
-      - apk add --no-cache --quiet bash restic curl util-linux
+      - apk add --no-cache --quiet bash restic curl util-linux zstd age
       - bash /opt/backup/run-backup.sh
 
 triggers:
