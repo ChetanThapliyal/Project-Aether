@@ -10,7 +10,7 @@ Managed by ArgoCD (App-of-Apps). See [ADR-005 (Monorepo Structure)](../docs/adr/
 
 ArgoCD reads the remote repository on GitHub. It never sees my working tree. A manifest I edit but do not `git push` does not exist as far as the cluster is concerned.
 
-With the default 3-minute poll interval, a pushed change lands in the cluster within up to 180 seconds. Push-triggered sync (GITOPS-10) is deferred until after Phase 03 networking.
+With the default 3-minute poll interval, a pushed change lands in the cluster within up to 180 seconds. In practice a signed GitHub webhook starts the refresh about a second after a push (see the [root README](../README.md#gitops-delivery)); the poll is the fallback.
 
 ---
 
@@ -23,12 +23,12 @@ kubernetes/
 ├── platform/
 │   ├── namespaces/              ← wave -3, PSA labels
 │   ├── metallb/                 ← IPAddressPool + L2Advertisement
-│   ├── gateway/                 ← GatewayClass, Gateway, EnvoyProxy (HARD-14)
+│   ├── gateway/                 ← GatewayClass, Gateway, EnvoyProxy
 │   ├── cert-manager/            ← issuers + certificates
 │   ├── tailscale/{secret,apps}/ ← KSOPS OAuth secret; ProxyClass + Ingress
 │   ├── monitoring/exporters/    ← reference values (charts are inline in cluster/)
 │   ├── network-policies/        ← default-deny + allow-lists
-│   ├── argocd-metrics/          ← metrics NodePorts (moved in HARD-18)
+│   ├── argocd-metrics/          ← metrics NodePorts
 │   └── smoke-test/              ← KSOPS end-to-end check
 └── apps/                        ← Phase 04 workloads
 ```
@@ -45,7 +45,7 @@ kubernetes/
 | `platform/` | ArgoCD (via child Apps in `cluster/`) | Yes |
 | `apps/` | ArgoCD (via child Apps in `cluster/`) | Yes |
 
-> **`bootstrap/` must still be committed to Git.** ArgoCD does not manage it, but my disaster-recovery runbook relies on `values.yaml` being replayable from a fresh clone. If it is not in Git, a rebuild installs a stock ArgoCD with no KSOPS sidecar and no memory tuning. See **GITOPS-12**.
+> **`bootstrap/` must still be committed to Git.** ArgoCD does not manage it, but my disaster-recovery runbook relies on `values.yaml` being replayable from a fresh clone. If it is not in Git, a rebuild installs a stock ArgoCD with no KSOPS sidecar and no memory tuning.
 
 ---
 
@@ -85,11 +85,11 @@ kubernetes/
 
 ### Conventions for new applications
 
-- Git-sourced Applications use `targetRevision: main`, never `HEAD`. `HEAD` silently means "whatever the default branch is" (HARD-18). Helm-sourced Applications pin the chart version instead.
+- Git-sourced Applications use `targetRevision: main`, never `HEAD`. `HEAD` silently means "whatever the default branch is". Helm-sourced Applications pin the chart version instead.
 - Do not set `plugin:` in `source`. The KSOPS CMP uses auto-discovery via `discover.find.glob: "**/ksops-*.yaml"`. Setting `plugin.name` alongside a `discover` block conflicts with ArgoCD v2.4+.
 - Secrets must be SOPS-encrypted and named `*.sops.yaml`. The pre-commit hook `check-sops-encryption.sh` rejects unencrypted files.
 - Set sync-wave annotations for anything that depends on a namespace, CRD, or operator. Namespaces are wave `-3`; CRDs and operators `-2`; shared secrets `-1`; controllers `0`; user apps `1+`.
-- **Finalizer rule (HARD-18).** Leaf Applications carry `resources-finalizer.argocd.argoproj.io`, so deleting the Application also deletes what it deployed. `platform-namespaces` must **never** carry it: deleting that Application would cascade-delete every namespace, and everything in them.
+- **Finalizer rule.** Leaf Applications carry `resources-finalizer.argocd.argoproj.io`, so deleting the Application also deletes what it deployed. `platform-namespaces` must **never** carry it: deleting that Application would cascade-delete every namespace, and everything in them.
   - Without the finalizer, deleting an Application only orphans its resources. That is what `platform-namespaces` relies on. Four older leaf apps also lack it (`cert-manager-issuers`, `gateway-instance`, `metallb-config`, `smoke-test`), so deleting them leaves their resources running.
   - `root-apps` deliberately has **no** finalizer (removed 2026-11-12). With one, deleting it would delete every child Application, and each child with the finalizer would then delete its workloads. Now deleting it only orphans the children, which keep running. A deliberate teardown deletes the leaf Applications one by one. Still, don't delete `root-apps` to "reset" ArgoCD; see the recovery runbook.
 

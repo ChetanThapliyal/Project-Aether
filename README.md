@@ -72,7 +72,7 @@ On the cluster, the Tailscale operator publishes Envoy Gateway and ArgoCD on the
 
 ### GitOps delivery
 
-GitHub is the source of truth. `root-apps` is the only Application applied by hand. It watches `kubernetes/cluster/` and creates the 16 child Applications, ordered by sync waves so namespaces, operators and secrets land before the things that need them.
+GitHub is the source of truth. `root-apps` is the only Application applied by hand. It watches `kubernetes/cluster/` and creates the child Applications, one per platform component and app, ordered by sync waves so namespaces, operators and secrets land before the things that need them.
 
 A push triggers a signed GitHub webhook. It enters through Cloudflare, which admits only GitHub's address ranges, travels down the outbound tunnel to the DMZ, crosses the mesh, and reaches ArgoCD, which verifies the signature and pulls the change. Reconciliation starts about a second after the push. The three-minute poll remains as a fallback.
 
@@ -82,7 +82,7 @@ KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` fil
 
 ### Monitoring and automation core
 
-The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened ([INC-2026-012](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
+The Oracle Cloud host runs Prometheus, Loki, Alertmanager and Grafana. Keeping them off the cluster means monitoring survives a home lab outage, which has happened (the [hypervisor hang review](docs/incidents/INC-2026-012-hypervisor-hung-after-kernel-panic.md)). Prometheus scrapes the cluster nodes, ArgoCD and the hypervisor over the mesh. Grafana Alloy on every node ships logs to Loki. Alertmanager sends alerts to Telegram.
 
 Kestra is the operations scheduler ([ADR-017](docs/adr/017-automation-and-scheduling.md)), with flows synced from [`automation/kestra/flows/`](automation/kestra/flows/): the nightly backup, a weekly Docker prune, an hourly Telegram notice for each new Renovate pull request, a Telegram-approved deploy of merged image updates ([runbook](docs/runbooks/oci-app-updates.md)), and the flow sync itself. The same host runs the applications that have not moved to the cluster yet. Each one is published on the mesh by tsdproxy as its own node with a role tag: app, admin or probe.
 
@@ -133,21 +133,21 @@ Recovery targets are shown next to what has been proven. The live version, with 
 | Component | Target RTO | Target RPO | Proven |
 |---|---|---|---|
 | Kubernetes cluster | 30 min | 24 h | Restore from the offsite copy: API ready 54 s after reset. In-place reset: about 18 min |
-| Applications on Oracle Cloud | 45 min | 24 h | One app restored and its database compared with live: 29 s for 1 GB and 176 tables. Full instance rebuild not yet timed |
+| Applications on Oracle Cloud | 45 min | 24 h | One app restored and its database compared with live: 29 s for 1 GB and 176 tables. The encrypted copy outside the tenancy was downloaded and decrypted. Full instance rebuild not yet timed |
 | Applications on the cluster | 30 min | 24 h | Every app database loaded from its nightly dump and matched against the dump-time counts: 29 s for 4 databases. Offsite copy downloaded and decrypted. Paperless export imported into a throwaway instance, checksums matched |
-| DMZ observer | 30 min | 24 h | Full rebuild timed: 48 min from deleting the VM to every monitor green; the three breaks it found are fixed ([INC-2026-016](docs/incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
+| DMZ observer | 30 min | 24 h | Full rebuild timed: 48 min from deleting the VM to every monitor green; the three breaks it found are fixed (the [rebuild drill review](docs/incidents/INC-2026-016-edge-rebuild-drill-found-three-breaks.md)) |
 | Secrets access | 15 min | none lost | Each key decrypts alone |
 | Infrastructure state | 10 min | none lost | Versioned bucket |
 
-**Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first. The cluster's app databases are dumped nightly onto the ZFS pool; the hypervisor then snapshots app files and dumps together and ships them, age-encrypted, to the same locked bucket ([ADR-022](docs/adr/022-app-data-storage-and-backups.md)). The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
+**Backups.** The cluster's etcd is snapshotted nightly, pulled to a ZFS pool on a second disk, committed to an encrypted restic repository, and copied to Backblaze B2 as an object that is locked for 30 days ([ADR-018](docs/adr/018-offsite-backup-and-3-2-1-disaster-recovery-strategy.md)). The Oracle Cloud applications are backed up nightly with restic, with database dumps taken first, and each night's newest snapshot is also encrypted and copied to a separate locked bucket outside the Oracle tenancy. The cluster's app databases are dumped nightly onto the ZFS pool; the hypervisor then snapshots app files and dumps together and ships them, age-encrypted, to the same locked bucket ([ADR-022](docs/adr/022-app-data-storage-and-backups.md)). The DMZ's monitor data goes to a bucket its VM can only add to. The home lab jobs refuse to run if their target is not the expected ZFS dataset, and every job reports a heartbeat only if all of its steps succeeded.
 
 <img src="docs/diagrams/flow-backups.svg" alt="Backups and recovery: the cluster's etcd snapshot, the app databases and files, and the cloud host's data each take a nightly path to a second disk and an Object-Locked offsite bucket, and every stage reports a heartbeat only when it succeeds." width="100%">
 
-**Drills.** Five failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, and a DMZ rebuild. `task dr:drill:oci` and `task dr:drill:k8s` restore application databases into throwaway databases and compare them with the live ones, without touching production.
+**Drills.** Six failure scenarios are written in [`docs/disaster-recovery/`](docs/disaster-recovery/): a mesh outage, loss of the cloud host, home lab hardware failure, loss of the age key, a DMZ rebuild, and losing a whole cloud account or the workstation. `task dr:drill:oci` and `task dr:drill:k8s` restore application databases into throwaway databases and compare them with the live ones, without touching production.
 
-**Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 19 so far. When an alert caught the problem, the median time to detect was 2 minutes. Problems found by audit instead had been latent for a median of 3 days, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
+**Incidents.** Every real failure gets a blameless review in [`docs/incidents/`](docs/incidents/): 20 so far. When an alert caught the problem (6 times), the median time to detect was 12 minutes. The rest were found by audits, checks and drills, typically a day or more after they started, which is the reason for the heartbeats, policy tests and sign-off checks above. Each review ends with the guardrail that would have caught it.
 
-**Known limits.** One hypervisor and one control-plane node mean a hardware failure is an outage, not a failover. The Oracle Cloud backups live in the same tenancy as the host they protect. The full rebuild drills for the cloud host and the DMZ have not been timed.
+**Known limits.** One hypervisor and one control-plane node mean a hardware failure is an outage, not a failover. The cloud host's restic repository lives in the same tenancy as the host, so the encrypted offsite copy is what covers losing the tenancy. The full rebuild of the cloud host has not been timed. CI checks every push but does not block one: the project has a single committer who pushes directly, so `main` is protected from force-push and deletion instead of by a required check ([ADR-015](docs/adr/015-ci-validation-pipeline.md)).
 
 ## Infrastructure as code
 
@@ -185,15 +185,15 @@ These are operator commands, not a one-command demo. They assume mesh access, cl
 
 ## Status and roadmap
 
-The foundation, GitOps and platform phases are complete, and each was re-audited against the live systems and hardened afterwards. Two phases are still open.
+The foundation, GitOps and platform phases are complete, and each was re-audited against the live systems and hardened afterwards. The applications and operations phases are nearly done: what remains is a memory upgrade for the laptop, a batch job for rendering video, shutting down the old app copies on the cloud host, and a final audit of every claim on this page.
 
 | Phase | Scope | State |
 |---|---|---|
 | 01 | Foundation: Proxmox, K3s, the mesh, secrets, both clouds | Complete, hardened and signed off |
 | 02 | GitOps: ArgoCD, app-of-apps, KSOPS, CI validation, webhook delivery | Complete, hardened and signed off |
 | 03 | Platform: ingress, certificates, private access, monitoring, logging, backups, NetworkPolicies | Complete, hardened and signed off |
-| 04 | Applications: move seven apps from Oracle Cloud onto the cluster | In progress. Automation is live. App-data backups come first, then the apps move one at a time, each running in parallel until proven |
-| 05 | CI and documentation polish | In progress. Validation, drift detection and branch protection (no force-push or deletion on `main`) are live; the remaining diagrams are open |
+| 04 | Applications: move apps from Oracle Cloud onto the cluster | Done apart from cleanup. Six apps run on the cluster (four moved, two new) with a shared database, files on NFS and nightly backups proven by restore. The old copies on the cloud host stay stopped for a week before they are removed |
+| 05 | CI, operations and recovery proof | Mostly done. Validation, drift detection and branch protection (no force-push or deletion on `main`), upgrade and maintenance runbooks, key rotation, timed rebuild drills and an offsite copy of the cloud host are live. Open: the memory upgrade, the render job and the final audit |
 
 ## Documentation
 
@@ -227,8 +227,8 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 **Also in the repository** (every document is listed in [`docs/README.md`](docs/README.md)):
 
 - [Incident reviews](docs/incidents/): 20 blameless reviews with timelines, root causes and guardrails.
-- [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
-- [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), K3s upgrades, SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
+- [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and six scenarios with drills.
+- [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), K3s upgrades, SOPS key rotation, ArgoCD recovery, mesh key rotation, updating cloud host apps, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
 - [Diagrams](docs/diagrams/): the architecture and eight flows, each generated from Python (`task diagrams`).
 
@@ -240,14 +240,14 @@ Project Aether/
 ├── .github/
 │   ├── workflows/               # validate.yml, terraform-drift.yml
 │   └── dependabot.yml
-├── automation/kestra/flows/     # backup, Docker prune, flow sync
+├── automation/kestra/flows/     # backup, Docker prune, Renovate notice, Telegram-approved deploy, flow sync
 ├── docs/
 │   ├── README.md                # index of every document
 │   ├── adr/                     # 22 architecture decisions
 │   ├── diagrams/                # architecture and flow diagrams, and their generators
-│   ├── disaster-recovery/       # objectives and five scenarios
+│   ├── disaster-recovery/       # objectives and six scenarios
 │   ├── incidents/               # 20 incident reviews
-│   └── runbooks/                # nine operational runbooks
+│   └── runbooks/                # ten operational runbooks
 ├── infrastructure/
 │   ├── ansible/                 # inventory, playbooks, templates
 │   ├── docker/gcp-dmz/          # the DMZ stack and the status page
@@ -257,7 +257,7 @@ Project Aether/
 │   ├── bootstrap/argocd/        # Helm values and the KSOPS plugin
 │   ├── cluster/                 # root app-of-apps and child Applications
 │   ├── platform/                # ingress, certificates, mesh operator, policies, monitoring
-│   └── apps/                    # application manifests (Phase 04)
+│   └── apps/                    # application manifests
 ├── legacy-docker/               # the cloud host's compose files, and a retired archive
 ├── scripts/                     # CI checks, restore drills and the pre-drain check
 ├── Taskfile.yaml
