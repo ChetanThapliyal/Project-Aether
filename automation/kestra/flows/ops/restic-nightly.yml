@@ -50,3 +50,5 @@ errors:
       Flow: <code>{{ flow.namespace }}/{{ flow.id }}</code>
       Execution: <code>{{ execution.id }}</code>
       Time: {{ now() }}
+      {% for entry in errorLogs() %}{% if loop.index < 3 %}
+      <code>{{ entry['message'] | abbreviate(200) | replace({'&': '&amp;'}) | replace({'<': '&lt;'}) | replace({'>': '&gt;'}) }}</code>{% endif %}{% endfor %}
