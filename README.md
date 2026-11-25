@@ -34,7 +34,7 @@ No customers depend on it. The data, the backups and the attack surface are real
 | Observability | Metrics, logs and alerting hosted off the cluster, plus an outside observer and a dead-man's switch for the alert path itself |
 | Disaster recovery | 3-2-1 backups with an Object-Locked offsite copy. Restores are drilled and timed, and each backup stage reports a heartbeat |
 | Security | Secrets encrypted for two independent keys, keyless CI, pinned images, default-deny NetworkPolicies, a strict content policy on the public page |
-| Operations | 19 blameless incident reviews, six recovery scenarios, runbooks, and a sign-off checklist for each phase |
+| Operations | 20 blameless incident reviews, six recovery scenarios, runbooks, and a sign-off checklist for each phase |
 
 ## Architecture
 
@@ -226,7 +226,7 @@ The foundation, GitOps and platform phases are complete, and each was re-audited
 
 **Also in the repository** (every document is listed in [`docs/README.md`](docs/README.md)):
 
-- [Incident reviews](docs/incidents/): 19 blameless reviews with timelines, root causes and guardrails.
+- [Incident reviews](docs/incidents/): 20 blameless reviews with timelines, root causes and guardrails.
 - [Disaster recovery](docs/disaster-recovery/): objectives, break-glass access and five scenarios with drills.
 - [Runbooks](docs/runbooks/): node maintenance (drain, reboot, resize), K3s upgrades, SOPS key rotation, ArgoCD recovery, mesh key rotation, the Proxmox template and TLS, the drift detector, and the status page's security headers.
 - [Kubernetes layout](kubernetes/README.md): what ArgoCD owns, sync waves, secret rules, and how to add an app.
@@ -246,7 +246,7 @@ Project Aether/
 │   ├── adr/                     # 22 architecture decisions
 │   ├── diagrams/                # architecture and flow diagrams, and their generators
 │   ├── disaster-recovery/       # objectives and five scenarios
-│   ├── incidents/               # 19 incident reviews
+│   ├── incidents/               # 20 incident reviews
 │   └── runbooks/                # nine operational runbooks
 ├── infrastructure/
 │   ├── ansible/                 # inventory, playbooks, templates
