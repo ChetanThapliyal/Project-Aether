@@ -82,6 +82,40 @@
       "groupName": "OCI patch and digest updates"
     },
     {
+      "description": "Cloud host apps: patch, minor and digest updates merge themselves (squash) once CI is green and the 3-day wait is over. Merging deploys nothing on the cloud host: allowlisted apps ask on Telegram (Deploy / Skip), the rest wait for Ansible. Cluster updates stay manual, because merging there is an ArgoCD deploy.",
+      "matchFileNames": [
+        "legacy-docker/oci-services/**"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": false
+    },
+    {
+      "description": "Cloud host database images never merge themselves, even for a patch: they get their own PR so app updates are not held back by them",
+      "matchFileNames": [
+        "legacy-docker/oci-services/**"
+      ],
+      "matchPackageNames": [
+        "postgres",
+        "pgvector/pgvector",
+        "redis",
+        "couchdb",
+        "mongo",
+        "mariadb",
+        "mysql"
+      ],
+      "automerge": false,
+      "groupName": "OCI database images (manual merge)"
+    },
+    {
       "description": "Cluster patch and digest-only updates: one grouped weekly PR (ArgoCD deploys it on merge)",
       "matchFileNames": [
         "kubernetes/**"

@@ -65,7 +65,7 @@ tasks:
         elif [ "$n" -le 3 ]; then
           while IFS="$TAB" read -r key num title url labels; do
             case " $labels " in
-              *" oci "*)     hint="Cloud host app: merging approves it; deploy with <code>task ansible:oci:apps -- --tags &lt;app&gt;</code>." ;;
+              *" oci "*)     hint="Cloud host app: Renovate merges it itself once CI passes (database images wait for you). BookOrbit then asks here to deploy; other apps: <code>task ansible:oci:apps -- --tags &lt;app&gt;</code>." ;;
               *" cluster "*) hint="Cluster: ArgoCD deploys it when you merge." ;;
               *)             hint="Merge it in GitHub to approve." ;;
             esac
