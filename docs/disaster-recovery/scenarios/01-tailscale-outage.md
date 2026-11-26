@@ -44,7 +44,7 @@ My `~/.ssh/config` already maps `homelab` and `k3s-*` to these LAN addresses, so
 
 ### Step 3.2: OCI (`bookorbit`) over its public IPv4
 
-Public port 22 is closed (FND-04). I open it to my own address with Terraform, which also puts it back afterwards (FND-18):
+Public port 22 is closed. I open it to my own address with Terraform, which also puts it back afterwards:
 
 ```bash
 export TF_VAR_bootstrap_ssh_cidr="$(curl -s4 https://api.ipify.org)/32"
@@ -71,7 +71,7 @@ ssh -i ~/.ssh/oci_bookorbit -L 5678:localhost:5678 ubuntu@"$IP"   # n8n → http
 gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab
 ```
 
-This works since FND-12 (14 Nov, tested: the connection arrives from Google's IAP range). Use `owl@` and `--ssh-key-file`: the instance blocks project SSH keys, so a bare `gcloud compute ssh` writes a new key into the instance metadata, which Terraform removes and the drift check flags. The DMZ holds no data I need during a tailnet outage, so this is for repair, not urgency.
+This works since 14 Nov (tested: the connection arrives from Google's IAP range). Use `owl@` and `--ssh-key-file`: the instance blocks project SSH keys, so a bare `gcloud compute ssh` writes a new key into the instance metadata, which Terraform removes and the drift check flags. The DMZ holds no data I need during a tailnet outage, so this is for repair, not urgency.
 
 ---
 

@@ -1,7 +1,7 @@
 # K3s upgrade
 
 > **Scope:** Moving the cluster to a newer K3s release: the control plane first, then the workers one at a time, with an etcd snapshot and a rollback for each step.
-> **Status:** Operational runbook (Phase 05 task 5.59), written 19 Nov 2026. First real run 20 Nov 2026: `v1.36.4+k3s1` → `v1.36.6+k3s1`, one node at a time, about 9 minutes of playbook in all (control plane 2.5, worker-02 1.6, worker-01 4.5) plus the clean-up in section 4 ([INC-2026-019](../incidents/INC-2026-019-upgrade-drain-preempted-node-agents.md)).
+> **Status:** Operational runbook, written 19 Nov 2026. First real run 20 Nov 2026: `v1.36.4+k3s1` → `v1.36.6+k3s1`, one node at a time, about 9 minutes of playbook in all (control plane 2.5, worker-02 1.6, worker-01 4.5) plus the clean-up in section 4 ([INC-2026-019](../incidents/INC-2026-019-upgrade-drain-preempted-node-agents.md)).
 > **Related:** [Node maintenance](node-maintenance.md) (draining, and what each node's absence breaks) · [DR Scenario 03](../disaster-recovery/scenarios/03-homelab-hardware.md) (etcd restore) · [ADR-003](../adr/003-kubernetes-distribution.md)
 
 ## 1. How an upgrade happens here
@@ -87,4 +87,4 @@ In every case, revert the pin commit too, so Git matches the cluster.
 - **amd64 only.** The playbook downloads the amd64 binary; every node is amd64.
 - **No automatic upgrades.** Renovate proposes, a person runs the playbook. system-upgrade-controller would do it in-cluster, but it is one more controller for three nodes.
 - **One node at a time is the way to run it** while the workers can't hold each other's pods: the full run gives no chance to put moved pods back between nodes.
-- **Draining makes each VM touch its full memory**, and KVM doesn't hand it back, so the hypervisor sits at its 12 GB ceiling afterwards (`ProxmoxMemoryCritical`, 20 Nov) until the RAM upgrade (5.57).
+- **Draining makes each VM touch its full memory**, and KVM doesn't hand it back, so the hypervisor sits at its 12 GB ceiling afterwards (`ProxmoxMemoryCritical`, 20 Nov) until the RAM upgrade.

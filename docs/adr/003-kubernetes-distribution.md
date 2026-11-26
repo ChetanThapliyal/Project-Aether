@@ -24,7 +24,7 @@ ADR-003: Kubernetes Distribution Selection (K3s vs Talos)
   - *Risks:* Modifying the underlying Ubuntu OS manually could destabilize the K3s agent. etcd snapshot restoration requires cluster downtime.
   - *Trade-offs:* Trading the strict immutability of an OS like Talos for familiar Linux troubleshooting tools.
 - **Security Considerations:** K3s must be bound to internal network interfaces.
-- **Reliability Considerations:** A single control plane node using embedded etcd has no distributed high availability. If the VM fails, the cluster API is unavailable until restored. Point-in-time recovery is operationalised via `k3s etcd-snapshot save` (OPS-09); snapshots are uploaded to S3-compatible cloud storage for off-node durability.
+- **Reliability Considerations:** A single control plane node using embedded etcd has no distributed high availability. If the VM fails, the cluster API is unavailable until restored. Point-in-time recovery is operationalised via `k3s etcd-snapshot save`; snapshots are uploaded to S3-compatible cloud storage for off-node durability.
 - **Scalability Considerations:** Can scale by adding worker nodes to the cluster through agent join tokens.
 - **Performance Considerations:** Faster cluster bootstrap time compared to full Kubernetes (k8s).
 - **Operational Considerations:** Upgrades are managed via the K3s upgrade controller or binary replacement. etcd snapshots are triggered via `k3s etcd-snapshot save` and stored in S3-compatible cloud storage; restoration follows standard K3s etcd recovery procedures.
@@ -33,11 +33,11 @@ ADR-003: Kubernetes Distribution Selection (K3s vs Talos)
 - **Validation / Fitness Functions:**
   - Control plane VM memory consumption should remain under 1.5GB while idle.
 - **Dependencies:** Ubuntu Cloud Images, Ansible.
-- **Open Questions:** None. *(OPS-09 resolved the SQLite → etcd migration; S3 snapshot destination configured in `infrastructure/ansible/playbooks/control.yml`.)*
+- **Open Questions:** None. *(The SQLite → etcd migration is done; S3 snapshot destination configured in `infrastructure/ansible/playbooks/control.yml`.)*
 - **Related ADRs:** ADR-006 (Proxmox VM Provisioning).
 - **Review Conditions:** Review if migrating to a high-availability multi-master control plane. Embedded etcd already satisfies the datastore requirement; the primary trigger would be adding additional control-plane nodes.
 
-### Addendum: Memory Reserved for the System, and a Memory Eviction Threshold (2026-11-19, Phase 04 task 4.32)
+### Addendum: Memory Reserved for the System, and a Memory Eviction Threshold (2026-11-19)
 - **Context:** a read-only check of the live kubelet config showed that allocatable memory equalled capacity on every node. `systemReserved` and `kubeReserved` were empty, and K3s's default eviction thresholds cover disk only. So the scheduler could promise a node's whole memory to pods, the kubelet never evicted anything for memory, and the kernel's OOM killer was the only backstop. The `platform` priority class claimed "evicted last", which only holds when the kubelet evicts. Nothing had failed: pod requests used about a third of each worker. But memory limits added up to 96–104 % of a worker. On the control node, K3s runs the API server, etcd and the controllers in one process outside any pod (about 1.5 GiB with containerd), and none of it was reserved.
 - **Decision:** a K3s config drop-in, `/etc/rancher/k3s/config.yaml.d/40-kubelet-reservations.yaml`, managed by `control.yml` and `workers.yml` (tag `kubelet`). Workers are changed one at a time; Ansible waits for each kubelet to report the new allocatable before moving on.
 

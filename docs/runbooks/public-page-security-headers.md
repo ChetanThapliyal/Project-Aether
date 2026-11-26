@@ -1,7 +1,7 @@
 # Public page security headers
 
 > **Scope:** the response headers on `status.chetan-thapliyal.cloud` (Glance on the GCP DMZ, served through the Cloudflare tunnel).
-> **Status:** Operational runbook (FND-22)
+> **Status:** Operational runbook
 > **Source of truth:** [`cloudflare-response-headers.yml`](../../infrastructure/docker/gcp-dmz/cloudflare-response-headers.yml)
 > **Check:** [`check_public_headers.py`](../../infrastructure/ansible/templates/check_public_headers.py), run by `task ansible:dmz`
 

@@ -16,11 +16,11 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
   - *Repository Decoupling vs. Dumb Sync:* A raw bucket-to-bucket mirror (e.g., `rclone sync`) blindly propagates corrupted or purged repositories directly to the cloud. The offsite copy must use cryptographic repository-to-repository replication (`restic copy`).
 - **Decision:**
   1. *Adopt the 4-Stage 3-2-1 Disaster Recovery Pipeline:*
-     - **Stage 1 (DR-01, 02:00 UTC): In-Node Compressed Datastore Snapshots.** `k3s-control-01` runs automated daily cron (`0 2 * * *`) generating frozen, zstd-compressed etcd database snapshots into `/var/lib/rancher/k3s/server/db/snapshots/` with 14-day local retention.
-     - **Stage 2 (DR-02, 02:30 IST): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD pool.
-     - **Stage 3 (DR-03, 03:00 IST): Dedicated Encrypted Local Restic Repository.** Proxmox commits snapshot files into an independent encrypted Restic repository at `/mnt/aether-pool/restic-k3s-etcd/` (password `/etc/restic/etcd-password.txt`), applies a GFS retention policy (14 daily, 4 weekly, 6 monthly snapshots), prunes orphaned blobs, and executes integrity checks.
-     - **Stage 4 (DR-04, 03:30 IST): Offsite Cloud Replication via `restic copy`.** Proxmox replicates snapshots to Backblaze B2 (`aether-restic-etcd-offsite`) using native `restic copy` over WAN, verified by remote repository integrity checks.
-  2. *Select Backblaze B2 (Decision P3-D3) via S3-Compatible API:*
+     - **Stage 1 (02:00 UTC): In-Node Compressed Datastore Snapshots.** `k3s-control-01` runs automated daily cron (`0 2 * * *`) generating frozen, zstd-compressed etcd database snapshots into `/var/lib/rancher/k3s/server/db/snapshots/` with 14-day local retention.
+     - **Stage 2 (02:30 IST): Off-Node Physical Hypervisor Pull.** Proxmox VE host (`192.168.1.200`) executes an automated daily pull via `rsync` over internal LAN, copying frozen snapshot archives to `/mnt/aether-pool/k3s-etcd-snapshots/` on the ZFS HDD pool.
+     - **Stage 3 (03:00 IST): Dedicated Encrypted Local Restic Repository.** Proxmox commits snapshot files into an independent encrypted Restic repository at `/mnt/aether-pool/restic-k3s-etcd/` (password `/etc/restic/etcd-password.txt`), applies a GFS retention policy (14 daily, 4 weekly, 6 monthly snapshots), prunes orphaned blobs, and executes integrity checks.
+     - **Stage 4 (03:30 IST): Offsite Cloud Replication via `restic copy`.** Proxmox replicates snapshots to Backblaze B2 (`aether-restic-etcd-offsite`) using native `restic copy` over WAN, verified by remote repository integrity checks.
+  2. *Select Backblaze B2 via S3-Compatible API:*
      - Choose Backblaze B2 for the offsite storage tier (10 GB Always-Free storage, free egress via Cloudflare Bandwidth Alliance partnership).
      - Standardize on Backblaze B2's S3-Compatible API endpoint (`s3:https://s3.us-east-005.backblazeb2.com/<bucket>`). The legacy native B2 Go client in Restic relies on the deprecated `/b2api/v1/b2_authorize_account` API which rejects modern bucket-restricted Application Keys with HTTP 400. B2's S3 API avoids this limitation completely, allowing modern bucket-scoped keys to function seamlessly.
   3. *Enforce Scoped Least-Privilege Application Credentials:*
@@ -46,7 +46,7 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
     - Zero-Trust boundary preserved with outbound-only WAN replication.
   - *Negative:*
     - Requires maintaining two separate Restic password files (`/etc/restic/etcd-password.txt` and `/etc/restic/b2-etcd-password.txt`).
-    - Staggered timers (02:00, 02:30, 03:00, 03:30, all `Asia/Kolkata`) require sequential scheduling discipline. Until 5 Nov 2026 the Proxmox timers ran on UTC while K3s snapshotted at 02:00 IST, which put six hours between stages 1 and 2 (HARD-04). The three Proxmox stages also share one `flock`, so a boot catch-up or a manual run can't overlap another stage.
+    - Staggered timers (02:00, 02:30, 03:00, 03:30, all `Asia/Kolkata`) require sequential scheduling discipline. Until 5 Nov 2026 the Proxmox timers ran on UTC while K3s snapshotted at 02:00 IST, which put six hours between stages 1 and 2. The three Proxmox stages also share one `flock`, so a boot catch-up or a manual run can't overlap another stage.
   - *Risks:*
     - If snapshot size grows beyond the 10 GB free tier in future years, billing or pruning adjustments will be required (mitigated by B2 lifecycle rules and 14-day local retention).
 - **Security Considerations:**
@@ -58,7 +58,7 @@ ADR-018: Offsite Backup and 3-2-1 Disaster Recovery Architecture
   - Proxmox systemd timers (`k3s-etcd-sync.timer`, `k3s-etcd-restic.timer`, `k3s-etcd-b2.timer`) use `Persistent=true` to automatically catch up if the host is powered off during the nightly 02:00–03:30 window.
 - **Validation / Fitness Functions:**
   - Verified 2026-11-02: Initial replication copied 4 snapshot trees (63.072 MiB) to `aether-restic-etcd-offsite`; `restic check` verified remote index and blob integrity with 0 errors.
-  - Quarterly cold-restore simulation drill scheduled under Task 3.20 (DR-05 / Scenario 03).
+  - Quarterly cold-restore simulation drill (Scenario 03).
 - **Dependencies:** K3s embedded etcd, Proxmox VE ZFS subsystem, Restic (v0.16+), Backblaze B2 S3 API, SOPS.
 - **Related ADRs:** ADR-002 (Storage Topology), ADR-003 (Kubernetes Distribution), ADR-007 (Secrets Management), ADR-011 (Terraform Remote Backend), ADR-013 (Tailnet Microsegmentation), ADR-014 (Environment Isolation Strategy), ADR-016 (Kubernetes Storage Strategy).
 - **Review Conditions:** Review if backup size approaches 8 GB (80% of B2 free tier) or when Bare-Metal multi-node HA is introduced.
@@ -73,7 +73,7 @@ Until 5 Nov, `/mnt/aether-pool/` was a plain directory on the Proxmox root files
 - The 3-2-1 media are now: SSD (live etcd on the control VM), HDD (snapshot mirror and local restic repo), and Backblaze B2.
 - New fitness function: `findmnt -n -o SOURCE --target /mnt/aether-pool/restic-k3s-etcd` → `aether-pool/restic-k3s-etcd`.
 
-## Addendum (2026-11-10): the offsite copy is immutable for 30 days (HARD-12)
+## Addendum (2026-11-10): the offsite copy is immutable for 30 days
 
 Until now the homelab key could delete anything in the offsite bucket, and hidden versions were purged after a day. Root on the hypervisor could erase the only copy that survives losing the homelab, so the ransomware driver above was not met.
 
@@ -92,17 +92,17 @@ Until now the homelab key could delete anything in the offsite bucket, and hidde
 
 **Remaining risks.**
 
-- An attacker on the hypervisor can stop new backups. The DR heartbeat (HARD-06) pages after one missed night.
+- An attacker on the hypervisor can stop new backups. The DR heartbeat pages after one missed night.
 - An attacker can hide objects and wait out the window. Hidden versions stay recoverable for the rest of their 30 days, and the same heartbeat fires long before that.
 - Lifecycle keeps deleting objects as their locks expire, even if backups have stopped, so 30 days without a working upload leaves nothing offsite. The heartbeat is what stands between a stopped job and an empty bucket.
 
 ---
 
-## Addendum (2026-11-13): encryption at rest, token escrow and what each copy holds (HARD-10, HARD-13, HARD-21)
+## Addendum (2026-11-13): encryption at rest, token escrow and what each copy holds
 
-- **Kubernetes Secrets are encrypted in every snapshot** since 2026-11-10 (HARD-13, `aescbc`). Before that, every snapshot, including the plaintext copy on the hypervisor, held every Secret in clear text, among them the Age key that decrypts the repository. After the key rotation and an etcd compaction, a search of a fresh snapshot for the Age key found nothing.
-- **No second key to escrow.** K3s keeps the encryption config inside its token-encrypted bootstrap data, so the escrowed server token (`k3s_server_token` in SOPS, HARD-10) is enough. A cold restore into an isolated container with only the token and a snapshot recovered the encrypted Secrets, with the Age key readable (HARD-11 re-run).
-- **Schedule.** One clock, IST, end to end (02:00 snapshot, 02:30 pull, 03:00 restic, 03:30 offsite), serialised by a shared `flock` (HARD-04). The staggering described above is not a UTC/IST mix any more.
+- **Kubernetes Secrets are encrypted in every snapshot** since 2026-11-10 (`aescbc`). Before that, every snapshot, including the plaintext copy on the hypervisor, held every Secret in clear text, among them the Age key that decrypts the repository. After the key rotation and an etcd compaction, a search of a fresh snapshot for the Age key found nothing.
+- **No second key to escrow.** K3s keeps the encryption config inside its token-encrypted bootstrap data, so the escrowed server token (`k3s_server_token` in SOPS) is enough. A cold restore into an isolated container with only the token and a snapshot recovered the encrypted Secrets, with the Age key readable.
+- **Schedule.** One clock, IST, end to end (02:00 snapshot, 02:30 pull, 03:00 restic, 03:30 offsite), serialised by a shared `flock`. The staggering described above is not a UTC/IST mix any more.
 - **Retention, by copy.**
 
   | Copy | Retention |

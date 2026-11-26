@@ -3,7 +3,7 @@
 > **Scope:** How the nightly Terraform drift check works, how its GCP identity is set up, and how to run, test, extend and troubleshoot it.
 > **Workflow:** `.github/workflows/terraform-drift.yml`
 > **Identity source:** `GCS-CP` repository (`gcp/iam_ci.tf`), applied by the operator
-> **History:** OPS-05 (first version, JSON key, one root) → FND-05, 2026-11-13 (keyless, three roots, public-safe output)
+> **History:** first version (JSON key, one root) → 2026-11-13 (keyless, three roots, public-safe output)
 
 ## 1. What it does
 
@@ -43,8 +43,8 @@ Defined in GCS-CP `gcp/iam_ci.tf`:
 | `google_storage_bucket_iam_member.state_backend` | `roles/storage.objectViewer`: read state only. Plans run with `-lock=false`, so nothing writes |
 | `google_kms_crypto_key_iam_member.sops_decrypter` | `roles/cloudkms.cryptoKeyDecrypter` on `sops-key` |
 | `google_project_iam_member.compute_viewer` | `roles/compute.viewer` for the DMZ's resources |
-| `google_project_iam_custom_role.drift_metadata_reader` + member | `storage.buckets.get`, `storage.buckets.getIamPolicy`, `iam.serviceAccounts.get`: the DMZ's Kuma backup bucket, its IAM binding and the VM's service account (FND-17). Metadata only, no object access |
-| `google_project_service.iamcredentials`, `.sts`, `.iam` | APIs that federation needs; `iam` lets the plan read service accounts (FND-17) |
+| `google_project_iam_custom_role.drift_metadata_reader` + member | `storage.buckets.get`, `storage.buckets.getIamPolicy`, `iam.serviceAccounts.get`: the DMZ's Kuma backup bucket, its IAM binding and the VM's service account. Metadata only, no object access |
+| `google_project_service.iamcredentials`, `.sts`, `.iam` | APIs that federation needs; `iam` lets the plan read service accounts |
 
 Values the workflow uses (from `terraform output` in GCS-CP):
 

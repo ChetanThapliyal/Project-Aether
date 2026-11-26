@@ -3,7 +3,7 @@
 ADR-017: Automation and Scheduling: Kestra on the Cloud Host, Jobs Where They Live
 ================================================================================
 ```
-- **Status:** Accepted (in place since FND-02, November 2026; recorded 18 Nov 2026, Phase 04 task 4.14)
+- **Status:** Accepted (in place since the November 2026 hardening pass; recorded 18 Nov 2026)
 - **Date:** November 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** Scheduled work runs in three places: the cloud host (Oracle), the K3s cluster and the hypervisor. The cloud host started with root crontabs. Then Kestra arrived as a workflow engine and n8n as an integration tool, and for a while the same job ran from both cron and Kestra. The nightly backup had two schedulers (INC-2026-001), and the weekly Docker prune raced itself in the same minute (Kestra's run on 8 Nov failed). Without one rule, every new job raised the same question again: which scheduler, and from which machine?
@@ -15,7 +15,7 @@ ADR-017: Automation and Scheduling: Kestra on the Cloud Host, Jobs Where They Li
   - *Everything as code:* jobs live in Git, not only in a tool's UI.
   - *Memory:* the cluster has no room for another orchestrator.
 - **Decision:**
-  1. *Cloud host jobs: Kestra.* Kestra (OSS, with its own PostgreSQL) is the only scheduler on the cloud host. Flows live in `automation/kestra/flows/` and a `SyncFlows` flow pulls them from `main` every six hours. Today these are the nightly restic backup (03:00 UTC, with database dumps and a success-only heartbeat) and the weekly Docker prune (Sunday 04:00 UTC). Tasks run in short-lived containers through the host's Docker socket. The root crontab holds no jobs: the backup cron went in FND-02 and the prune cron in 4.13.
+  1. *Cloud host jobs: Kestra.* Kestra (OSS, with its own PostgreSQL) is the only scheduler on the cloud host. Flows live in `automation/kestra/flows/` and a `SyncFlows` flow pulls them from `main` every six hours. Today these are the nightly restic backup (03:00 UTC, with database dumps and a success-only heartbeat) and the weekly Docker prune (Sunday 04:00 UTC). Tasks run in short-lived containers through the host's Docker socket. The root crontab holds no jobs: the backup cron was removed in the hardening pass and the prune cron on 18 Nov.
   2. *Cluster jobs: Kubernetes CronJobs,* in Git next to the app they serve, for example the nightly app database dump (ADR-022).
   3. *Hypervisor jobs: systemd timers,* managed by Ansible: the etcd snapshot sync, local restic, the offsite copies and ZFS metrics (ADR-018, ADR-022). Timers use `Persistent=true` so a missed run catches up after a reboot, and each job checks its own preconditions (clock, mounts, freshness) before writing anything (INC-2026-014).
   4. *n8n is for integrations, not infrastructure.* It stays for webhook-driven glue between apps. It schedules no backups, maintenance or deployments.
@@ -36,6 +36,6 @@ ADR-017: Automation and Scheduling: Kestra on the Cloud Host, Jobs Where They Li
   - The Kestra backup flow's heartbeat is green on the edge Uptime Kuma, and its last run saved a snapshot.
   - The cloud host's tailnet grant to the home lab lists metrics ports only, and its policy tests deny the next port up.
   - Hypervisor timers recovered on their own after the power cut, apart from the missed-snapshot gap fixed in INC-2026-014.
-- **Follow-up done (18 Nov 2026):** the prune flow now pushes a success heartbeat (edge Uptime Kuma monitor OCI-01, 8-day window) and sends a Telegram message on failure, like the backup flow.
+- **Follow-up done (18 Nov 2026):** the prune flow now pushes a success heartbeat (an edge Uptime Kuma monitor with an 8-day window) and sends a Telegram message on failure, like the backup flow.
 - **Dependencies:** ADR-008 (operational toolchain), ADR-012 (cloud host monorepo), ADR-013 (tailnet segmentation), ADR-018 and ADR-022 (backup jobs), ADR-020 (edge Uptime Kuma).
 - **Review Conditions:** a job needs to coordinate across sites (for example a restore drill spanning the cloud host and the cluster); Kestra's memory becomes a problem on the cloud host; or n8n starts carrying anything that must not fail silently.

@@ -18,7 +18,7 @@ ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
 - **Decision:**
   1. *Reject In-Cluster Log Aggregators (Elasticsearch / In-Cluster Loki):* Neither Elasticsearch, OpenSearch, nor an in-cluster Loki chunk store shall be deployed on K3s. In-cluster aggregation engines require 1.0–2.5 GB of RAM baseline and cause relentless SSD wear.
   2. *Adopt Hybrid Out-of-Band Log Architecture:* Centralized log storage, indexing, and LogQL query execution are externalized to the OCI Always-Free instance (`bookorbit`; its shape is stated once, in [ADR-016](016-kubernetes-storage-strategy.md)), co-located with central Prometheus and Grafana.
-  3. *Deploy Stateless Promtail DaemonSet on K3s (PLAT-09):* K3s nodes run only a lightweight, stateless log-forwarding agent (`promtail` DaemonSet). Promtail mounts `/var/log/pods/` as read-only, enriches raw log streams with Kubernetes metadata labels (`namespace`, `pod`, `container`, `app`), and streams compressed log batches across Tailscale.
+  3. *Deploy Stateless Promtail DaemonSet on K3s:* K3s nodes run only a lightweight, stateless log-forwarding agent (`promtail` DaemonSet). Promtail mounts `/var/log/pods/` as read-only, enriches raw log streams with Kubernetes metadata labels (`namespace`, `pod`, `container`, `app`), and streams compressed log batches across Tailscale.
   4. *Enforce Low-Footprint Agent Budget (< 25 MiB RAM per node):* Promtail is constrained to `requests: 10m CPU / 24Mi RAM` and `limits: 50m CPU / 64Mi RAM` with CRI parsing enabled, keeping in-cluster logging overhead under 0.8% of worker memory.
   5. *Single-Binary Grafana Loki on OCI with Filesystem Storage:* OCI deploys a single-binary Grafana Loki container via Docker Compose with a local filesystem chunk store and a strict 14-day retention period (`retention_period: 336h`), bounding disk growth to < 15 GB.
   6. *Tailscale Micro-Segmentation (Port 3100):* Log traffic travels strictly over the Tailscale WireGuard mesh. A dedicated Tailscale ACL grant authorizes `tag:k3s` nodes to reach `tag:oci` exclusively on TCP port 3100 (`src: ["tag:k3s"], dst: ["tag:oci"], ip: ["3100"]`), maintaining zero public ingress exposure.
@@ -75,7 +75,7 @@ ADR-019: Centralized Logging Architecture & In-Cluster Log Forwarding Ruling
 
 ---
 
-### Addendum: The Log Agent Is Now Grafana Alloy (HARD-15)
+### Addendum: The Log Agent Is Now Grafana Alloy
 - **Date:** 2026-11-11
 - **Context:** Promtail is deprecated upstream and no longer gets features. Its chart also needed `hostNetwork: true` to reach Loki, so the `monitoring` NetworkPolicy never applied to it. The egress rule for Loki on `100.64.0.0/10:3100` existed only on paper.
 - **Decision:** Replace the Promtail DaemonSet with Grafana Alloy (chart 1.15.0, Alloy v1.21.3), managed in `kubernetes/cluster/alloy.yaml`. Everything else in this ADR holds: one agent per node, logs read from `/var/log/pods`, shipped to Loki on OCI over the tailnet.

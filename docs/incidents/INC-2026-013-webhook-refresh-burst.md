@@ -4,7 +4,7 @@
 |-------|-------|
 | Date found | 2026-11-16 |
 | Severity | SEV3 |
-| Found by | Verification check (the Phase 02 re-verification, GOP-06) |
+| Found by | Verification check (the Phase 02 re-verification) |
 | Duration | 2026-11-16 02:46 to 02:53 UTC (about 6 minutes; no deploys were blocked) |
 | Started | 2026-11-16 02:46 |
 | Detected | 2026-11-16 02:48 |
@@ -14,7 +14,7 @@
 
 ## Summary
 
-GOP-04 added a signed GitHub webhook so that ArgoCD reconciles a push in about a second instead of on its 3-minute poll. On every push, ArgoCD's webhook handler asked for a refresh of every Application that tracks this repository: 10 apps, even for a commit that only touched docs. The repo server builds two manifests at a time, and two of the apps decrypt secrets through the KSOPS sidecar. The queue pushed some requests past the controller's 60-second deadline, ArgoCD cached the failures and paused retries, and five apps showed sync status `Unknown` until a hard refresh. Annotating the apps with `manifest-generate-paths` makes a push refresh only the apps whose own folder changed.
+A change on 16 November added a signed GitHub webhook so that ArgoCD reconciles a push in about a second instead of on its 3-minute poll. On every push, ArgoCD's webhook handler asked for a refresh of every Application that tracks this repository: 10 apps, even for a commit that only touched docs. The repo server builds two manifests at a time, and two of the apps decrypt secrets through the KSOPS sidecar. The queue pushed some requests past the controller's 60-second deadline, ArgoCD cached the failures and paused retries, and five apps showed sync status `Unknown` until a hard refresh. Annotating the apps with `manifest-generate-paths` makes a push refresh only the apps whose own folder changed.
 
 ## Impact
 
@@ -26,11 +26,11 @@ All times UTC.
 
 | Time | Event |
 |------|-------|
-| 02:29 | The GitHub webhook goes live (GOP-04). Ping returns 200 |
+| 02:29 | The GitHub webhook goes live. Ping returns 200 |
 | 02:30 | First real push. ArgoCD refreshes all 10 repo apps; every one completes in time, and `root-apps` reconciles 1 s after the push |
 | 02:46:09 | A redelivered push, sent to test the new WAF rule, refreshes all 10 apps |
 | 02:46:47 | The next push arrives 38 s later and asks for all 10 again. Five manifest builds miss the 60 s deadline: `rpc error: code = DeadlineExceeded` |
-| 02:48 | The GOP-06 check "every app is Synced and Healthy" fails on five `Unknown` apps |
+| 02:48 | The phase sign-off check "every app is Synced and Healthy" fails on five `Unknown` apps |
 | 02:49 to 02:52 | A hard refresh clears three. The KSOPS sidecar logs `Generating manifests with deadline -7s from now`: requests reach it after their deadline has passed. A KSOPS build run by hand inside the sidecar takes 2 s, so decryption itself isn't slow |
 | 02:52 to 02:53 | The cached failures expire, the two KSOPS apps build, and all 17 apps are Synced and Healthy |
 | 02:58 | Fix pushed: `argocd.argoproj.io/manifest-generate-paths: .` on the 10 repo apps (`a2b3aa5`) |
@@ -45,7 +45,7 @@ The repo server runs with `reposerver.parallelism.limit: 2`, sized for a 1 GB me
 ## Contributing factors
 
 - The first push test passed. One push with nothing else queued fits within the deadline; it took two pushes close together, which the WAF test happened to produce.
-- GOP-04's verification measured how fast one push reconciles. It never looked at what a push costs the repo server.
+- The webhook change's verification measured how fast one push reconciles. It never looked at what a push costs the repo server.
 - The 3-minute poll spreads refreshes out, so the repo server's limits had never met a burst.
 
 ## What went well

@@ -36,7 +36,7 @@ All times UTC.
 
 ## Root cause
 
-The backup script names each database it dumps, by container. The migration plan listed what to stop on the cloud host and what to remove a week later (task 4.23: compose project, Ansible block, proxy node, checks, secrets, directory), but not the backup script's dump list. Stopping the containers was the first step of the move, so the script broke a week before the plan expected to touch it.
+The backup script names each database it dumps, by container. The migration plan listed what to stop on the cloud host and what to remove a week later (a cleanup list: compose project, Ansible block, proxy node, checks, secrets, directory), but not the backup script's dump list. Stopping the containers was the first step of the move, so the script broke a week before the plan expected to touch it.
 
 ## Contributing factors
 
@@ -58,7 +58,7 @@ The alert overlapped with the home lab outage and could have been dismissed with
 
 ## Guardrails added
 
-- The cutover checklist for a moved app now includes "remove its database from the cloud host's backup script" at the moment the old copy is stopped, not at the 4.23 cleanup.
+- The cutover checklist for a moved app now includes "remove its database from the cloud host's backup script" at the moment the old copy is stopped, not at the later cleanup.
 
 ## Lessons
 

@@ -76,15 +76,15 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
 
 ---
 
-### Addendum: Implementation Status (2026-11-12, HARD-17)
-- **Glance replacing Homepage:** delivered on 2026-11-02 (Glance v0.8.7, pinned by digest). Homepage's files and the Docker socket proxy it needed were removed on 2026-11-12 (FND-08).
-- **Data diode:** built on 2026-11-12 (FND-20) as a *pull of a single sanitised file*, not the SSH push described above. See the second addendum.
+### Addendum: Implementation Status (2026-11-12)
+- **Glance replacing Homepage:** delivered on 2026-11-02 (Glance v0.8.7, pinned by digest). Homepage's files and the Docker socket proxy it needed were removed on 2026-11-12.
+- **Data diode:** built on 2026-11-12 as a *pull of a single sanitised file*, not the SSH push described above. See the second addendum.
 - **Sanitised public contract:** enforced from 2026-11-12. The page carries no tailnet hostnames or links, and no LAN or cluster addresses. Operator consoles are named, never linked. `glance.yml` opens with these rules, and DR scenario 05 checks them.
-- **Public hostname:** live on 2026-11-12 at `https://status.chetan-thapliyal.cloud` (FND-10). `status.chetanthapliyal.com` in the Context above never existed. Path: Cloudflare edge (Universal SSL, `*.chetan-thapliyal.cloud`) → Cloudflare Tunnel → `cloudflared` on the DMZ (outbound only, QUIC over IPv6, no inbound port) → `http://glance:8080` on `dmz-net`. The tunnel publishes only Glance.
+- **Public hostname:** live on 2026-11-12 at `https://status.chetan-thapliyal.cloud`. `status.chetanthapliyal.com` in the Context above never existed. Path: Cloudflare edge (Universal SSL, `*.chetan-thapliyal.cloud`) → Cloudflare Tunnel → `cloudflared` on the DMZ (outbound only, QUIC over IPv6, no inbound port) → `http://glance:8080` on `dmz-net`. The tunnel publishes only Glance.
 
 ---
 
-### Addendum: The Feed as Built (2026-11-12, FND-20)
+### Addendum: The Feed as Built (2026-11-12)
 - **Generator.** A container `public-feed` in the OCI monitoring stack (`legacy-docker/oci-services/public-feed/feed.py`, standard-library Python, non-root, read-only filesystem, 64 MiB) queries Prometheus every 5 minutes. It builds an allow-listed summary: node, app, pod, target and alert counts; six capacity gauges; four 6-hour series (cluster CPU and memory, cloud host CPU, hypervisor temperature); and container image names and tags from kube-state-metrics.
 - **Allow-list.** Before publishing, the whole summary is checked against a deny pattern (tailnet names, `192.168.`, cluster and tailnet address ranges, node and host names, `:9100`). A summary that fails is never served. The last good one stays up and goes stale.
 - **Numbers only.** Charts are sent as pre-scaled coordinates, and gauges as arc lengths. Every SVG element is drawn by the template in `glance.yml`, and Glance's HTML escaping applies to every value, so a compromised feed can't inject markup into the public page.
@@ -93,7 +93,7 @@ ADR-020: Public Observability Architecture, Glance Dashboard, and Push Data Diod
 - **Backups and alerting list.** It comes from the DMZ's own Uptime Kuma, through a status page (`public`) that holds only monitors whose names are safe to publish, read over the DMZ's Docker network.
 - **Not done:** Grafana panels as images and live Grafana. The option of Grafana shared dashboards behind a second tunnel connector on OCI is deferred until after Phase 04.
 
-### Addendum: No Docker Agent on the Edge Host (2026-11-15, FND-22)
+### Addendum: No Docker Agent on the Edge Host (2026-11-15)
 The DMZ ran Hawser, the Dockhand agent, so the OCI Dockhand could manage its containers. Hawser mounted the Docker socket, which made it root-equivalent on the host, and it listened on port 2376 on every address. The internet couldn't reach that port (the VPC allows only IAP SSH and ICMPv6 in), and on the tailnet only `tag:oci` could. But every container on the host could, including Glance and cloudflared, the two that face the internet. Only Hawser's token separated a compromised public container from root on the host.
 
 Hawser is removed. The DMZ is managed by Ansible only, and the tailnet grant `tag:oci → tag:gcp-dmz:2376` is gone; a policy test now denies it. Dockhand no longer shows the DMZ. Container health there is still watched: OCI Uptime Kuma probes Glance and Kuma, and OCI Prometheus scrapes the node exporter.

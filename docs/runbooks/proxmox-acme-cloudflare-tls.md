@@ -3,7 +3,7 @@
 > **Scope:** Automating trusted Let's Encrypt TLS certificates for homelab Proxmox VE on internal private IP (`192.168.x.xxx`) using Cloudflare DNS-01 challenge.
 > **Target Domain:** `pve.chetan-thapliyal.cloud`
 > **Status:** Active and automated via `pve-daily-update.timer`
-> **Associated Issue:** Resolves #6 (OPS-04)
+> **Associated Issue:** Resolves #6
 
 ## 1. Overview and architecture
 
@@ -161,7 +161,7 @@ pvenode acme cert renew
 pvenode acme cert renew --force
 ```
 
-## 6. Terraform integration (OPS-04)
+## 6. Terraform integration
 
 With a verified TLS certificate in place, homelab Terraform configurations can strictly enforce TLS validation without `insecure = true`.
 

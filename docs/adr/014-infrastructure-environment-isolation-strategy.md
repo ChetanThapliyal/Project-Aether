@@ -14,8 +14,8 @@ ADR-014: Single-Environment Infrastructure and Alternative Testing Strategy
   - Blast radius reduction: Terraform workspaces introduce human-error risk where operators apply changes to `production` when intending `staging` due to state selection mistakes.
   - Codebase simplicity: Avoid complex ternary expressions, dynamic VMID/subnet offsets, and parallel `tfvars` matrices for a single-operator environment.
 - **Decision:** Formally reject Terraform workspaces and duplicate staging infrastructure across all root modules (`01-oci-compute`, `02-gcp-dmz`, `03-homelab`). Maintain a single state file per module (`<module>/default.tfstate` in GCS). Instead of duplicate hardware, adopt a three-tier alternative testing strategy:
-  1. *Infrastructure Code Validation:* Statically validate Terraform via pre-commit hooks (`terraform fmt`, `terraform validate`, `tflint`) and automated dry-run `terraform plan` execution in pull request CI pipelines (IaC-09).
-  2. *OS and Cluster Upgrades:* Perform hypervisor and K3s runtime upgrades in-place backed by instant Proxmox VE VM snapshots and etcd snapshots (OPS-09), enabling sub-minute rollback upon failure.
+  1. *Infrastructure Code Validation:* Statically validate Terraform via pre-commit hooks (`terraform fmt`, `terraform validate`, `tflint`) and automated dry-run `terraform plan` execution in pull request CI pipelines.
+  2. *OS and Cluster Upgrades:* Perform hypervisor and K3s runtime upgrades in-place backed by instant Proxmox VE VM snapshots and etcd snapshots, enabling sub-minute rollback upon failure.
   3. *Application-Level Isolation:* Partition non-production workloads inside the existing K3s cluster using dedicated Kubernetes namespaces (`staging` vs `prod`) managed declaratively via ArgoCD application overlays.
 - **Architecture Impact:**
   - Terraform root modules (`01-oci-compute`, `02-gcp-dmz`, `03-homelab`) remain unparameterized by workspace. Resource names, VM IDs (101, 102, 103), and static IPs (192.168.1.5x) remain explicit, static, and deterministic.
@@ -25,7 +25,7 @@ ADR-014: Single-Environment Infrastructure and Alternative Testing Strategy
     - *OCI & Proxmox (Stateful):* Persistent storage requires volume backups or hypervisor snapshots prior to structural changes.
   - Applications share cluster hardware but remain isolated at the Kubernetes API layer via namespaces and RBAC.
 - **Alternatives Considered:**
-  - *Terraform Workspaces (IaC-08):* Rejected. Requires dynamic offsets for Proxmox VMIDs and IP subnets, risks state confusion, and is impossible to run due to the 12 GB RAM ceiling and GCP free-tier limits.
+  - *Terraform Workspaces:* Rejected. Requires dynamic offsets for Proxmox VMIDs and IP subnets, risks state confusion, and is impossible to run due to the 12 GB RAM ceiling and GCP free-tier limits.
   - *Directory-Per-Environment (`environments/staging/`, `environments/prod/`):* Rejected. Duplicates module call boilerplate and demands duplicate physical resources that cannot run on available hardware.
   - *Ephemeral Single-Node Staging VM (Tiny 1GB VMID 200):* Rejected. A single-node VM fails to accurately simulate 3-node K3s cluster behavior, etcd quorum, or Flannel CNI networking, adding maintenance overhead for negligible testing fidelity.
   - *Nested Virtualization (Proxmox-in-Proxmox):* Rejected. Memory overhead is prohibitive on a 12 GB physical host.
@@ -39,14 +39,14 @@ ADR-014: Single-Environment Infrastructure and Alternative Testing Strategy
   - *Negative:*
     - Destructive infrastructure-level changes (such as recreating a production VM or re-partitioning a disk) cannot be tested end-to-end on identical hardware prior to execution.
   - *Risks:*
-    - Flawed Terraform resource replacements must be caught during `terraform plan` review. Mitigated by `prevent_destroy = true` lifecycle rules on critical instances (IaC-02) and automated CI plan diffs (IaC-09).
+    - Flawed Terraform resource replacements must be caught during `terraform plan` review. Mitigated by `prevent_destroy = true` lifecycle rules on critical instances and automated CI plan diffs.
   - *Trade-offs:*
     - Accepting in-place hypervisor snapshot rollback as the recovery mechanism for OS/runtime changes instead of maintaining a warm staging clone.
 - **Security Considerations:**
   - Eliminates risks of orphaned staging instances exposed on the network or consuming cloud API quota.
   - Kubernetes namespace isolation for staging applications should enforce ResourceQuotas and NetworkPolicies to prevent staging pods from exhausting host memory or accessing production databases.
 - **Reliability Considerations:**
-  - Before applying operating system patches, kernel updates, or K3s version bumps on Proxmox, an instantaneous VM snapshot and an etcd snapshot (OPS-09) must be captured. Rollback time is under 60 seconds if regressions occur.
+  - Before applying operating system patches, kernel updates, or K3s version bumps on Proxmox, an instantaneous VM snapshot and an etcd snapshot must be captured. Rollback time is under 60 seconds if regressions occur.
   - For stateful cloud nodes (OCI), manual block volume snapshots must precede major maintenance. Disposable nodes (GCP DMZ) can be destroyed and reprovisioned from Terraform and Ansible playbooks in under 5 minutes.
 - **Operational Considerations:**
   - Workflows use `terraform plan` and `terraform apply` directly without workspace management subcommands (`terraform workspace select/new`).

@@ -1,6 +1,6 @@
 # Retired OCI apps
 
-Compose files of apps that used to run on the OCI host and were removed on 2026-11-14 (FND-13). Nothing deploys from this directory, and `oci-apps.yml` no longer mentions them. Their containers, images and data directories on the host are deleted, and their secrets are gone from the SOPS file.
+Compose files of apps that used to run on the OCI host and were removed on 2026-11-14. Nothing deploys from this directory, and `oci-apps.yml` no longer mentions them. Their containers, images and data directories on the host are deleted, and their secrets are gone from the SOPS file.
 
 | App | Why it was retired |
 |-----|--------------------|

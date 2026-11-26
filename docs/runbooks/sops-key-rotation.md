@@ -1,7 +1,7 @@
 # SOPS key rotation
 
 > **Scope:** Replacing the age key or acting on the Cloud KMS key that encrypt every secret in this repository, without breaking ArgoCD on the way, and what to change when a key may have leaked.
-> **Status:** Operational runbook (Phase 05 task 5.40), written 19 Nov 2026 against SOPS 3.13 and KSOPS 4.3.
+> **Status:** Operational runbook, written 19 Nov 2026 against SOPS 3.13 and KSOPS 4.3.
 > **Related:** [DR Scenario 04: Age Key Loss](../disaster-recovery/scenarios/04-age-key-loss.md) (the key is gone, not exposed) · [ADR-007](../adr/007-secrets-management.md) · [Tailscale key rotation](tailscale-auth-key-rotation.md) · [ArgoCD recovery](argocd-recovery.md)
 
 ## 1. The keys and where they live

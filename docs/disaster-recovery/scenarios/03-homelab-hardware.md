@@ -1,7 +1,7 @@
 # DR Scenario 03: Homelab Hardware Failure & K3s Embedded etcd Recovery
 
 **Severity:** SEV1 (core platform outage)
-**Target RTO:** Branch A ~10 min · Branch B ~20 min (DR-05 in-place reset measured about 18 min) · Branch C ~1 h · Branch D: hardware and VM rebuild time plus about 3 min of restore (HARD-11 drill: B2 fetch 1.5 min, reset to ready API 54 s)
+**Target RTO:** Branch A ~10 min · Branch B ~20 min (the in-place reset drill measured about 18 min) · Branch C ~1 h · Branch D: hardware and VM rebuild time plus about 3 min of restore (cold-restore drill: B2 fetch 1.5 min, reset to ready API 54 s)
 **Target RPO:** 0 for a cold boot; ≤ 24 h from an etcd snapshot (taken daily at 02:00 IST); ≤ about 25.5 h from B2 (copied at 03:30 IST)
 
 ---
@@ -113,7 +113,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
 
 ### Branch D: Total Hardware Loss — Restore from Backblaze B2
 
-> Drilled 10 Nov 2026 (HARD-11) in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill. The drill used the restic copy; the locked-bucket path in step 4 was checked on 10 Nov as far as a verified, byte-identical snapshot (HARD-12), not yet through a container restore. Secrets have been encrypted at rest since 10 Nov (HARD-13). The encryption key travels inside the snapshot's token-encrypted bootstrap data, so the escrowed token is still the only extra thing a restore needs: a container restore of an encrypted snapshot read `argocd-sops-age-key` back intact.
+> Drilled 10 Nov 2026 in an isolated container: steps 4 and 5 and the first start of step 6. Hardware, VM rebuild and worker rejoin weren't part of the drill. The drill used the restic copy; the locked-bucket path in step 4 was checked on 10 Nov as far as a verified, byte-identical snapshot, not yet through a container restore. Secrets have been encrypted at rest since 10 Nov. The encryption key travels inside the snapshot's token-encrypted bootstrap data, so the escrowed token is still the only extra thing a restore needs: a container restore of an encrypted snapshot read `argocd-sops-age-key` back intact.
 
 1. Install Proxmox on replacement hardware, then rebuild the storage, the network and template 9000. Then `task tf:apply DIR=03-homelab`.
 2. `task ansible:common`
@@ -124,7 +124,7 @@ On `k3s-control-01` (`ssh owl@192.168.1.51`):
      K3S_TOKEN='$K3S_TOKEN' sh -s - server --cluster-init --write-kubeconfig-mode 644 --tls-san 192.168.1.51 \
      --node-taint node-role.kubernetes.io/control-plane:NoSchedule --disable traefik --disable servicelb --secrets-encryption"
    ```
-4. From my workstation, fetch the latest snapshot from the Object Lock bucket (HARD-12) with the read-only key, and decrypt it with the escrowed age identity (first check the Backblaze daily download cap in Caps & Alerts allows it; at the free 1 GB a large download stops partway, INC-2026-018):
+4. From my workstation, fetch the latest snapshot from the Object Lock bucket with the read-only key, and decrypt it with the escrowed age identity (first check the Backblaze daily download cap in Caps & Alerts allows it; at the free 1 GB a large download stops partway, INC-2026-018):
    ```bash
    V=infrastructure/ansible/group_vars/proxmox/vault.yaml; B=aether-etcd-offsite-lock
    export RCLONE_B2_ACCOUNT=$(sops -d --extract '["b2_offsite_restore_key_id"]' $V)
@@ -194,8 +194,8 @@ sudo k3s etcd-snapshot save --name manual-dr-drill-$(date +%Y%m%d)
 sudo k3s etcd-snapshot list | grep manual-dr-drill
 ```
 
-**Cold restore from B2** (quarterly, per ADR-018): this is the isolated container drill in HARD-11. It restores the latest B2 snapshot into a K3s container with no network route out, with the agent disabled, and checks that the 3 original nodes, every ArgoCD Application and `argocd-sops-age-key` are present. I record the restore-to-ready time here and in the [DR README](../README.md#4-scenarios--drills).
+**Cold restore from B2** (quarterly, per ADR-018): this is the isolated container drill (first run 10 Nov). It restores the latest B2 snapshot into a K3s container with no network route out, with the agent disabled, and checks that the 3 original nodes, every ArgoCD Application and `argocd-sops-age-key` are present. I record the restore-to-ready time here and in the [DR README](../README.md#4-scenarios--drills).
 
-Last cold-restore drill: **10 Nov 2026** (HARD-11). B2 snapshot of 03:00 IST holding the 02:00 IST etcd snapshot. `restic restore` 1 min 26 s, reset to ready API 54 s. The 3 original nodes, all 16 Applications (Synced/Healthy), `argocd-sops-age-key` and `operator-oauth` were present. Negative control: a wrong token failed with `bootstrap data already found and encrypted with different token`.
+Last cold-restore drill: **10 Nov 2026**. B2 snapshot of 03:00 IST holding the 02:00 IST etcd snapshot. `restic restore` 1 min 26 s, reset to ready API 54 s. The 3 original nodes, all 16 Applications (Synced/Healthy), `argocd-sops-age-key` and `operator-oauth` were present. Negative control: a wrong token failed with `bootstrap data already found and encrypted with different token`.
 
 > In the drill, the nodes showed `Ready` at first. That is the status stored in the snapshot, not a live check. With the agent disabled, nothing renews it, and the node controller marks the nodes `NotReady` after its grace period.

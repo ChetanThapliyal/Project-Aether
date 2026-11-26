@@ -34,7 +34,7 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
 
 ---
 
-### Addendum: Kubernetes Tailscale Operator Integration (PLAT-06)
+### Addendum: Kubernetes Tailscale Operator Integration
 - **Date:** October 2026
 - **Context:** To expose internal Kubernetes services (such as ArgoCD) as MagicDNS endpoints without opening firewall ports, Project Aether deploys the official Tailscale Kubernetes Operator.
 - **Tagging & Ownership:**
@@ -47,7 +47,7 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
 
 ---
 
-### Addendum: Role Tags Set by Configuration, Policy Tests, and SSH (FND-03)
+### Addendum: Role Tags Set by Configuration, Policy Tests, and SSH
 - **Date:** 2026-11-07
 - **Context:** Three findings showed that the tag model above was not holding up.
   - Every service on the OCI host is its own tailnet node, published by tsdproxy. tsdproxy v1 signed each one in with a single untagged auth key and signed it in again on every container recreate, which reset any tag set by hand in the console. The DMZ observer could not see those nodes and went blind ([INC-2026-002](../incidents/INC-2026-002-observer-blind-to-app-host.md)).
@@ -98,7 +98,7 @@ ADR-013: Tailnet Micro-segmentation using Tailscale Grants
 
 ---
 
-### Addendum: Cloud Firewalls and Break-Glass Access (2026-11-14, FND-12)
+### Addendum: Cloud Firewalls and Break-Glass Access (2026-11-14)
 The guidance above, to allow inbound management connections from the Tailscale IPv6 range (`fd7a:115c:a1e0::/48`) in a cloud firewall, **can't work**. Tailnet traffic is WireGuard: it arrives encrypted from a public address and is decrypted on the node, so tailnet addresses never appear on the VPC interface, and a rule that names them never matches. The GCP DMZ had such a rule from the start; it never admitted anything.
 
 - **Everyday management needs no cloud firewall rule at all.** Tailscale SSH arrives inside WireGuard (outbound-initiated, NAT-traversed).
@@ -106,10 +106,10 @@ The guidance above, to allow inbound management connections from the Tailscale I
 - **Method:** `gcloud compute ssh owl@<instance> --tunnel-through-iap --ssh-key-file <the Terraform-managed key>`. The instance blocks project SSH keys and Terraform owns its `ssh-keys`; a bare `gcloud compute ssh` would write a new key into the instance metadata, which Terraform removes and the nightly drift check flags. Verified 2026-11-14: the connection came from the IAP range and the instance's metadata fingerprint was unchanged.
 - The same reasoning applies to any other cloud host: close the public port, rely on the mesh, and keep one IAM-gated path in.
 
-### Addendum: The DMZ Forwards GitHub Webhooks to ArgoCD (2026-11-16, GOP-04)
-GITOPS-10 is delivered over the existing grant `tag:gcp-dmz → tag:k8s:443`; no policy change was needed. `cloudflared` on the DMZ forwards one public path, ArgoCD's `/api/webhook`, to ArgoCD's Tailscale ingress. The traffic enters the `argocd` namespace from the `tailscale` namespace, which the `allow-argocd-traffic` NetworkPolicy already permits. See the ADR-004 addendum of the same date for the public side.
+### Addendum: The DMZ Forwards GitHub Webhooks to ArgoCD (2026-11-16)
+The webhook relay is delivered over the existing grant `tag:gcp-dmz → tag:k8s:443`; no policy change was needed. `cloudflared` on the DMZ forwards one public path, ArgoCD's `/api/webhook`, to ArgoCD's Tailscale ingress. The traffic enters the `argocd` namespace from the `tailscale` namespace, which the `allow-argocd-traffic` NetworkPolicy already permits. See the ADR-004 addendum of the same date for the public side.
 
-### Addendum: Database Exporters for the Cloud Prometheus (2026-11-17, Phase 04 task 4.20)
+### Addendum: Database Exporters for the Cloud Prometheus (2026-11-17)
 The cloud host's metrics grant to `tag:k3s` gains two NodePorts: 30085 (PostgreSQL exporter) and 30086 (Redis exporter). Both exporters run in the `databases` namespace and log in with a read-only `pg_monitor` role or the Redis password; neither database port is reachable over the tailnet. Policy tests accept `tag:k3s:30085` and `:30086` from `tag:oci` and still deny `:30087`, so the grant can't quietly widen to the rest of the NodePort range.
 
 ### Addendum: Diagram (2026-11-18)

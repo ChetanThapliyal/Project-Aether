@@ -3,7 +3,7 @@
 ADR-009: GitOps Controller Selection (ArgoCD vs Flux)
 ================================================================================
 ```
-- **Status:** Accepted (ArgoCD runs the cluster; status corrected 15 Nov 2026, FND-23)
+- **Status:** Accepted (ArgoCD runs the cluster; status corrected 15 Nov 2026)
 - **Date:** September 2026
 - **Owner:** Principal Architect / Homelab Owner
 - **Context:** The homelab cluster operates under a 12GB total RAM constraint, leaving roughly 3.0 GB of allocatable memory on Worker-02 for applications and platform controllers. Reducing the self-hosted catalog from 34 to 5 or 6 core services and moving non-essential workloads to an external OCI instance freed sufficient memory to consider a heavier GitOps controller.
@@ -37,7 +37,7 @@ ADR-009: GitOps Controller Selection (ArgoCD vs Flux)
 - **Related ADRs:** ADR-007 (Secrets Management), ADR-008 (Operational Toolchain).
 - **Review Conditions:** Review if Worker-02 encounters MemoryPressure or out-of-memory evictions after deploying all target applications.
 
-### Addendum: Implementation Check (2026-11-15, FND-15)
+### Addendum: Implementation Check (2026-11-15)
 The status line said "Proposed" long after ArgoCD went into service. It was corrected on 15 Nov, and the body was checked against the running cluster:
 
 - **Placement:** every ArgoCD component is pinned to Worker-02 with a node selector, as decided.

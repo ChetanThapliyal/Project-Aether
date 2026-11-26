@@ -1,7 +1,7 @@
 # ArgoCD disaster recovery and state backup runbook
 
 > **Scope:** Standard operating procedure for recovering the GitOps control plane (ArgoCD, KSOPS decryption, and the App-of-Apps pipeline) after partial or total loss on the homelab K3s cluster.
-> **Status:** Operational runbook (GITOPS-09). Refreshed 16 Nov 2026 (GOP-03) for ArgoCD v3.5.7 on chart 10.11.7, the delivered DR pipeline and Tailscale access.
+> **Status:** Operational runbook. Refreshed 16 Nov 2026 for ArgoCD v3.5.7 on chart 10.11.7, the delivered DR pipeline and Tailscale access.
 > **Related:** [DR Scenario 03: Homelab Hardware Failure](../disaster-recovery/scenarios/03-homelab-hardware.md) · [DR Scenario 04: Age Key Loss](../disaster-recovery/scenarios/04-age-key-loss.md) · [Tailscale Auth Key Rotation](tailscale-auth-key-rotation.md)
 > **References:** [ADR-009](../adr/009-gitops-controller.md) · [ADR-007](../adr/007-secrets-management.md) · [Disaster Recovery Overview](../disaster-recovery/README.md)
 
@@ -110,7 +110,7 @@ task argocd:drift      # ok: argo-cd-10.11.7 rev N matches Git
 task argocd:password
 ```
 
-After a fresh install this prints the generated password. Otherwise it says the secret was deleted: the admin password lives in the password manager entry "ArgoCD admin" (HARD-18).
+After a fresh install this prints the generated password. Otherwise it says the secret was deleted: the admin password lives in the password manager entry "ArgoCD admin".
 
 Verify the API server responds over port-forward (port-forward uses HTTP because `server.insecure: true`):
 
@@ -170,7 +170,7 @@ ssh -i ~/.ssh/homelab owl@192.168.1.52 "sudo systemctl restart k3s-agent"
 ssh -i ~/.ssh/homelab owl@192.168.1.53 "sudo systemctl restart k3s-agent"
 ```
 
-Restoring onto a **new** control-plane VM needs the original K3s server token. It's escrowed in SOPS as `k3s_server_token`, and `task ansible:control` seeds new installs from it (HARD-10). The restore path is drilled: an isolated cold restore from B2 on 10 Nov 2026 reached a ready API 54 s after the reset (HARD-11, Scenario 03 §5).
+Restoring onto a **new** control-plane VM needs the original K3s server token. It's escrowed in SOPS as `k3s_server_token`, and `task ansible:control` seeds new installs from it. The restore path is drilled: an isolated cold restore from B2 on 10 Nov 2026 reached a ready API 54 s after the reset (Scenario 03 §5).
 
 Once `kubectl get nodes` shows all three nodes as `Ready`, refresh your kubeconfig (`task ansible:kubeconfig`) and execute Steps 1 through 5 of Level 1 recovery in full. A clean replay is idempotent whether the restored snapshot predates ArgoCD, rolls back the Helm release, or contains an unhealthy release state.
 
@@ -210,11 +210,11 @@ The etcd datastore is the only cluster state not reproducible from Git. It's pro
 
 | Stage | When (IST) | What |
 |---|---|---|
-| DR-01 | 02:00 | K3s snapshot on `k3s-control-01` (`etcd-snapshot-schedule-cron: "0 2 * * *"`, 14 kept, compressed; `control.yml`) |
-| DR-02 | 02:30 | Proxmox pulls the snapshots to the ZFS dataset `aether-pool/k3s-etcd-snapshots` (`k3s-etcd-sync.timer`) |
-| DR-03 | 03:00 | Local restic repository on the ZFS dataset `aether-pool/restic-k3s-etcd` (`k3s-etcd-restic.timer`) |
-| DR-04 | 03:30 | Offsite to Backblaze B2: one age-encrypted object per night in a bucket where each object is Object-Locked for 30 days (`k3s-etcd-b2.timer`) |
-| DR-05 | on demand | In-place reset drill (about 18 min, Scenario 03) |
+| Stage 1 | 02:00 | K3s snapshot on `k3s-control-01` (`etcd-snapshot-schedule-cron: "0 2 * * *"`, 14 kept, compressed; `control.yml`) |
+| Stage 2 | 02:30 | Proxmox pulls the snapshots to the ZFS dataset `aether-pool/k3s-etcd-snapshots` (`k3s-etcd-sync.timer`) |
+| Stage 3 | 03:00 | Local restic repository on the ZFS dataset `aether-pool/restic-k3s-etcd` (`k3s-etcd-restic.timer`) |
+| Stage 4 | 03:30 | Offsite to Backblaze B2: one age-encrypted object per night in a bucket where each object is Object-Locked for 30 days (`k3s-etcd-b2.timer`) |
+| Drill | on demand | In-place reset drill (about 18 min, Scenario 03) |
 
 Each Proxmox job refuses to run unless its path is the expected ZFS dataset, so a failed mount can't fall back to the SSD (INC-2026-007).
 
@@ -235,7 +235,7 @@ ssh -i ~/.ssh/homelab owl@192.168.1.51 "sudo k3s etcd-snapshot save --name pre-c
 
 ## 7. Troubleshooting: Known failure signatures
 
-Collected from the original Phase 02 bootstrap (GITOPS-02 through 07). Match the symptom before improvising:
+Collected from the original Phase 02 bootstrap. Match the symptom before improvising:
 
 | Symptom | Root cause | Fix |
 | --- | --- | --- |
@@ -248,7 +248,7 @@ Collected from the original Phase 02 bootstrap (GITOPS-02 through 07). Match the
 | `helm upgrade` fails with release-state conflicts on Level 2 restore | Stale Helm release metadata inside restored etcd | Run `helm uninstall argocd -n argocd` (or delete the namespace) before Step 2. |
 | Application schema error: `spec.source.recurse` invalid | Wrong CRD field placement | Use `spec.source.directory.recurse: true` in `kubernetes/cluster/root-application.yaml`. |
 | Legacy chart field errors on install | Deprecated `server.config`, `server.extraArgs`, or `server.insecure` flag placement | Set `configs.params.server.insecure: true` for chart v5.5+ (Bug E). |
-| App shows `Unknown`; `ComparisonError: … .status.terminatingReplicas: field not declared in schema` | ArgoCD's built-in Kubernetes schema is older than the cluster's (ArgoCD 2.14 on Kubernetes 1.36, INC-2026-005) | Upgrade ArgoCD to a release whose `k8s.io/*` libraries match the cluster minor (HARD-08: v3.5.7). ADR-009 review condition |
+| App shows `Unknown`; `ComparisonError: … .status.terminatingReplicas: field not declared in schema` | ArgoCD's built-in Kubernetes schema is older than the cluster's (ArgoCD 2.14 on Kubernetes 1.36, INC-2026-005) | Upgrade ArgoCD to a release whose `k8s.io/*` libraries match the cluster minor (currently v3.5.7). ADR-009 review condition |
 | Several apps `Unknown` right after a push; `rpc error: code = DeadlineExceeded`; the KSOPS sidecar logs `deadline -Ns from now` | A webhook refreshed many apps at once and the repo server's queue (parallelism 2) outran the 60 s deadline; ArgoCD then caches the failure for a few minutes (INC-2026-013) | Hard-refresh the apps (`kubectl -n argocd patch application <app> --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'`). Make sure every repo-sourced Application has `argocd.argoproj.io/manifest-generate-paths: .` |
 | A values change "has no effect" | The live Helm release differs from `values.yaml`, or the chart ignores the key | `task argocd:drift` shows the difference; `task lint:helm-values` catches keys the pinned chart doesn't define |
 | `kubectl` refuses connection to `192.168.1.51:6443` | Node down or kubeconfig stale after rebuild | Check node health via [DR Scenario 03](../disaster-recovery/scenarios/03-homelab-hardware.md), then run `task ansible:kubeconfig`. |
@@ -271,7 +271,7 @@ kubectl exec -n argocd deploy/argocd-repo-server -c ksops-plugin -- ls -l /home/
 | Weekly | Verify Age key is present and Cloud KMS is accessible | `sops --decrypt infrastructure/secrets/ansible-secrets.sops.yaml > /dev/null` |
 | Before any Helm or manual change | Take pre-change etcd snapshot | `k3s etcd-snapshot save --name pre-change-$(date +%Y%m%d-%H%M)` |
 | Quarterly | Full Level 1 recovery drill on the smoke-test app | Delete secret: `kubectl -n platform delete secret gitops-smoke-secret`. Confirm ArgoCD recreates it decrypted, or run `kubectl patch application -n argocd smoke-test --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'` |
-| Quarterly | Isolated cold restore from B2 (HARD-11) | [DR Scenario 03 §5](../disaster-recovery/scenarios/03-homelab-hardware.md) |
+| Quarterly | Isolated cold restore from B2 | [DR Scenario 03 §5](../disaster-recovery/scenarios/03-homelab-hardware.md) |
 | Quarterly | SOPS dual-recipient check: KMS-only and Age-only decryption both succeed | [DR Scenario 04, §4 step 1](../disaster-recovery/scenarios/04-age-key-loss.md) |
 | Quarterly, and after any ArgoCD change | Live release matches Git | `task argocd:drift` |
 | Yearly | Rotate the ArgoCD admin password (update the password manager); rerun the Level 1 drill from a clean kubeconfig | ArgoCD UI → User info → Update password |

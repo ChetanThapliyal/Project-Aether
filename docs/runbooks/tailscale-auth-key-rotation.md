@@ -1,7 +1,7 @@
 # Tailscale auth key management and OAuth client runbook
 
 > **Scope:** Standard operating procedure for managing and rotating Tailscale authentication keys in Project Aether (GCP DMZ and homelab).
-> **Status:** Operational runbook (OPS-06)
+> **Status:** Operational runbook
 > **Reference documentation:** [Tailscale OAuth Clients](https://tailscale.com/docs/features/oauth-clients)
 > **Target environments:** GCP DMZ (`02-gcp-dmz`), Homelab K3s nodes (`03-homelab`)
 
@@ -12,7 +12,7 @@ In Project Aether, Tailscale connects compute nodes across GCP, OCI, and the Pro
 Automated node enrollment relies on auth keys passed during bootstrap:
 - GCP DMZ: Injected via Compute Engine startup script ([`startup.sh.tftpl`](../../infrastructure/terraform/02-gcp-dmz/templates/startup.sh.tftpl)) from `02-gcp-dmz/terraform.sops.tfvars`.
 - Homelab K3s nodes: Injected via Ansible playbook ([`common.yml`](../../infrastructure/ansible/playbooks/common.yml)) from `infrastructure/secrets/ansible-secrets.sops.yaml`.
-- OCI host: Injected via Ansible playbook ([`oci-base.yml`](../../infrastructure/ansible/playbooks/oci-base.yml), FND-18) from the same file. The play joins only a node that isn't already connected, so a one-time key that has been used does no harm on the live host.
+- OCI host: Injected via Ansible playbook ([`oci-base.yml`](../../infrastructure/ansible/playbooks/oci-base.yml)) from the same file. The play joins only a node that isn't already connected, so a one-time key that has been used does no harm on the live host.
 
 ### Limitations of pre-auth keys (`tskey-auth-...`)
 
@@ -27,7 +27,7 @@ Standard Tailscale pre-auth keys expire after 90 days.
 | --- | --- | --- | --- |
 | GCP DMZ | `infrastructure/terraform/02-gcp-dmz/terraform.sops.tfvars` | `tailscale_auth_key = "..."` | SOPS (GCP KMS + Age) |
 | Ansible (K3s) | `infrastructure/secrets/ansible-secrets.sops.yaml` | `tailscale_auth_key: "..."` | SOPS (GCP KMS + Age) |
-| Ansible (OCI host) | `infrastructure/secrets/ansible-secrets.sops.yaml` | `oci_host_tailscale_auth_key: "..."`, tagged `tag:oci` only, one-time (FND-18) | SOPS (GCP KMS + Age) |
+| Ansible (OCI host) | `infrastructure/secrets/ansible-secrets.sops.yaml` | `oci_host_tailscale_auth_key: "..."`, tagged `tag:oci` only, one-time | SOPS (GCP KMS + Age) |
 
 ## 3. How Tailscale OAuth clients work
 
@@ -219,4 +219,4 @@ If an OAuth client secret is compromised, open **Settings > OAuth clients**, loc
 
 Revoking an OAuth client or letting a pre-auth key expire does not disconnect running machines. Tailscale nodes only use auth keys during initial enrollment. Once enrolled, nodes communicate using their local WireGuard machine key.
 
-Tailscale sends reminder emails 14 days and 7 days before pre-auth keys expire. An Uptime Kuma monitor also alerts to Telegram on expiration ([OPS-02](monitoring-setup.md)).
+Tailscale sends reminder emails 14 days and 7 days before pre-auth keys expire. An Uptime Kuma monitor also alerts to Telegram on expiration.

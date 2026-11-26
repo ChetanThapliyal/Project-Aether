@@ -39,16 +39,16 @@ ADR-004: Secure Network Access Layer (Tailscale)
 
 ---
 
-### Addendum: Public Entry Points (2026-11-12, FND-10)
+### Addendum: Public Entry Points (2026-11-12)
 Operator access stays on Tailscale, as decided above. The project now has exactly one intended public entry point, and it's read-only:
 
 | Public name | Path | Serves |
 |-------------|------|--------|
 | `status.chetan-thapliyal.cloud` | Cloudflare edge → Cloudflare Tunnel (outbound-only `cloudflared` on the GCP DMZ) | The Glance status page only ([ADR-020](020-public-observability-data-diode.md)) |
 
-The tunnel was rejected above for *operator* access, and it still isn't used for that: it routes one hostname to one container, opens no inbound port, and reaches nothing on the tailnet. Any other way in from the internet is a defect, with one recorded exception: a Tailscale Funnel on the app host still publishes one app (BookOrbit) because it has a user. FND-03 limited the Funnel permission to that one tagged node. Closing it is scheduled for the Phase 05 close-out (re-audit sign-off FND-16, 15 Nov 2026).
+The tunnel was rejected above for *operator* access, and it still isn't used for that: it routes one hostname to one container, opens no inbound port, and reaches nothing on the tailnet. Any other way in from the internet is a defect, with one recorded exception: a Tailscale Funnel on the app host still publishes one app (BookOrbit) because it has a user. The hardening pass limited the Funnel permission to that one tagged node. Closing it is scheduled for the Phase 05 close-out (re-audit sign-off, 15 Nov 2026).
 
-### Addendum: A Second Public Hostname for GitOps Webhooks (2026-11-16, GOP-04)
+### Addendum: A Second Public Hostname for GitOps Webhooks (2026-11-16)
 The tunnel now publishes a second hostname, `argocd-hook.chetan-thapliyal.cloud`, with one path, `^/api/webhook$`. It forwards GitHub's push notifications to the ArgoCD server over the tailnet, so a push syncs in seconds instead of on the 3-minute poll.
 
 | Public name | Path | Serves |

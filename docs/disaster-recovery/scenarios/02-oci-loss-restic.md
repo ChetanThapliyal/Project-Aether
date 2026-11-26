@@ -4,7 +4,7 @@
 **Target RTO:** < 45 minutes
 **Target RPO:** ≤ 24 hours (nightly restic run at 03:00 UTC / 08:30 IST, scheduled by the Kestra flow `aether.ops.restic-nightly`)
 
-> **Scope:** This runbook assumes the instance is gone. If the OCI tenancy and its `dr-backups` bucket survive, restore from restic (Step 3.5). If the tenancy is gone too, restore last night's offsite copy from Backblaze B2 instead (Step 3.5b, since 20 Nov 2026, task 5.61); [Scenario 06](06-account-and-workstation-loss.md) covers replacing the tenancy itself.
+> **Scope:** This runbook assumes the instance is gone. If the OCI tenancy and its `dr-backups` bucket survive, restore from restic (Step 3.5). If the tenancy is gone too, restore last night's offsite copy from Backblaze B2 instead (Step 3.5b, since 20 Nov 2026); [Scenario 06](06-account-and-workstation-loss.md) covers replacing the tenancy itself.
 
 ---
 
@@ -41,7 +41,7 @@ If the boot volume backup `bookorbit-pre-upgrade` is recent enough to be useful,
 
 ### Step 3.2: Re-provision the Instance
 
-Public SSH is closed in the security list (FND-04), and a new instance isn't on the tailnet yet. So I open TCP 22 to my own address for this one run, with a variable that defaults to off:
+Public SSH is closed in the security list, and a new instance isn't on the tailnet yet. So I open TCP 22 to my own address for this one run, with a variable that defaults to off:
 
 ```bash
 task tf:init  DIR=01-oci-compute
@@ -54,7 +54,7 @@ IP=$(terraform -chdir=infrastructure/terraform/01-oci-compute output -raw bookor
 
 ### Step 3.3: Rejoin the Tailnet
 
-Ansible's inventory reaches `bookorbit` through `~/.ssh/config`, which points at the tailnet name `bookorbit-net.tail7067ab.ts.net`. Until the new instance is on the tailnet, I use the public IP. The base playbook installs Tailscale and joins the node (FND-18), so nothing is typed on the host.
+Ansible's inventory reaches `bookorbit` through `~/.ssh/config`, which points at the tailnet name `bookorbit-net.tail7067ab.ts.net`. Until the new instance is on the tailnet, I use the public IP. The base playbook installs Tailscale and joins the node, so nothing is typed on the host.
 
 1. In the Tailscale admin console I delete the old `bookorbit-net` machine, plus the old tsdproxy service nodes. That way the new nodes keep their names, rather than becoming `*-1`.
 2. In the console I create a new auth key: **pre-authorised, not reusable, tag `tag:oci` only**. A key that was used once, or has passed its 90 days, can't be used again, so I make a fresh one for every rebuild. I store it, without pasting it anywhere else:
@@ -72,7 +72,7 @@ Ansible's inventory reaches `bookorbit` through `~/.ssh/config`, which points at
    task tf:plan  DIR=01-oci-compute     # expect one in-place change: the SSH rule goes
    task tf:apply DIR=01-oci-compute
    ```
-5. The new node has a new tailnet IP. In `tailscale-policy.sops.yaml` I update every `hosts` entry pinned to the old OCI IPs (FND-01 §8), then paste the policy into the console. I check that the policy tests pass.
+5. The new node has a new tailnet IP. In `tailscale-policy.sops.yaml` I update every `hosts` entry pinned to the old OCI IPs, then paste the policy into the console. I check that the policy tests pass.
 
 The host joins with `tag:oci` only. A hand-joined host may carry extra tags, and the live one carries `tag:funnel` and `tag:oci-probe`. Neither is needed on the host: the DMZ's probes go to the tsdproxy service nodes, and Funnel is being closed.
 
@@ -100,7 +100,7 @@ sudo chown -R 1000:1000 /home/ubuntu/n8n/data && sudo chmod 755 /home/ubuntu/n8n
 
 ### Step 3.5b: If the Whole Tenancy Is Gone: Restore from Backblaze B2
 
-Every night, after the restic run, `run-backup.sh` copies the newest snapshot to its own Object Lock bucket, `aether-oci-offsite-lock`, as one file: `oci/<YYYY-MM-DD>.tar.zst.age` (tar, zstd, then age to the DR recipient; heartbeat "OCI-02 OCI backup → B2" in DMZ Kuma). Each copy is locked 3 days and deleted on day 4, so about four nights are kept: this copy is for losing the tenancy, and the restic repo keeps the history. Prometheus and Loki data are left out, so metric and log history restarts after this restore. The cloud host can only write the bucket. Reading needs the restore key and the DR identity, which are only in SOPS. **Check the Backblaze daily download cap first** (Caps & Alerts): a copy is about 1 GB, and a cap at the free 1 GB stops the download partway (INC-2026-018).
+Every night, after the restic run, `run-backup.sh` copies the newest snapshot to its own Object Lock bucket, `aether-oci-offsite-lock`, as one file: `oci/<YYYY-MM-DD>.tar.zst.age` (tar, zstd, then age to the DR recipient; heartbeat "OCI backup → B2" in DMZ Kuma). Each copy is locked 3 days and deleted on day 4, so about four nights are kept: this copy is for losing the tenancy, and the restic repo keeps the history. Prometheus and Loki data are left out, so metric and log history restarts after this restore. The cloud host can only write the bucket. Reading needs the restore key and the DR identity, which are only in SOPS. **Check the Backblaze daily download cap first** (Caps & Alerts): a copy is about 1 GB, and a cap at the free 1 GB stops the download partway (INC-2026-018).
 
 ```bash
 # From my workstation, at the repo root. rclone v1.75.2 (Debian's older rclone can't use these keys).
@@ -164,7 +164,7 @@ Then I open `https://kestra.tail7067ab.ts.net/` and check that the flows and exe
 
 ### Step 3.8: Fix tsdproxy Node Tags
 
-When tsdproxy service nodes are recreated, their tags reset (INC-2026-003, M11), and the DMZ can't see untagged nodes. Until FND-03 makes tsdproxy set the tags itself, I re-apply the probe tags in the console. Then I check from the DMZ that only the probe targets answer, and nothing else (the negative check from INC-2026-003).
+When tsdproxy service nodes are recreated, their tags used to reset (INC-2026-003), and the DMZ can't see untagged nodes. The proxy now sets the tags from its own configuration; if a node still comes up untagged, I re-apply the probe tags in the console. Then I check from the DMZ that only the probe targets answer, and nothing else (the negative check from INC-2026-003).
 
 ---
 

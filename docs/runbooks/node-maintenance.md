@@ -1,7 +1,7 @@
 # Node maintenance: drain, reboot, resize
 
 > **Scope:** Taking one K3s node, or the whole hypervisor, out of service for planned work (kernel updates, a VM resize, a RAM or hardware change) and bringing it back.
-> **Status:** Operational runbook (Phase 05 task 5.38), written 19 Nov 2026 against the 12 GB hypervisor. Rerun the capacity check in section 2 after the RAM upgrade (5.57); the procedure stays the same.
+> **Status:** Operational runbook, written 19 Nov 2026 against the 12 GB hypervisor. Rerun the capacity check in section 2 after the RAM upgrade; the procedure stays the same.
 > **Related:** [ArgoCD recovery](argocd-recovery.md) · [DR Scenario 03: Homelab Hardware Failure](../disaster-recovery/scenarios/03-homelab-hardware.md) · [ADR-022: app data and backups](../adr/022-app-data-storage-and-backups.md)
 
 ## 1. The cluster in one table
@@ -63,7 +63,7 @@ The drain cordons the node, so evicted pods can't come back to it. Then do the w
 | Work | How |
 | --- | --- |
 | Reboot for updates | `ssh -i ~/.ssh/homelab owl@192.168.1.53 'sudo apt-get update && sudo apt-get -y full-upgrade && sudo reboot'` |
-| Resize the VM (5.57) | Change `memory` for that node in [`03-homelab/main.tf`](../../infrastructure/terraform/03-homelab/main.tf), then `task tf:apply DIR=03-homelab -- -target='proxmox_virtual_environment_vm.k3s_nodes["k3s-worker-02"]'`. The Proxmox provider reboots the VM to apply it. Owner runs the apply |
+| Resize the VM | Change `memory` for that node in [`03-homelab/main.tf`](../../infrastructure/terraform/03-homelab/main.tf), then `task tf:apply DIR=03-homelab -- -target='proxmox_virtual_environment_vm.k3s_nodes["k3s-worker-02"]'`. The Proxmox provider reboots the VM to apply it. Owner runs the apply |
 | Hardware on the host | See section 7: the whole cluster goes down |
 
 Bring it back:
@@ -101,7 +101,7 @@ kubectl drain k3s-control-01 --ignore-daemonsets --delete-emptydir-data --timeou
 
 This moves CoreDNS, metrics-server and local-path-provisioner to the workers. Then reboot or resize as in section 4. While it is down, `kubectl` and ArgoCD fail and nothing new is scheduled, but every running app keeps serving. K3s is back within about a minute of the VM booting; then `kubectl uncordon k3s-control-01`. CoreDNS stays on the worker until its next restart, which is harmless.
 
-etcd lives only here. Its snapshot is taken once a day at 02:00 and copied offsite (DR-04), so for anything riskier than a reboot, such as a resize or an upgrade, take a fresh one first: `ssh -i ~/.ssh/homelab owl@192.168.1.51 'sudo k3s etcd-snapshot save --name pre-maintenance'`.
+etcd lives only here. Its snapshot is taken once a day at 02:00 and copied offsite, so for anything riskier than a reboot, such as a resize or an upgrade, take a fresh one first: `ssh -i ~/.ssh/homelab owl@192.168.1.51 'sudo k3s etcd-snapshot save --name pre-maintenance'`.
 
 ## 7. The hypervisor (all of it)
 

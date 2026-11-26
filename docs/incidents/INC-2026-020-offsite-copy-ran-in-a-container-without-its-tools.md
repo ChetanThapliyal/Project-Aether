@@ -14,7 +14,7 @@
 
 ## Summary
 
-On 20 November the cloud host's nightly backup gained an offsite step (task 5.61): after the restic backup, a script restores the newest snapshot, compresses and encrypts it, and uploads it to the Object Lock bucket. The script needs `rclone`, `zstd` and `age`. I tested it by hand on the host, where all three are installed. The nightly run does not happen on the host: Kestra runs `run-backup.sh` inside a small Alpine container that installs only what the original backup needed. From the next night the offsite step exited with "command not found" (exit 127). The restic backup and its own heartbeat had already finished by then, so the local backup stayed healthy, but the run failed after three retries every night, no offsite copy was made, and the offsite heartbeat stopped. The flow now installs the missing tools and mounts the host's pinned `rclone`, and the script checks its tools first and says which one is missing.
+On 20 November the cloud host's nightly backup gained an offsite step: after the restic backup, a script restores the newest snapshot, compresses and encrypts it, and uploads it to the Object Lock bucket. The script needs `rclone`, `zstd` and `age`. I tested it by hand on the host, where all three are installed. The nightly run does not happen on the host: Kestra runs `run-backup.sh` inside a small Alpine container that installs only what the original backup needed. From the next night the offsite step exited with "command not found" (exit 127). The restic backup and its own heartbeat had already finished by then, so the local backup stayed healthy, but the run failed after three retries every night, no offsite copy was made, and the offsite heartbeat stopped. The flow now installs the missing tools and mounts the host's pinned `rclone`, and the script checks its tools first and says which one is missing.
 
 ## Impact
 
@@ -28,7 +28,7 @@ All times UTC.
 |------|-------|
 | 2026-11-20 03:00 | Last nightly run before the change: succeeds |
 | 2026-11-20 10:52 | First offsite copy into its own bucket, run by hand on the host (INC-2026-018 had just fixed the upload) |
-| 2026-11-20 13:57 | The offsite step is added to the end of `run-backup.sh` (5.61) |
+| 2026-11-20 13:57 | The offsite step is added to the end of `run-backup.sh` |
 | 2026-11-21 03:00 | First nightly run with the step: the restic backup and its heartbeat succeed; the offsite step fails with `rclone: command not found`, then `zstd` and `age` |
 | 2026-11-21 03:23 | Third retry fails; Kestra sends its failure notice to Telegram |
 | 2026-11-22 03:23 | Same failure again; no cause in the notice |

@@ -4,7 +4,7 @@
 **Target RTO:** not set. None of these has been drilled; the steps below are worked out from the configuration, not timed
 **Target RPO:** ≤ 24 h for app data (the nightly offsite copies); 0 for anything in Git
 
-> **Scope:** the four losses no other scenario covers: a whole GCP project, a whole OCI tenancy, my workstation, or the GitHub repository. Losing a single machine is Scenarios 02 (cloud host), 03 (homelab) and 05 (edge VM); losing the age key alone is Scenario 04. Written 20 Nov 2026 (Phase 05 task 5.62).
+> **Scope:** the four losses no other scenario covers: a whole GCP project, a whole OCI tenancy, my workstation, or the GitHub repository. Losing a single machine is Scenarios 02 (cloud host), 03 (homelab) and 05 (edge VM); losing the age key alone is Scenario 04. Written 20 Nov 2026.
 
 What makes these survivable is that every one of the four places can be rebuilt from the other three plus two things kept outside all of them: **the SOPS age key** (workstation, cluster secret and password manager) and **the offsite bucket on Backblaze B2** (a fifth provider, Object-Locked for 30 days).
 
@@ -27,7 +27,7 @@ Everything Google-side is one project, `gcs-oci-homelab-controlplane`:
 **Recovery:**
 1. **Secrets first.** Decrypt with age only: `SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d <file>` works without KMS ([Scenario 04](04-age-key-loss.md) in reverse).
 2. **New project and state bucket** with the `GCS-CP` repo: `bootstrap/` creates the bucket, `gcp/` the KMS key ring and CI's identity pool. Set the new project ID in each root's tfvars and in `.sops.yaml`.
-3. **Re-encrypt for the new KMS key:** update the `gcp_kms` lines in `.sops.yaml`, then `sops updatekeys -y` on every encrypted file (the 5.40 pre-commit check verifies the recipients).
+3. **Re-encrypt for the new KMS key:** update the `gcp_kms` lines in `.sops.yaml`, then `sops updatekeys -y` on every encrypted file (the pre-commit recipients check verifies the recipients).
 4. **Rebuild the state, root by root.** The OCI instance, the Proxmox VMs and the B2 buckets still exist, so **import** them rather than create them: `terraform import` each resource `terraform plan` wants to add, until plan shows no changes. Never apply a plan that recreates the B2 buckets (`prevent_destroy` stops it) or the Proxmox VMs.
 5. **The edge VM:** [Scenario 05](05-gcp-dmz-rebuild.md) in the new project. Skip its Kuma restore step: the backups went with the project. `task ansible:dmz` re-creates every monitor, push monitor and the status page from Git; monitor history and uptime percentages start again from zero.
 6. **CI:** update the WIF provider and service account names in `.github/workflows/terraform-drift.yml` from the `GCS-CP` outputs, and run the drift workflow once by hand.

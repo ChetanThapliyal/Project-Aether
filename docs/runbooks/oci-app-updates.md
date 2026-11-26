@@ -9,7 +9,7 @@ How an update reaches an app on the cloud host, what is automatic, and how to do
 3. **You approve by merging the PR in GitHub.** Nothing on the cloud host can merge: its GitHub token is read-only, so a compromised host cannot push to `main` (which ArgoCD deploys to the cluster). See ADR-013 and ADR-017.
 4. **Kestra `oci-deploy`** (every 5 minutes) compares each allowlisted app's compose file on `main` with the deployed one. If only `image:` lines differ, it sends *Deploy now / Skip* buttons. Any other difference gets a notice without buttons: deploy it with Ansible (`task ansible:oci:apps -- --tags <app>`).
 5. **Tapping Deploy now** (only from the operator's own chat, and only if the compose file still matches the one in the message): the flow dumps the app's database, pulls the new image, recreates the container and waits up to 3 minutes for it to be healthy. If it isn't, the previous compose file is restored and the old version started again.
-6. A message reports the result. A failed deploy fails the run, so the **OCI-04** heartbeat is withheld and Uptime Kuma pages. **OCI-03** covers the PR notifier.
+6. A message reports the result. A failed deploy fails the run, so the deploy flow's heartbeat is withheld and Uptime Kuma pages. The PR notifier has its own heartbeat.
 
 ## What is on the allowlist
 

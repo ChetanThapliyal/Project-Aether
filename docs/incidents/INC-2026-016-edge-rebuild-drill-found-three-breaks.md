@@ -14,7 +14,7 @@
 
 ## Summary
 
-Phase 05 task 5.53 timed the edge VM's documented rebuild (DR Scenario 05) for the first time: delete the VM, recreate it with Terraform, deploy it with Ansible, restore Uptime Kuma. The target is 15 minutes; it took 48. Three things in the recovery path were broken, and none of them could have been seen without actually rebuilding: the mesh policy didn't let the enrollment credential give the VM its tag, a script crashed on a VM with no Kuma data yet, and every heartbeat sender was configured with the old VM's mesh address. Each was worked around during the drill and fixed the same day. The first also blocked a rebuilt cluster node from joining, which no drill had covered.
+Phase 05 timed the edge VM's documented rebuild (DR Scenario 05) for the first time: delete the VM, recreate it with Terraform, deploy it with Ansible, restore Uptime Kuma. The target is 15 minutes; it took 48. Three things in the recovery path were broken, and none of them could have been seen without actually rebuilding: the mesh policy didn't let the enrollment credential give the VM its tag, a script crashed on a VM with no Kuma data yet, and every heartbeat sender was configured with the old VM's mesh address. Each was worked around during the drill and fixed the same day. The first also blocked a rebuilt cluster node from joining, which no drill had covered.
 
 ## Impact
 
@@ -45,8 +45,8 @@ All times UTC, 19 Nov 2026.
 
 Three independent breaks, each sitting in a step that only a real rebuild runs:
 
-1. **The mesh policy didn't let the enrollment client tag a machine.** The edge VM and the cluster nodes join with one OAuth client, "Project Aether Node Enrollment", which holds three tags: `tag:gcp-dmz`, `tag:oci` and `tag:k3s`. Each machine asks for only one of them. Tailscale lets a client mint a key for a *subset* of its tags only if one of its tags owns each requested tag; an exact match of the full set needs no ownership. `tag:gcp-dmz` and `tag:k3s` were owned by the admins only, so every single-tag request was refused. The client was set up on 11 Oct, when the nodes joined for the first time. The same subset rule was found and fixed for the cloud host's tsdproxy client in FND-03 (11 Nov), but only for that client's tags: nobody checked whether another client relied on the same rule, because this one is used only when a machine is created. A test container reproduced the refusal for both tags before the fix.
-2. **A deploy step assumed Kuma's database exists.** `kuma-uptime.py` (FND-23) reads Kuma's SQLite file for the status page's backup ages, and the deploy starts it once. On a fresh VM the file appears only after the restore, which the scenario runs after the deploy. The script raised `FileNotFoundError`, and the deploy stopped before its last tasks.
+1. **The mesh policy didn't let the enrollment client tag a machine.** The edge VM and the cluster nodes join with one OAuth client, "Project Aether Node Enrollment", which holds three tags: `tag:gcp-dmz`, `tag:oci` and `tag:k3s`. Each machine asks for only one of them. Tailscale lets a client mint a key for a *subset* of its tags only if one of its tags owns each requested tag; an exact match of the full set needs no ownership. `tag:gcp-dmz` and `tag:k3s` were owned by the admins only, so every single-tag request was refused. The client was set up on 11 Oct, when the nodes joined for the first time. The same subset rule was found and fixed for the cloud host's tsdproxy client on 11 Nov, but only for that client's tags: nobody checked whether another client relied on the same rule, because this one is used only when a machine is created. A test container reproduced the refusal for both tags before the fix.
+2. **A deploy step assumed Kuma's database exists.** `kuma-uptime.py` reads Kuma's SQLite file for the status page's backup ages, and the deploy starts it once. On a fresh VM the file appears only after the restore, which the scenario runs after the deploy. The script raised `FileNotFoundError`, and the deploy stopped before its last tasks.
 3. **Heartbeat senders were pinned to the VM's mesh address.** The shared secret `kuma_push_base` held the VM's mesh IP, rendered into Alertmanager, Kestra and four hypervisor scripts. A new VM gets a new address. The scenario said to check the mesh policy for the old IP, but the IP was also inside an encrypted secret, which a plain-text search doesn't see.
 
 ## Contributing factors
@@ -69,7 +69,7 @@ Tailscale lets an admin give a machine a chosen address, so break 3 was fixed in
 
 - **Break 2:** `infrastructure/ansible/templates/kuma-uptime.py` skips a run when Kuma's database is missing or empty, instead of crashing. Deployed in the rerun.
 - **Break 3:** `kuma_push_base` now uses the VM's mesh name, `aether-gcp-dmz.<tailnet>.ts.net`, not its address. The name was checked to resolve and connect from every sender: the hypervisor, the cloud host and the Alertmanager and Kestra containers. Redeployed: OCI monitoring, Kestra, and the hypervisor's four backup playbooks.
-- **Break 1:** in the mesh policy (`infrastructure/secrets/tailscale-policy.sops.yaml`), `tag:gcp-dmz` and `tag:k3s` now own themselves, as the OCI tags have since FND-03. Self-ownership only lets a holder of the tag mint that same tag. Applied in the admin console at about 16:30. Verified with an ephemeral test node in a container on the workstation, joining with the real enrollment secret: both tags were refused before the change and both joined after it. The test nodes logged out and were removed.
+- **Break 1:** in the mesh policy (`infrastructure/secrets/tailscale-policy.sops.yaml`), `tag:gcp-dmz` and `tag:k3s` now own themselves, as the cloud host's tags have since 11 Nov. Self-ownership only lets a holder of the tag mint that same tag. Applied in the admin console at about 16:30. Verified with an ephemeral test node in a container on the workstation, joining with the real enrollment secret: both tags were refused before the change and both joined after it. The test nodes logged out and were removed.
 - **DR Scenario 05** now has the steps that were missing: the join fallback, the restore before the deploy's last stage, and the address check including encrypted secrets.
 
 ## Guardrails added
@@ -82,5 +82,5 @@ Tailscale lets an admin give a machine a chosen address, so break 3 was fixed in
 ## Lessons
 
 - A drill that keeps the machine tests the software, not the recovery. Identity, credentials and addresses only break when the machine is really replaced.
-- A credential used only at creation time rots silently. When a fix changes how a rule works for one credential (FND-03), check every other credential that relies on the same rule, including the ones nothing uses day to day.
+- A credential used only at creation time rots silently. When a fix changes how a rule works for one credential, check every other credential that relies on the same rule, including the ones nothing uses day to day.
 - Search for an address in the decrypted secrets too, not just in plain text.

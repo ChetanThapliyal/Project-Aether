@@ -47,11 +47,11 @@ The same mechanism made the second drain slow: Linkwarden (priority `apps`) evic
 
 ## Contributing factors
 
-- **Priority classes were set for the apps (4.19) but never for the cluster's own agents.** The design covered who gets the room between apps, not whether the node's own agents could be pushed out.
+- **Priority classes were set for the apps but never for the cluster's own agents.** The design covered who gets the room between apps, not whether the node's own agents could be pushed out.
 - **The drain check left DaemonSet pods out of what a moving pod can evict.** `scripts/drain-check.py` does model preemption on the receiving node, but it skipped DaemonSet pods as candidates. So it predicted Paperless would stay Pending, 8 MiB short on worker-01, when the scheduler evicted the speaker to fit it. The scheduler treats a DaemonSet pod like any other lower-priority pod; the difference is that it can't move afterwards, only wait on its node. (Spotted by the blog agent, from reading the script.)
 - **Pods don't move back after an uncordon.** The runbook said so and called it fine; with two full workers it isn't.
 - **The playbook's one-node commands had never been run.** The runbook documented `--limit k3s-worker-02`, which failed.
-- **The hypervisor is at its memory ceiling.** The drains made every VM touch its full memory, and the host has stayed at about 440 MB available since (`ProxmoxMemoryCritical`). The RAM upgrade (5.57) is the fix.
+- **The hypervisor is at its memory ceiling.** The drains made every VM touch its full memory, and the host has stayed at about 440 MB available since (`ProxmoxMemoryCritical`). The planned RAM upgrade is the fix.
 
 ## What went well
 

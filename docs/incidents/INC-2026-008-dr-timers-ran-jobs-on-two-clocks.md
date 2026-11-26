@@ -34,7 +34,7 @@ All times UTC. IST is UTC+5:30.
 |------|-------|
 | 2026-11-02 | The three DR stages are deployed with Ansible. Each timer has `Requires=` on its service, and the schedules are 02:30, 03:00 and 03:30 UTC. While the B2 stage is being set up, its timer start and the playbook's initial run collide on the restic lock |
 | 2026-11-02 | The Phase 03 review lists `Requires=` on the timers (N1), the exit 0 on empty input (N2) and the clock mismatch, and links the B2 collision to N1 |
-| 2026-11-05 | While the DR storage is moved to the ZFS pool (HARD-23), the timers are restarted. `Requires=` starts the restic and B2 jobs alongside the playbook's own runs. The timer-started runs fail with restic exit 11 (repository locked), and the playbook's runs succeed |
+| 2026-11-05 | While the DR storage is moved to the ZFS pool, the timers are restarted. `Requires=` starts the restic and B2 jobs alongside the playbook's own runs. The timer-started runs fail with restic exit 11 (repository locked), and the playbook's runs succeed |
 | 2026-11-05 15:55 | Fix applied (`778c9d0`): no `Requires=`, every timer on `Asia/Kolkata`, one shared `flock` for all stages, empty input fails. Checked: restarting a timer doesn't start its job, and a restic run queued at 15:57:51 waits on the held lock, then succeeds |
 | 2026-11-06 21:00 to 22:00 | First unattended night on the new schedule. The timers fire in order at 02:30, 03:00 and 03:30 IST. The pull fails for an unrelated reason ([INC-2026-010](INC-2026-010-host-keys-regenerated-on-reboot.md)), and the restic and B2 stages succeed on the previous day's mirror |
 | 2026-11-08 | Heartbeats and a snapshot-age check are added to the stages (`d0b8866`) to close the gap the 6 Nov night exposed |
@@ -74,7 +74,7 @@ Commit `778c9d0`, in the three DR playbooks under `infrastructure/ansible/playbo
 
 ## Guardrails added
 
-- Each stage pushes a heartbeat to the DMZ observer only after it succeeds, so a failed or missing run pages (HARD-06).
+- Each stage pushes a heartbeat to the DMZ observer only after it succeeds, so a failed or missing run pages.
 - The restic and B2 stages fail when the newest snapshot is more than 26 hours old, which covers what the empty-input check misses: a stale mirror (added after the 6 Nov night).
 - The playbook comment on each timer explains why `Requires=` must stay out.
 

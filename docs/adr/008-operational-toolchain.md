@@ -84,13 +84,13 @@ ADR-008: Operational Toolchain and Pre-commit Hooks
 - **Related ADRs:** ADR-005 (Monorepo Structure), ADR-007 (Secrets Management), ADR-011 (Terraform Remote Backend), ADR-014 (Infrastructure Environment Isolation), ADR-015 (CI Validation and Terraform Drift Pipeline).
 - **Review Conditions:** Review when Kubernetes manifests come under Taskfile management, when a second operator joins the project, or when ADR-015 lands and changes where enforcement occurs.
 
-### Addendum: Kubernetes Tasks and a Pinned Toolchain (2026-11-16, GOP-02)
+### Addendum: Kubernetes Tasks and a Pinned Toolchain (2026-11-16)
 "Kubernetes tasks are intentionally absent until Phase 03" no longer holds, and the open question above is answered. The Taskfile now covers the cluster and its checks:
 
 - **ArgoCD and secrets (Phase 02):** `k8s:bootstrap-argocd` installs or upgrades ArgoCD with Helm and the homelab values; `k8s:sops-secret` puts the SOPS Age key into the `argocd` namespace for KSOPS; `argocd:password` and `argocd:port-forward` cover first login and local access.
-- **Guards (Phase 03.05):** `argocd:drift` fails when the live ArgoCD release differs from Git (values or chart version); `lint:helm-values` fails on Helm values keys the pinned chart doesn't define; `lint:tracked-refs` fails when Ansible references a file Git doesn't track. CI runs the two `lint` checks on every push ([ADR-015](015-ci-validation-pipeline.md)).
-- **Drills (Phase 01.05):** `dr:drill:oci` restores one app from the cloud host's backup into a throwaway database and compares it with the live one.
+- **Guards (hardening pass):** `argocd:drift` fails when the live ArgoCD release differs from Git (values or chart version); `lint:helm-values` fails on Helm values keys the pinned chart doesn't define; `lint:tracked-refs` fails when Ansible references a file Git doesn't track. CI runs the two `lint` checks on every push ([ADR-015](015-ci-validation-pipeline.md)).
+- **Drills (hardening pass):** `dr:drill:oci` restores one app from the cloud host's backup into a throwaway database and compares it with the live one.
 
 Application deploys still go through ArgoCD, not the Taskfile: the tasks bootstrap and check the controller, they don't sync apps.
 
-The toolchain is pinned in `mise.toml` (01.05 FND-07): Terraform, SOPS, age, kubeconform, Helm, kubectl (matched to the cluster's Kubernetes version), Task and restic. CI installs the same versions from that file, so local and CI runs use identical tools.
+The toolchain is pinned in `mise.toml`: Terraform, SOPS, age, kubeconform, Helm, kubectl (matched to the cluster's Kubernetes version), Task and restic. CI installs the same versions from that file, so local and CI runs use identical tools.

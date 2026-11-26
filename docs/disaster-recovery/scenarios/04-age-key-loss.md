@@ -103,7 +103,7 @@ kubectl -n argocd rollout restart deployment argocd-repo-server
 
 ## 4. Post-Recovery Verification
 
-1. **Both recipients work** (the dual-recipient check from FND-16):
+1. **Both recipients work** (the dual-recipient check from the hardening sign-off):
    ```bash
    F=kubernetes/platform/smoke-test/secret.sops.yaml; E=$(mktemp -d)
    env -u SOPS_AGE_KEY -u SOPS_AGE_KEY_FILE XDG_CONFIG_HOME=$E HOME=$E \

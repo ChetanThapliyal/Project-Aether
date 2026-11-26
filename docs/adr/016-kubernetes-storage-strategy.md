@@ -48,19 +48,19 @@ ADR-016: Kubernetes Storage Strategy & In-Cluster Storage Engine Ruling
 
 ---
 
-### Addendum: Two Facts Stated Once (2026-11-13, HARD-21)
+### Addendum: Two Facts Stated Once (2026-11-13)
 - **Where `local-path` volumes live.** The provisioner's default path on every K3s node is `/var/lib/rancher/k3s/storage` (checked in the `local-path-config` ConfigMap and on a node, 2026-11-13). Earlier notes said `/opt/local-path-provisioner`; that is the upstream default, not what K3s uses. Persistent data sits on each VM's boot disk, so it is lost with the node: the Phase 04 app-data backup design has to cover it.
 - **The OCI host's shape.** `bookorbit` is an Always Free `VM.Standard.A1.Flex` instance with **2 OCPU, 12 GB RAM and a 200 GB boot volume** (Terraform `01-oci-compute` and the live host agree, 2026-11-13). Other documents refer here instead of repeating the numbers; earlier copies that said 100 GB or 24 GB were wrong.
 
-### Addendum: NFS for App Files, Not Only Media (2026-11-17, Phase 04 task 4.17)
+### Addendum: NFS for App Files, Not Only Media (2026-11-17)
 Decision 3 reserved the ZFS pool's NFS export for media. As built, it holds **app files** for every Phase 04 app (documents, archives, blobs, render output), because those are the things that must survive a worker loss and sit on the disk the backup chain already reads. Media stays on the OCI host by the 17 Nov placement decision. Databases still go on `local-path`, as decision 2 says.
 
 - **Host side** (`proxmox-nfs.yml`): dataset `aether-pool/k8s-apps` (lz4, `atime=off`, a 200 GB quota so it can never crowd out the etcd backup datasets). It is exported to the three K3s node addresses only, not the subnet the Security Considerations above mention. The server offers NFSv4.1 and 4.2 only. `no_root_squash` is set because the CSI driver creates and owns one directory per volume as root; each pod mounts only its own directory.
-- **Snapshots:** sanoid on the hypervisor, hourly kept 48 and daily kept 14, for the whole dataset. Restoring a file is a copy out of `.zfs/snapshot/<name>/<namespace>/<pvc>/`. Snapshots live on the same disk, so they cover mistakes, not disk loss; offsite copies of app data are task 4.15.
+- **Snapshots:** sanoid on the hypervisor, hourly kept 48 and daily kept 14, for the whole dataset. Restoring a file is a copy out of `.zfs/snapshot/<name>/<namespace>/<pvc>/`. Snapshots live on the same disk, so they cover mistakes, not disk loss; offsite copies of app data are described in [ADR-022](022-app-data-storage-and-backups.md).
 - **Cluster side:** `csi-driver-nfs` (controller on the platform worker, node plugin on both workers and not on the control plane, snapshot sidecar off) and StorageClass `nfs-zfs`. Each claim gets a directory named `<namespace>/<pvc-name>`, so the tree on the host reads like the cluster. `onDelete: retain` keeps that directory when a claim is deleted, and a claim recreated with the same name picks the data up again, which is what a rebuild from Git does.
 - **Verified 2026-11-17:** a non-root pod (uid 1000, `fsGroup` 1000, all capabilities dropped) wrote through a `ReadWriteMany` claim on one worker. The claim was deleted and recreated, and a pod on the other worker read the same file. A file was overwritten and then restored from a ZFS snapshot. A second playbook run changed nothing.
 - **Trade-off accepted:** the hypervisor is now a dependency of every app that keeps files. If the Proxmox host is down, the VMs are down too, so this adds no new failure that was not already there.
 
-### Addendum: Diagram, cluster topology (2026-11-19, Phase 05 task 5.16)
+### Addendum: Diagram, cluster topology (2026-11-19)
 
 <img src="../diagrams/flow-topology.svg" alt="Cluster topology: the databases on local-path volumes pinned to worker 1, app files on NFS from the hypervisor's ZFS pool, and what runs on each node." width="100%">

@@ -28,7 +28,7 @@
 
 ### What Lives Only on the VM
 
-`/opt/dmz/uptime-kuma/` holds every DMZ monitor, its history, and the push tokens other hosts report to (among them "OCI Nightly Restic Backup"). `/opt/dmz/.env` holds the Hawser and Cloudflare tunnel tokens, which I recreate from SOPS and Cloudflare. Kuma is copied every night at 01:30 UTC to `gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/` (FND-17), so I lose at most a day of monitor history. If the disk still works, a fresh copy is better than last night's, so I take one first:
+`/opt/dmz/uptime-kuma/` holds every DMZ monitor, its history, and the push tokens other hosts report to (among them "OCI Nightly Restic Backup"). `/opt/dmz/.env` holds the Hawser and Cloudflare tunnel tokens, which I recreate from SOPS and Cloudflare. Kuma is copied every night at 01:30 UTC to `gs://gcs-oci-homelab-controlplane-dmz-backups/kuma/`, so I lose at most a day of monitor history. If the disk still works, a fresh copy is better than last night's, so I take one first:
 
 ```bash
 gcloud compute ssh owl@aether-gcp-dmz --zone=us-central1-a --tunnel-through-iap --ssh-key-file ~/.ssh/homelab \
@@ -97,7 +97,7 @@ task ansible:dmz
 The playbook:
 1. Adds a Docker drop-in that waits for `tailscaled`.
 2. Creates a 2 GB swapfile (the e2-micro has 1 GB RAM).
-3. Deploys Uptime Kuma (3001), Glance (3000) and the node exporter (9100, host network), from images pinned by tag and digest. A fresh VM pulls them on first run (`pull: missing`; every image is on Docker Hub, which works over IPv6). There is no Docker management agent on the DMZ since FND-22.
+3. Deploys Uptime Kuma (3001), Glance (3000) and the node exporter (9100, host network), from images pinned by tag and digest. A fresh VM pulls them on first run (`pull: missing`; every image is on Docker Hub, which works over IPv6). There is no Docker management agent on the DMZ any more.
 4. Starts `cloudflared` only with the compose profile `tunnel` and a `CLOUDFLARE_TUNNEL_TOKEN`.
 5. Provisions the Telegram notification channel in Kuma.
 
@@ -136,12 +136,12 @@ If I didn't restore the old address in §3.2, the new VM has a new tailnet IP. I
    ```bash
    ssh owl@aether-gcp-dmz "sudo docker ps --format '{{.Names}}\t{{.Status}}'"
    ```
-   I expect `uptime-kuma`, `glance`, `node-exporter` and `cloudflared`. No `socket-proxy` (FND-08) and no `hawser` (FND-22).
-3. The public page leaks nothing from the tailnet (HARD-17):
+   I expect `uptime-kuma`, `glance`, `node-exporter` and `cloudflared`. No `socket-proxy` and no `hawser`.
+3. The public page leaks nothing from the tailnet:
    ```bash
    curl -s http://aether-gcp-dmz:3000 | grep -c tail7067ab   # → 0
    ```
-4. Kuma can send alerts: use *Test* on the Telegram notification. If it hangs, the DMZ containers have no internet route out (INC-2026-004 / FND-08).
+4. Kuma can send alerts: use *Test* on the Telegram notification. If it hangs, the DMZ containers have no internet route out (INC-2026-004).
 5. Both Kuma instances (OCI → DMZ, DMZ → OCI) are green again, and the next backup run turns the push monitor UP.
 6. **Negative check** from the DMZ: admin tools on OCI (Dockhand, Grafana, Prometheus, Alertmanager) don't answer.
 
