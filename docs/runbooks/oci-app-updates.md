@@ -4,7 +4,7 @@ How an update reaches an app on the cloud host, what is automatic, and how to do
 
 ## The path
 
-1. **Renovate** opens a pull request when a new image version has been out for 3 days (`renovate.json`; it runs daily before 09:00 IST). Majors and database images wait for approval on the Dependency Dashboard issue.
+1. **Renovate** opens a pull request when a new image version has been out for 3 days (`renovate.json`; no schedule window, so a PR opens on Renovate's next run, at most 5 open at a time). Majors and database images wait for approval on the Dependency Dashboard issue.
 2. **Kestra `renovate-pr-notify`** (hourly) sends a Telegram message with an *Open pull request* button for each new or retitled Renovate PR.
 3. **You approve by merging the PR in GitHub.** Nothing on the cloud host can merge: its GitHub token is read-only, so a compromised host cannot push to `main` (which ArgoCD deploys to the cluster). See ADR-013 and ADR-017.
 4. **Kestra `oci-deploy`** (every 5 minutes) compares each allowlisted app's compose file on `main` with the deployed one. If only `image:` lines differ, it sends *Deploy now / Skip* buttons. Any other difference gets a notice without buttons: deploy it with Ansible (`task ansible:oci:apps -- --tags <app>`).

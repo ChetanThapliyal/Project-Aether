@@ -36,9 +36,6 @@
     ]
   },
   "timezone": "Asia/Kolkata",
-  "schedule": [
-    "before 9am"
-  ],
   "prConcurrentLimit": 5,
   "labels": [
     "dependencies"
