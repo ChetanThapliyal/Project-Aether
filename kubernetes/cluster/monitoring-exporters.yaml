@@ -62,7 +62,7 @@ spec:
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-state-metrics
-    targetRevision: 5.27.0
+    targetRevision: 5.37.0
     helm:
       valuesObject:
         hostNetwork: true
