@@ -1,6 +1,6 @@
 services:
   kestra:
-    image: kestra/kestra:v2.0.12@sha256:b521aff2847161c283450d3c224523b42ea97447d86bde9519576c393d914b76
+    image: kestra/kestra:v2.0.13@sha256:9b7c119da466df1547f58645466b7f4ac20ca97f412acc74adf9a5580be15f67
     container_name: kestra
     restart: unless-stopped
     pull_policy: always
