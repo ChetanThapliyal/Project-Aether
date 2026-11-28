@@ -4,7 +4,7 @@ services:
   app:
     container_name: bookorbit-app
     # Pinned here, not in SOPS, so Renovate can open update PRs for it (the image is public).
-    image: ghcr.io/bookorbit/bookorbit:3.9.0@sha256:79cd9c66c990a82944514e3e82d5be5987f21eda96cb37a378ed1484043716fc
+    image: ghcr.io/bookorbit/bookorbit:3.10.0@sha256:507a84c08c100244c27bce68ce59670da5dc8c3bc9054dd4aea3630977c42885
     restart: unless-stopped
     init: true
     env_file:
