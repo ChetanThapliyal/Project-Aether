@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Builds docs/diagrams/flow-gitops.svg: how a change is delivered.
 Sources: ADR-007, ADR-009, ADR-004 (webhook addendum), .github/workflows/validate.yml and terraform-drift.yml,
-renovate.json, INC-2026-013. Run:  python3 docs/diagrams/build_flow_gitops.py
+renovate.json, INC-2026-013, automation/kestra/flows/ops/ (renovate-pr-notify, oci-deploy). Run:  python3 docs/diagrams/build_flow_gitops.py
 Role-level only: no IP addresses, hostnames or port numbers (the repo is public)."""
 from pathlib import Path
 
 from aether_style import *
 import aether_style
 
-aether_style.DATE_STAMP = "as of 19 Nov 2026"   # sync waves added (5.17)
+aether_style.DATE_STAMP = "as of 28 Nov 2026"   # dependency updates: auto-merge for cloud host apps, Telegram deploy
 
-W, H = 1600, 960
+W, H = 1900, 960
 PUSH, HOOK, KEYS, DEPS = SKY, TEAL, VIOLET, SNOW
 
 
@@ -18,12 +18,12 @@ def tint(c):
     return blend(c, BG, 0.4)
 
 
-title_row("delivery", "A push is checked, then ArgoCD applies only what changed. Secrets stay encrypted in Git.")
-leg = legend([("a change", PUSH), ("webhook and sync", HOOK), ("secrets", KEYS), ("dependency updates", DEPS)], 1576, 72)
+title_row("delivery", "A push is checked, then ArgoCD applies only what changed. Secrets stay encrypted in Git. App updates ask on Telegram.", 1876)
+leg = legend([("a change", PUSH), ("webhook and sync", HOOK), ("secrets", KEYS), ("dependency updates", DEPS)], 1876, 72)
 
 # ── people and bots ───────────────────────────────────────────────────────────
 op = (40, 110, 220, 64); actor(*op[:3], "Operator", "laptop: Git, SOPS, hands")
-ren = (40, 250, 220, 64); actor(*ren[:3], "Renovate", "weekly pull requests")
+ren = (40, 250, 220, 64); actor(*ren[:3], "Renovate", "a PR once a release is 3 days old")
 
 # ── GitHub ────────────────────────────────────────────────────────────────────
 rect(300, 96, 700, 254, 14, PANEL, LINE, 2)
@@ -45,8 +45,8 @@ D = node(70, 500, 300, 84, "K3s cluster", ["apps and platform,", "kept in sync w
 C = node(456, 500, 300, 84, "Repo server + KSOPS", ["fetches Git, builds manifests,", "decrypts secrets in the sidecar"])
 B = node(842, 500, 300, 84, "Refresh only what changed", ["each app watches its own paths:", "a docs-only push refreshes none"])
 A = node(1228, 500, 300, 84, "ArgoCD server", ["receives the push event"])
-text(640, 630, "Cluster changes deploy when the pull request merges. Cloud host compose", 13, DIM)
-text(640, 649, "files stay manual after a merge: task ansible:oci:apps or :monitoring.", 13, DIM)
+text(640, 630, "Cluster updates wait for you to merge, because here merging is the deploy.", 13, DIM)
+text(640, 649, "Cloud host apps merge themselves and ask on Telegram before they deploy (right).", 13, DIM)
 
 # ── sync waves (5.17): on a fresh cluster or a full resync, each wave must be healthy before the next ──
 label(70, 678, "SYNC WAVES")
@@ -60,6 +60,15 @@ for i, (t, sub) in enumerate(WAVES):
     wave_boxes.append(node(x, 692, 190, 62, t, [sub]))
     if i:
         route([(x - 20, 723), (x, 723)], DIM)
+
+# ── the cloud host: dependency updates for its apps ───────────────────────────
+zone(1600, 96, 276, 844, OCI, "OCI", "cloud host · Kestra")
+kdep = node(1620, 240, 236, 120, "Kestra · deploy", ["every 5 min: is main newer", "than what runs? If only the", "image changed, it asks"])
+phone = (1620, 430, 236, 64); actor(*phone[:3], "Telegram", "Deploy now  ·  Skip")
+app = node(1620, 560, 236, 120, "Cloud host app", ["database dump first, then", "pull, recreate, health check;", "unhealthy: old version back"])
+knote = node(1620, 760, 236, 100, "Kestra · PR notice", ["hourly: a Telegram message", "for each new Renovate PR"])
+text(1748, 892, "Telegram deploy: BookOrbit.", 13, DIM, 400, "middle")
+text(1748, 911, "Other apps: Ansible after the merge.", 13, DIM, 400, "middle")
 
 # ── by hand, and the keys ─────────────────────────────────────────────────────
 rect(40, 800, 380, 140, 14, PANEL, LINE)
@@ -87,6 +96,9 @@ for x, l1, l2 in ((1185, "path", "changed?"), (799, "changed", "apps only"), (41
     text(x, 509, l1, 13, DIM, 400, "middle")
     if l2: text(x, 524, l2, 13, DIM, 400, "middle")
 r_fetch = route([(606, 500), (606, 352)], tint(HOOK), dash="6 5"); text(618, 392, "git fetch, and a poll", 13, DIM); text(618, 410, "every 3 minutes as backup", 13, DIM)
+r_auto = route([(980, 190), (1738, 190), (1738, 240)], tint(DEPS)); text(1590, 162, "auto-merge when CI is green,", 13, DIM, 400, "end"); text(1590, 180, "cloud host apps only", 13, DIM, 400, "end")
+r_ask = route([(1738, 360), (1738, 430)], tint(DEPS)); text(1750, 400, "asks", 13, DIM)
+r_tap = route([(1738, 494), (1738, 560)], tint(DEPS)); text(1750, 532, "tap Deploy", 13, DIM)
 r_key = route([(606, 846), (606, 788), (480, 788), (480, 604), (606, 604), (606, 584)], tint(KEYS)); text(492, 640, "decrypts", 13, DIM)
 
 # ── animation ─────────────────────────────────────────────────────────────────
@@ -94,13 +106,15 @@ a = Anim()
 a.story(PUSH, op, [(r_op, main), (r_mv, val)], leg[0])
 a.story(HOOK, main, [(r_gc, cf), (r_ce, edge), (r_ea, A), (r_ab, B), (r_bc, C), (r_cd, D)], leg[1])
 a.story(KEYS, age, [(r_key, C), (r_cd, D)], leg[2])
-a.story(DEPS, ren, [(r_ren, main), (r_mv, val)], leg[3])
+a.story(DEPS, ren, [(r_ren, main), (r_mv, val), (r_auto, kdep), (r_ask, phone), (r_tap, app)], leg[3])
 layer, style = a.render()
 
-ARIA = ("How a change is delivered in Project Aether. The operator pushes to main on GitHub, and Renovate opens weekly pull requests. GitHub Actions runs pre-commit, "
+ARIA = ("How a change is delivered in Project Aether. The operator pushes to main on GitHub, and Renovate opens a pull request once a release is three days old. GitHub Actions runs pre-commit, "
         "kubeconform, Helm values lint, promtool and a SOPS check. GitHub sends a signed webhook through Cloudflare and the edge VM's outbound tunnel to ArgoCD on the cluster, "
         "which refreshes only the apps whose paths changed. The repo server fetches Git, and KSOPS decrypts secrets inside it with the local age key. "
-        "Secrets are encrypted for two keys, a local age key and a Cloud KMS key. Ansible for hosts and Terraform for machines are applied by hand. "
+        "Secrets are encrypted for two keys, a local age key and a Cloud KMS key. Ansible for hosts and Terraform for machines are applied by hand. Cluster updates wait for the operator to merge. "
+        "Cloud host app updates merge themselves when CI is green; a Kestra flow on the cloud host then asks on Telegram, and on Deploy now it dumps the database, "
+        "pulls the new image, recreates the container and restores the old version if the new one is not healthy. Another Kestra flow sends a Telegram message for each new Renovate pull request. "
         "The root app applies the cluster in sync waves and waits for each to be healthy: namespaces, then operators, then config, controllers, "
         "network policies and ingress, databases, and last the apps.")
 svg = wrap(W, H, ARIA, layer, style)

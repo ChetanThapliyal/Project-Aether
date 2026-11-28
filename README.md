@@ -78,7 +78,7 @@ A push triggers a signed GitHub webhook. It enters through Cloudflare, which adm
 
 KSOPS runs as a sidecar in the ArgoCD repo server and decrypts `*.sops.yaml` files while rendering. The bootstrap itself (the ArgoCD Helm release) is installed by `task k8s:bootstrap-argocd`, and `task argocd:drift` fails when the live release differs from Git. The layout and the rules for adding an app are in [`kubernetes/README.md`](kubernetes/README.md).
 
-<img src="docs/diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys." width="100%">
+<img src="docs/diagrams/flow-gitops.svg" alt="Delivery: a push to main is checked in CI, a signed webhook reaches ArgoCD through Cloudflare and the edge VM's outbound tunnel, ArgoCD applies only the apps whose files changed, and secrets stay encrypted in Git for two keys. Cluster updates wait for a human merge; cloud host app updates merge themselves and ask on Telegram before they deploy." width="100%">
 
 ### Monitoring and automation core
 
@@ -121,7 +121,7 @@ The policy carries tests. Saving a change that would let the DMZ reach an admin 
 - **Secrets** are SOPS-encrypted for two independent recipients, an age key and a Cloud KMS key. Either one alone can decrypt, a pre-commit and CI check requires both on every file, and the rotation is written down ([runbook](docs/runbooks/sops-key-rotation.md)). A pre-commit hook and CI both reject a plaintext secret.
 - **Keyless CI.** GitHub Actions gets short-lived cloud credentials through workload identity federation, only from `main`, with read-only access to infrastructure state. The project holds no long-lived service-account keys, and every deploy of the status page counts them.
 - **Least privilege by default.** The DMZ's service account can create backup objects and cannot read, replace or delete them. Platform namespaces are default-deny, and only the Envoy proxy may reach application pods.
-- **Supply chain.** Container images are pinned by tag and digest. Renovate and Dependabot propose updates; database major versions are never proposed automatically.
+- **Supply chain.** Container images are pinned by tag and digest. Renovate and Dependabot propose updates. Cloud host app updates merge themselves once checks pass and then ask on Telegram before they deploy, with a database dump first and an automatic rollback; cluster updates and database images wait for a human merge, and database major versions are never proposed automatically.
 - **The public page** sends a strict Content-Security-Policy with per-page script hashes, and a deploy fails if the live headers differ from the repository.
 
 <img src="docs/diagrams/flow-secrets.svg" alt="Where secrets go: sixteen files encrypted in Git for an age key and a Cloud KMS key; ArgoCD decrypts with a copy of the age key for the cluster; Ansible decrypts in memory and writes host configuration; Terraform decrypts to a temporary file deleted on exit; the nightly drift check decrypts with KMS through a keyless login." width="100%">

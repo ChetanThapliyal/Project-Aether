@@ -132,10 +132,10 @@ def pill(cx, y, s, color):
     top.append(f'<text x="{cx}" y="{y + 4.5}" font-size="12.5" font-weight="800" fill="{BG}" text-anchor="middle">{escape(s)}</text>')
 
 
-def title_row(name, subtitle):
+def title_row(name, subtitle, x_end=1576):
     text(40, 46, "Project Aether", 30, TEXT, 800)
     text(262, 46, name, 22, ACCENT, 700)
-    text(1576, 46, DATE_STAMP, 14, DIM, 400, "end")
+    text(x_end, 46, DATE_STAMP, 14, DIM, 400, "end")
     text(40, 74, subtitle, 15, DIM)
 
 
